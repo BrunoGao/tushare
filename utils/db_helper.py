@@ -9,36 +9,88 @@ import config
 
 class DatabaseHelper:
     def __init__(self):
-        self.engine = create_engine(f'mysql+pymysql://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}?charset={config.DB_CHARSET}', 
-                                   pool_size=10, max_overflow=20, pool_pre_ping=True, pool_recycle=3600)
-        self.Session = sessionmaker(bind=self.engine)
-        self.logger = logging.getLogger(__name__)
+        try:
+            connection_string = f'mysql+pymysql://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}?charset={config.DB_CHARSET}'
+            self.engine = create_engine(
+                connection_string, 
+                pool_size=10, 
+                max_overflow=20, 
+                pool_pre_ping=True, 
+                pool_recycle=3600,
+                echo=False  # 设置为True可查看SQL语句
+            )
+            self.Session = sessionmaker(bind=self.engine)
+            self.logger = logging.getLogger(__name__)
+            
+            # 测试连接
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            self.logger.info(f"✅ 数据库连接成功: {config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}")
+            
+        except Exception as e:
+            self.logger.error(f"❌ 数据库连接失败: {e}")
+            raise
 
     def create_monthly_table(self, year: int, month: int) -> bool:  # 创建月度分表
         table_name = f"stock_daily_{year:04d}{month:02d}"
-        sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            ts_code VARCHAR(20) NOT NULL,
-            trade_date DATE NOT NULL,
-            open DECIMAL(10,3), high DECIMAL(10,3), low DECIMAL(10,3), close DECIMAL(10,3),
-            pre_close DECIMAL(10,3), `change` DECIMAL(10,3), pct_chg DECIMAL(8,4), change_pct DECIMAL(8,4),
-            vol BIGINT, amount DECIMAL(20,3),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY uk_code_date (ts_code, trade_date),
-            INDEX idx_code (ts_code), INDEX idx_date (trade_date)
-        ) COMMENT='股票日线数据表-{year}年{month}月'"""
+        
+        # 检查表是否存在
         try:
-            with self.engine.connect() as conn: conn.execute(text(sql)); conn.commit()
-            return True
-        except Exception as e: self.logger.error(f"创建表{table_name}失败: {e}"); return False
+            with self.engine.connect() as conn:
+                result = conn.execute(text(f"SHOW TABLES LIKE '{table_name}'"))
+                table_exists = result.fetchone() is not None
+                
+                if table_exists:
+                    # 检查必需字段是否存在
+                    required_fields = ['change', 'pct_chg', 'change_pct']
+                    for field in required_fields:
+                        result = conn.execute(text(f"SHOW COLUMNS FROM {table_name} LIKE '{field}'"))
+                        field_exists = result.fetchone() is not None
+                        
+                        if not field_exists:
+                            # 添加缺失字段
+                            self.logger.info(f"🔧 为表 {table_name} 添加 {field} 字段")
+                            if field == 'change':
+                                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN `{field}` DECIMAL(10,3) AFTER pre_close"))
+                            elif field == 'pct_chg':
+                                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN `{field}` DECIMAL(8,4) AFTER `change`"))
+                            elif field == 'change_pct':
+                                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN `{field}` DECIMAL(8,4) AFTER pct_chg"))
+                            conn.commit()
+                            self.logger.info(f"✅ 表 {table_name} {field} 字段添加成功")
+                    return True
+                else:
+                    # 创建新表
+                    sql = f"""CREATE TABLE {table_name} (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        ts_code VARCHAR(20) NOT NULL,
+                        trade_date DATE NOT NULL,
+                        open DECIMAL(10,3), high DECIMAL(10,3), low DECIMAL(10,3), close DECIMAL(10,3),
+                        pre_close DECIMAL(10,3), `change` DECIMAL(10,3), pct_chg DECIMAL(8,4), change_pct DECIMAL(8,4),
+                        vol BIGINT, amount DECIMAL(20,3),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uk_code_date (ts_code, trade_date),
+                        INDEX idx_code (ts_code), INDEX idx_date (trade_date)
+                    ) COMMENT='股票日线数据表-{year}年{month}月'"""
+                    conn.execute(text(sql))
+                    conn.commit()
+                    self.logger.info(f"📋 表 {table_name} 创建成功")
+                    return True
+                    
+        except Exception as e: 
+            self.logger.error(f"❌ 处理表{table_name}失败: {e}")
+            return False
 
     def insert_batch_data(self, table_name: str, data: List[Dict]) -> int:  # 批量插入数据
         if not data: return 0
         try:
             df = pd.DataFrame(data)
             df.to_sql(table_name, con=self.engine, if_exists='append', index=False, chunksize=config.CHUNK_SIZE, method='multi')
+            self.logger.debug(f"💾 批量插入 {table_name} 成功，{len(data)}条记录")
             return len(data)
-        except Exception as e: self.logger.error(f"批量插入{table_name}失败: {e}"); return 0
+        except Exception as e: 
+            self.logger.error(f"❌ 批量插入{table_name}失败: {e}")
+            return 0
 
     def get_table_name_by_date(self, trade_date: date) -> str:  # 根据日期获取表名
         return f"stock_daily_{trade_date.year:04d}{trade_date.month:02d}"
@@ -52,25 +104,38 @@ class DatabaseHelper:
                 if limit: sql += f" LIMIT {limit}"
                 return pd.read_sql(sql, self.engine, params={'ts_code': ts_code, 'start_date': start_dt, 'end_date': end_dt})
             return pd.DataFrame()
-        except Exception as e: self.logger.error(f"查询数据失败: {e}"); return pd.DataFrame()
+        except Exception as e: 
+            self.logger.error(f"❌ 查询数据失败: {e}")
+            return pd.DataFrame()
 
-    def log_operation(self, module: str, operation: str, status: str, message: str = None, duration: int = None):  # 记录操作日志
+    def get_stock_list(self) -> List[str]:  # 获取股票列表
         try:
             with self.engine.connect() as conn:
-                sql = "INSERT INTO system_log (module, operation, status, message, duration) VALUES (:module, :operation, :status, :message, :duration)"
-                conn.execute(text(sql), {'module': module, 'operation': operation, 'status': status, 'message': message, 'duration': duration})
+                result = conn.execute(text("SELECT ts_code FROM stock_basic WHERE list_status='L' ORDER BY ts_code"))
+                stock_list = [row[0] for row in result]
+                self.logger.info(f"📋 获取到 {len(stock_list)} 只股票")
+                return stock_list
+        except Exception as e:
+            self.logger.error(f"❌ 获取股票列表失败: {e}")
+            return []
+
+    def log_operation(self, operation_type: str, operation_name: str, status: str, message: str, duration: int) -> bool:  # 记录操作日志
+        try:
+            with self.engine.connect() as conn:
+                sql = """INSERT INTO system_log (operation_type, operation_name, status, message, duration, created_at) 
+                        VALUES (:operation_type, :operation_name, :status, :message, :duration, NOW())"""
+                conn.execute(text(sql), {
+                    'operation_type': operation_type,
+                    'operation_name': operation_name,
+                    'status': status,
+                    'message': message,
+                    'duration': duration
+                })
                 conn.commit()
-        except Exception as e: self.logger.error(f"记录日志失败: {e}")
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ 记录日志失败: {e}")
+            return False
 
-    def get_stock_list(self, exchange: str = None) -> List[str]:  # 获取股票列表
-        try:
-            sql = "SELECT ts_code FROM stock_basic WHERE list_status='L'"
-            if exchange: sql += f" AND exchange='{exchange}'"
-            with self.engine.connect() as conn:
-                result = conn.execute(text(sql))
-                return [row[0] for row in result]
-        except Exception as e: self.logger.error(f"获取股票列表失败: {e}"); return []
-
-    def close(self): self.engine.dispose()  # 关闭数据库连接
-
-db = DatabaseHelper()  # 全局数据库实例 
+# 全局数据库实例
+db = DatabaseHelper() 

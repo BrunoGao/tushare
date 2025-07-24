@@ -15,15 +15,22 @@ def print_banner():
 def run_command(cmd, description):
     print(f"\n📋 {description}")
     print(f"🔄 执行命令: {' '.join(cmd)}")
+    print(f"⏰ 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8')
         print(f"✅ 成功: {description}")
-        if result.stdout: print(result.stdout)
+        if result.stdout: 
+            print("📄 输出日志:")
+            print(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ 失败: {description}")
-        print(f"错误: {e.stderr}")
+        print(f"🔍 错误详情:")
+        if e.stdout: print(f"标准输出: {e.stdout}")
+        if e.stderr: print(f"错误输出: {e.stderr}")
         return False
+    finally:
+        print(f"⏰ 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 def setup_project():  # 项目初始化
     print("🔧 初始化项目...")
@@ -32,6 +39,7 @@ def setup_project():  # 项目初始化
     dirs = ['logs', 'data', 'sql']
     for d in dirs:
         os.makedirs(d, exist_ok=True)
+        print(f"📁 创建目录: {d}")
         
     # 复制环境配置
     if not os.path.exists('.env'):
@@ -47,11 +55,13 @@ def setup_project():  # 项目初始化
 def fetch_basic_data():  # 获取基础数据
     return run_command([sys.executable, 'scripts/fetch_stock_basic.py'], '获取股票基本信息')
 
-def fetch_historical_data(mode='plan'):  # 获取历史数据
+def fetch_historical_data(mode='10years'):  # 获取历史数据
     if mode == 'plan':
         return run_command([sys.executable, 'scripts/fetch_stock_daily.py', 'plan'], '执行3天历史数据获取计划')
     elif mode == 'update':
         return run_command([sys.executable, 'scripts/fetch_stock_daily.py', 'update'], '每日数据更新')
+    elif mode == '10years':
+        return run_command([sys.executable, 'scripts/fetch_stock_daily.py', '10years'], '一次性获取所有股票最近10年数据')
     else:
         print("❌ 无效的获取模式")
         return False
@@ -153,7 +163,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='A股智能推荐系统管理工具')
     parser.add_argument('command', choices=[
-        'init', 'fetch-basic', 'fetch-history', 'fetch-update',
+        'init', 'fetch-basic', 'fetch-history', 'fetch-update', 'fetch-10years',
         'recommend', 'api', 'scheduler', 'task', 'llm-test',
         'docker', 'status'
     ], help='执行命令')
@@ -179,6 +189,9 @@ def main():
         
     elif args.command == 'fetch-update':
         fetch_historical_data('update')
+        
+    elif args.command == 'fetch-10years':
+        fetch_historical_data('10years')
         
     elif args.command == 'recommend':
         generate_recommendations(args.strategy)
