@@ -8,6 +8,7 @@ import config
 from utils.db_helper import db
 from analysis.recommender import recommender
 from llm.interface import llm
+from sqlalchemy import text
 
 # 初始化Flask应用
 app = Flask(__name__)
@@ -113,7 +114,7 @@ def get_stock_info(ts_code):
     try:
         with db.engine.connect() as conn:
             sql = "SELECT * FROM stock_basic WHERE ts_code = :ts_code"
-            result = conn.execute(db.text(sql), {'ts_code': ts_code})
+            result = conn.execute(text(sql), {'ts_code': ts_code})
             row = result.fetchone()
             
         if row:
@@ -182,7 +183,7 @@ def get_stock_list():
             sql += f" LIMIT {limit}"
             
         with db.engine.connect() as conn:
-            result = conn.execute(db.text(sql), params)
+            result = conn.execute(text(sql), params)
             data = [dict(row._mapping) for row in result]
             
         return jsonify({
@@ -276,9 +277,9 @@ def get_stats():
         with db.engine.connect() as conn:
             # 获取统计数据
             stats = {}
-            stats['stock_count'] = conn.execute(db.text("SELECT COUNT(*) FROM stock_basic WHERE list_status='L'")).scalar()
-            stats['recommend_count'] = conn.execute(db.text("SELECT COUNT(*) FROM recommend_result WHERE recommend_date = CURDATE()")).scalar()
-            stats['last_update'] = conn.execute(db.text("SELECT MAX(created_at) FROM system_log")).scalar()
+            stats['stock_count'] = conn.execute(text("SELECT COUNT(*) FROM stock_basic WHERE list_status='L'")).scalar()
+            stats['recommend_count'] = conn.execute(text("SELECT COUNT(*) FROM recommend_result WHERE recommend_date = CURDATE()")).scalar()
+            stats['last_update'] = conn.execute(text("SELECT MAX(created_at) FROM system_log")).scalar()
             stats['llm_available'] = llm.health_check()
             
         return jsonify({

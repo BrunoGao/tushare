@@ -21,7 +21,8 @@ class DatabaseHelper:
             ts_code VARCHAR(20) NOT NULL,
             trade_date DATE NOT NULL,
             open DECIMAL(10,3), high DECIMAL(10,3), low DECIMAL(10,3), close DECIMAL(10,3),
-            pre_close DECIMAL(10,3), change_pct DECIMAL(8,4), vol BIGINT, amount DECIMAL(20,3),
+            pre_close DECIMAL(10,3), `change` DECIMAL(10,3), pct_chg DECIMAL(8,4), change_pct DECIMAL(8,4),
+            vol BIGINT, amount DECIMAL(20,3),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_code_date (ts_code, trade_date),
             INDEX idx_code (ts_code), INDEX idx_date (trade_date)

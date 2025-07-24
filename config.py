@@ -43,5 +43,5 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # LLM配置
 LLM_MODEL = os.getenv('LLM_MODEL', 'lingjingwanxiang:70b')
-LLM_API_URL = os.getenv('LLM_API_URL', 'http://localhost:11434')
+LLM_API_URL = os.getenv('LLM_API_URL', 'http://192.168.1.83:11434')
 LLM_TIMEOUT = 30 

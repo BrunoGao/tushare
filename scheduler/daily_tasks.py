@@ -8,6 +8,7 @@ import config
 from scripts.fetch_stock_daily import StockDailyFetcher
 from analysis.recommender import recommender
 from utils.db_helper import db
+from sqlalchemy import text
 
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class DailyTaskScheduler:
             # 清理旧推荐(7天前)
             with db.engine.connect() as conn:
                 old_date = (datetime.now() - timedelta(days=7)).date()
-                conn.execute(db.text("UPDATE recommend_result SET is_valid=0 WHERE recommend_date < :old_date"), {'old_date': old_date})
+                conn.execute(text("UPDATE recommend_result SET is_valid=0 WHERE recommend_date < :old_date"), {'old_date': old_date})
                 conn.commit()
                 
             # 生成新推荐
@@ -76,12 +77,12 @@ class DailyTaskScheduler:
             with db.engine.connect() as conn:
                 # 清理30天前的日志
                 old_log_date = (datetime.now() - timedelta(days=30)).date()
-                result = conn.execute(db.text("DELETE FROM system_log WHERE DATE(created_at) < :old_date"), {'old_date': old_log_date})
+                result = conn.execute(text("DELETE FROM system_log WHERE DATE(created_at) < :old_date"), {'old_date': old_log_date})
                 conn.commit()
                 logger.info(f"清理旧日志{result.rowcount}条")
                 
                 # 清理无效推荐
-                result = conn.execute(db.text("DELETE FROM recommend_result WHERE is_valid=0 AND recommend_date < :old_date"), {'old_date': old_log_date})
+                result = conn.execute(text("DELETE FROM recommend_result WHERE is_valid=0 AND recommend_date < :old_date"), {'old_date': old_log_date})
                 conn.commit()
                 logger.info(f"清理无效推荐{result.rowcount}条")
                 

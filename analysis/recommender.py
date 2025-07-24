@@ -9,6 +9,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
+from sqlalchemy import text
 
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
@@ -151,7 +152,7 @@ class StockRecommender:
             # 获取股票列表
             with db.engine.connect() as conn:
                 sql = "SELECT ts_code, name FROM stock_basic WHERE list_status='L' ORDER BY ts_code"
-                result = conn.execute(db.text(sql))
+                result = conn.execute(text(sql))
                 stocks = [(row[0], row[1]) for row in result]
                 
             logger.info(f"开始生成推荐，策略:{strategy}，股票数量:{len(stocks)}")
@@ -230,7 +231,7 @@ class StockRecommender:
                 sql += f" LIMIT {limit}"
                 
             with db.engine.connect() as conn:
-                result = conn.execute(db.text(sql), params)
+                result = conn.execute(text(sql), params)
                 return [dict(row._mapping) for row in result]
                 
         except Exception as e:

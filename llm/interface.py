@@ -7,6 +7,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
+from sqlalchemy import text
 
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class LLMInterface:
                 # 获取股票基本信息
                 with db.engine.connect() as conn:
                     sql = "SELECT ts_code, name, industry, exchange FROM stock_basic WHERE ts_code = :ts_code"
-                    result = conn.execute(db.text(sql), {'ts_code': ts_code})
+                    result = conn.execute(text(sql), {'ts_code': ts_code})
                     stock_info = result.fetchone()
                     
                 if stock_info:
@@ -68,7 +69,7 @@ class LLMInterface:
                     recommendations = []
                     with db.engine.connect() as conn:
                         sql = "SELECT strategy, score, reason FROM recommend_result WHERE ts_code = :ts_code AND is_valid=1 ORDER BY recommend_date DESC LIMIT 3"
-                        result = conn.execute(db.text(sql), {'ts_code': ts_code})
+                        result = conn.execute(text(sql), {'ts_code': ts_code})
                         recommendations = [dict(row._mapping) for row in result]
                     
                     # 构建上下文
@@ -107,7 +108,7 @@ class LLMInterface:
                     AND b.industry = :industry AND r.is_valid=1
                     GROUP BY r.strategy, b.industry
                     """
-                    result = conn.execute(db.text(sql), {'days': days, 'industry': industry})
+                    result = conn.execute(text(sql), {'days': days, 'industry': industry})
                 else:
                     sql = """
                     SELECT r.strategy, COUNT(*) as count, AVG(r.score) as avg_score
@@ -116,7 +117,7 @@ class LLMInterface:
                     AND r.is_valid=1
                     GROUP BY r.strategy
                     """
-                    result = conn.execute(db.text(sql), {'days': days})
+                    result = conn.execute(text(sql), {'days': days})
                     
                 stats = [dict(row._mapping) for row in result]
                 
@@ -149,7 +150,7 @@ class LLMInterface:
                 ORDER BY r.score DESC 
                 LIMIT 20
                 """
-                result = conn.execute(db.text(sql))
+                result = conn.execute(text(sql))
                 recommendations = [dict(row._mapping) for row in result]
                 
             # 构建投资建议上下文
@@ -184,7 +185,7 @@ class LLMInterface:
                 ORDER BY r.recommend_date DESC 
                 LIMIT 1
                 """
-                result = conn.execute(db.text(sql), {'ts_code': ts_code, 'strategy': strategy})
+                result = conn.execute(text(sql), {'ts_code': ts_code, 'strategy': strategy})
                 rec_data = result.fetchone()
                 
             if not rec_data:

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import sys, os
 from typing import List, Tuple
+from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
@@ -19,6 +20,8 @@ class StockDailyFetcher:
         self.pro = ts.pro_api()
         self.request_count = 0
         self.last_minute = datetime.now().minute
+        self.total_processed = 0
+        self.total_success = 0
         
     def rate_limit_check(self):  # 请求频率控制
         current_minute = datetime.now().minute
@@ -26,7 +29,9 @@ class StockDailyFetcher:
             self.request_count = 0
             self.last_minute = current_minute
         if self.request_count >= config.TS_RATE_LIMIT:
-            time.sleep(61 - datetime.now().second)
+            sleep_time = 61 - datetime.now().second
+            logger.info(f"达到频率限制，等待{sleep_time}秒...")
+            time.sleep(sleep_time)
             self.request_count = 0
         self.request_count += 1
         
@@ -53,9 +58,8 @@ class StockDailyFetcher:
                 # 转换日期格式并插入
                 month_data = month_data.copy()
                 month_data['trade_date'] = month_data['trade_date'].dt.date
-                month_data.to_sql(table_name, con=db.engine, if_exists='append', index=False, chunksize=config.CHUNK_SIZE)
+                month_data.to_sql(table_name, con=db.engine, if_exists='replace', index=False, chunksize=config.CHUNK_SIZE)
                 
-            logger.info(f"完成{ts_code} {start_date}-{end_date} 数据获取，共{len(df)}条")
             return True
             
         except Exception as e:
@@ -75,21 +79,24 @@ class StockDailyFetcher:
                 
             logger.info(f"开始批量获取{len(stock_list)}只股票 {start_date}-{end_date} 数据")
             
-            # 多线程并发获取
-            with ThreadPoolExecutor(max_workers=config.TS_THREAD_COUNT) as executor:
-                futures = {executor.submit(self.fetch_stock_daily_range, ts_code, start_date, end_date): ts_code 
-                          for ts_code in stock_list}
-                
-                for future in as_completed(futures):
-                    ts_code = futures[future]
-                    try:
-                        if future.result():
-                            success_count += 1
-                            if success_count % 100 == 0:
-                                logger.info(f"已完成{success_count}/{len(stock_list)}只股票")
-                    except Exception as e:
-                        logger.error(f"处理{ts_code}时发生异常: {e}")
-                        
+            # 使用tqdm显示进度
+            with tqdm(total=len(stock_list), desc=f"获取{start_date}-{end_date}", unit="只") as pbar:
+                # 多线程并发获取
+                with ThreadPoolExecutor(max_workers=config.TS_THREAD_COUNT) as executor:
+                    futures = {executor.submit(self.fetch_stock_daily_range, ts_code, start_date, end_date): ts_code 
+                              for ts_code in stock_list}
+                    
+                    for future in as_completed(futures):
+                        ts_code = futures[future]
+                        try:
+                            if future.result():
+                                success_count += 1
+                            pbar.update(1)
+                            pbar.set_postfix({'成功': success_count, '失败': pbar.n - success_count})
+                        except Exception as e:
+                            logger.error(f"处理{ts_code}时发生异常: {e}")
+                            pbar.update(1)
+                            
             duration = int((datetime.now() - start_time).total_seconds())
             operation_name = batch_name or f"daily_fetch_{start_date}_{end_date}"
             db.log_operation('fetch_daily', operation_name, 'SUCCESS', f'成功获取{success_count}/{len(stock_list)}只股票数据', duration)
@@ -99,35 +106,84 @@ class StockDailyFetcher:
             duration = int((datetime.now() - start_time).total_seconds())
             error_msg = f"批量获取数据失败: {e}"
             logger.error(error_msg)
-            db.log_operation('fetch_daily', 'daily_fetch_batch', 'FAILED', error_msg, duration)
+            try:
+                db.log_operation('fetch_daily', 'daily_fetch_batch', 'FAILED', error_msg, duration)
+            except:
+                pass
             
         return success_count
         
     def fetch_3day_plan(self) -> bool:  # 3天获取计划执行
-        logger.info("开始执行3天历史数据获取计划")
+        logger.info("🚀 开始执行3天历史数据获取计划")
+        plan_start_time = datetime.now()
         
-        # 分批计划
+        # 分批计划 - 优化为更合理的时间段
         batches = [
-            ('20100101', '20151231', 'batch_2010_2015'),  # 第1天
-            ('20160101', '20201231', 'batch_2016_2020'),  # 第2天
-            ('20210101', datetime.now().strftime('%Y%m%d'), 'batch_2021_now')  # 第3天
+            ('20200101', '20221231', 'batch_2020_2022', '2020-2022年数据'),  # 第1天：近3年数据
+            ('20230101', '20241231', 'batch_2023_2024', '2023-2024年数据'),  # 第2天：最近2年数据
+            ('20250101', datetime.now().strftime('%Y%m%d'), 'batch_2025_now', '2025年至今数据')  # 第3天：今年数据
         ]
         
         total_success = 0
-        for i, (start_date, end_date, batch_name) in enumerate(batches, 1):
-            logger.info(f"执行第{i}批次: {batch_name} ({start_date} - {end_date})")
+        total_stocks = 0
+        
+        for i, (start_date, end_date, batch_name, description) in enumerate(batches, 1):
+            logger.info(f"📅 执行第{i}批次: {description} ({start_date} - {end_date})")
+            batch_start_time = datetime.now()
+            
             success_count = self.batch_fetch_by_date_range(start_date, end_date, batch_name)
             total_success += success_count
-            logger.info(f"第{i}批次完成，成功获取{success_count}只股票数据")
             
-        logger.info(f"3天计划执行完成，总计成功获取{total_success}只股票历史数据")
+            batch_duration = int((datetime.now() - batch_start_time).total_seconds())
+            logger.info(f"✅ 第{i}批次完成，成功获取{success_count}只股票数据，耗时{batch_duration}秒")
+            
+            # 批次间休息，避免API限制
+            if i < len(batches):
+                logger.info("⏸️  批次间休息30秒...")
+                time.sleep(30)
+            
+        plan_duration = int((datetime.now() - plan_start_time).total_seconds())
+        logger.info(f"🎉 3天计划执行完成，总计成功获取{total_success}只股票历史数据，总耗时{plan_duration}秒")
+        
+        # 记录总体执行结果
+        try:
+            db.log_operation('fetch_daily', '3day_plan_complete', 'SUCCESS', 
+                           f'3天计划完成，成功获取{total_success}只股票数据', plan_duration)
+        except:
+            pass
+            
         return total_success > 0
         
     def daily_update(self) -> int:  # 每日增量更新
         yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         today = datetime.now().strftime('%Y%m%d')
-        logger.info(f"开始每日增量更新: {yesterday}")
+        logger.info(f"📈 开始每日增量更新: {yesterday}")
         return self.batch_fetch_by_date_range(yesterday, today, 'daily_update')
+        
+    def quick_test(self, limit: int = 10) -> bool:  # 快速测试功能
+        """快速测试数据获取功能"""
+        logger.info(f"🧪 开始快速测试，获取前{limit}只股票最近30天数据")
+        
+        try:
+            stock_list = db.get_stock_list()[:limit]
+            if not stock_list:
+                logger.error("未获取到股票列表")
+                return False
+                
+            end_date = datetime.now().strftime('%Y%m%d')
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y%m%d')
+            
+            success_count = 0
+            for ts_code in tqdm(stock_list, desc="测试获取", unit="只"):
+                if self.fetch_stock_daily_range(ts_code, start_date, end_date):
+                    success_count += 1
+                    
+            logger.info(f"✅ 快速测试完成，成功获取{success_count}/{len(stock_list)}只股票数据")
+            return success_count > 0
+            
+        except Exception as e:
+            logger.error(f"快速测试失败: {e}")
+            return False
 
 if __name__ == "__main__":
     fetcher = StockDailyFetcher()
@@ -139,11 +195,14 @@ if __name__ == "__main__":
             success = fetcher.fetch_3day_plan()
         elif mode == 'update':
             success = fetcher.daily_update() > 0
+        elif mode == 'test':
+            limit = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+            success = fetcher.quick_test(limit)
         elif mode == 'range' and len(sys.argv) >= 4:
             start_date, end_date = sys.argv[2], sys.argv[3]
             success = fetcher.batch_fetch_by_date_range(start_date, end_date) > 0
         else:
-            print("用法: python fetch_stock_daily.py [plan|update|range start_date end_date]")
+            print("用法: python fetch_stock_daily.py [plan|update|test|range start_date end_date]")
             sys.exit(1)
     else:
         success = fetcher.fetch_3day_plan()

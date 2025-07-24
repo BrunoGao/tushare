@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys, os, argparse, subprocess
 from datetime import datetime
+from sqlalchemy import text
 
 def print_banner():
     print("""
@@ -132,7 +133,7 @@ def show_status():  # 显示系统状态
     try:
         from utils.db_helper import db
         with db.engine.connect() as conn:
-            result = conn.execute(db.text("SELECT COUNT(*) FROM stock_basic")).scalar()
+            result = conn.execute(text("SELECT COUNT(*) FROM stock_basic")).scalar()
             print(f"✅ 数据库: 已连接，股票数量: {result}")
     except Exception as e:
         print(f"❌ 数据库: 连接失败 - {e}")

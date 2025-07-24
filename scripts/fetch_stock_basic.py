@@ -44,7 +44,20 @@ class StockBasicFetcher:
             
             # 数据清洗
             final_df['list_date'] = pd.to_datetime(final_df['list_date'], format='%Y%m%d', errors='coerce')
-            final_df['delist_date'] = pd.to_datetime(final_df['delist_date'], format='%Y%m%d', errors='coerce')
+            if 'delist_date' in final_df.columns:
+                final_df['delist_date'] = pd.to_datetime(final_df['delist_date'], format='%Y%m%d', errors='coerce')
+            else:
+                final_df['delist_date'] = None
+                
+            # 确保所有必需字段都存在
+            required_columns = ['ts_code', 'symbol', 'name', 'area', 'industry', 'fullname', 'enname', 
+                              'market', 'exchange', 'curr_type', 'list_status', 'list_date', 'delist_date', 'is_hs']
+            for col in required_columns:
+                if col not in final_df.columns:
+                    final_df[col] = None
+                    
+            # 选择需要的列
+            final_df = final_df[required_columns]
             
             # 批量插入数据库
             final_df.to_sql('stock_basic', con=db.engine, if_exists='replace', index=False, chunksize=config.CHUNK_SIZE)
@@ -58,7 +71,10 @@ class StockBasicFetcher:
             duration = int((datetime.now() - start_time).total_seconds())
             error_msg = f"获取股票基本信息失败: {e}"
             logger.error(error_msg)
-            db.log_operation('fetch_basic', 'stock_basic_fetch', 'FAILED', error_msg, duration)
+            try:
+                db.log_operation('fetch_basic', 'stock_basic_fetch', 'FAILED', error_msg, duration)
+            except:
+                pass  # 忽略日志记录失败
             return False
             
     def update_stock_info(self, ts_code: str) -> bool:  # 更新单只股票信息
@@ -66,7 +82,10 @@ class StockBasicFetcher:
             df = self.pro.stock_basic(ts_code=ts_code)
             if not df.empty:
                 df['list_date'] = pd.to_datetime(df['list_date'], format='%Y%m%d', errors='coerce')
-                df['delist_date'] = pd.to_datetime(df['delist_date'], format='%Y%m%d', errors='coerce')
+                if 'delist_date' in df.columns:
+                    df['delist_date'] = pd.to_datetime(df['delist_date'], format='%Y%m%d', errors='coerce')
+                else:
+                    df['delist_date'] = None
                 df.to_sql('stock_basic', con=db.engine, if_exists='append', index=False)
                 logger.info(f"更新股票{ts_code}信息成功")
                 return True
