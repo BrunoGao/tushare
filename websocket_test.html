@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WebSocket测试页面</title>
+    <style>
+        body{font-family:Arial,sans-serif;padding:20px;background:#1a1a1a;color:#fff}
+        .container{max-width:800px;margin:0 auto}
+        .status{padding:10px;margin:10px 0;border-radius:5px}
+        .connected{background:#28a745}.disconnected{background:#dc3545}
+        button{padding:10px 20px;margin:5px;border:none;border-radius:5px;cursor:pointer}
+        .btn-connect{background:#007bff;color:white}
+        .btn-subscribe{background:#28a745;color:white}
+        #messages{background:#333;padding:15px;border-radius:5px;height:400px;overflow-y:auto;margin:20px 0}
+        .message{margin:5px 0;padding:5px;border-left:3px solid #007bff}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket实时股票系统测试</h1>
+        
+        <div id="status" class="status disconnected">🔴 未连接</div>
+        
+        <div>
+            <button class="btn-connect" onclick="connectWS()">连接WebSocket</button>
+            <button class="btn-subscribe" onclick="subscribeStock()">订阅000001.SZ</button>
+            <button onclick="clearMessages()">清空消息</button>
+        </div>
+        
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let ws=null;
+        let isConnected=false;
+        
+        function updateStatus(text,connected){
+            const status=document.getElementById('status');
+            status.textContent=text;
+            status.className=`status ${connected?'connected':'disconnected'}`;
+            isConnected=connected;
+        }
+        
+        function addMessage(msg,type='info'){
+            const messages=document.getElementById('messages');
+            const div=document.createElement('div');
+            div.className='message';
+            div.innerHTML=`<strong>${new Date().toLocaleTimeString()}</strong> ${msg}`;
+            messages.appendChild(div);
+            messages.scrollTop=messages.scrollHeight;
+        }
+        
+        function connectWS(){
+            if(ws){
+                ws.close();
+            }
+            
+            addMessage('🔌 正在连接WebSocket服务器...');
+            ws=new WebSocket('ws://localhost:8765');
+            
+            ws.onopen=()=>{
+                updateStatus('🟢 已连接',true);
+                addMessage('✅ WebSocket连接成功!');
+            };
+            
+            ws.onmessage=(event)=>{
+                const data=JSON.parse(event.data);
+                addMessage(`📥 收到消息: ${data.type}`);
+                
+                if(data.type==='realtime_data' || data.type==='realtime_update'){
+                    const price=data.data.price;
+                    addMessage(`💰 股价数据: 当前价=${price.current} 涨跌=${price.change} 涨跌幅=${price.change_pct}%`);
+                }
+            };
+            
+            ws.onclose=()=>{
+                updateStatus('🔴 连接关闭',false);
+                addMessage('❌ WebSocket连接关闭');
+            };
+            
+            ws.onerror=(error)=>{
+                updateStatus('🔴 连接错误',false);
+                addMessage(`❌ 连接错误: ${error}`);
+            };
+        }
+        
+        function subscribeStock(){
+            if(!isConnected){
+                addMessage('⚠️ 请先连接WebSocket');
+                return;
+            }
+            
+            const msg={type:'subscribe',code:'000001.SZ'};
+            ws.send(JSON.stringify(msg));
+            addMessage(`📤 发送订阅请求: ${JSON.stringify(msg)}`);
+        }
+        
+        function clearMessages(){
+            document.getElementById('messages').innerHTML='';
+        }
+        
+        // 页面加载时自动连接
+        window.onload=()=>{
+            addMessage('🚀 WebSocket测试页面已加载');
+        };
+    </script>
+</body>
+</html> 

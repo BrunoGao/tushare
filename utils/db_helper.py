@@ -99,10 +99,53 @@ class DatabaseHelper:
         try:
             if start_date and end_date:
                 start_dt, end_dt = datetime.strptime(start_date, '%Y%m%d').date(), datetime.strptime(end_date, '%Y%m%d').date()
-                tables = [self.get_table_name_by_date(date(y, m, 1)) for y in range(start_dt.year, end_dt.year + 1) for m in range(1, 13)]
-                sql = f"SELECT * FROM ({' UNION ALL '.join([f'SELECT * FROM {t} WHERE ts_code=:ts_code AND trade_date BETWEEN :start_date AND :end_date' for t in set(tables)])}) AS combined ORDER BY trade_date {'DESC' if limit else ''}"
-                if limit: sql += f" LIMIT {limit}"
-                return pd.read_sql(sql, self.engine, params={'ts_code': ts_code, 'start_date': start_dt, 'end_date': end_dt})
+                # 生成需要查询的表名
+                tables = []
+                current_date = start_dt.replace(day=1)
+                while current_date <= end_dt:
+                    table_name = f"stock_daily_{current_date.year:04d}{current_date.month:02d}"
+                    tables.append(table_name)
+                    # 下个月
+                    if current_date.month == 12:
+                        current_date = current_date.replace(year=current_date.year + 1, month=1)
+                    else:
+                        current_date = current_date.replace(month=current_date.month + 1)
+                
+                # 检查表是否存在并构建查询
+                valid_tables = []
+                with self.engine.connect() as conn:
+                    for table in tables:
+                        try:
+                            conn.execute(text(f"SELECT 1 FROM {table} LIMIT 1"))
+                            valid_tables.append(table)
+                        except:
+                            pass
+                
+                if not valid_tables:
+                    return pd.DataFrame()
+                
+                # 构建单个查询（简化方法）
+                if len(valid_tables) == 1:
+                    sql = f"SELECT * FROM {valid_tables[0]} WHERE ts_code = %s AND trade_date BETWEEN %s AND %s ORDER BY trade_date"
+                    if limit:
+                        sql += f" LIMIT {limit}"
+                    return pd.read_sql(sql, self.engine, params=(ts_code, start_dt, end_dt))
+                else:
+                    # 多表查询，分别查询然后合并
+                    all_data = []
+                    for table in valid_tables:
+                        sql = f"SELECT * FROM {table} WHERE ts_code = %s AND trade_date BETWEEN %s AND %s"
+                        df = pd.read_sql(sql, self.engine, params=(ts_code, start_dt, end_dt))
+                        if not df.empty:
+                            all_data.append(df)
+                    
+                    if all_data:
+                        result_df = pd.concat(all_data, ignore_index=True)
+                        result_df = result_df.sort_values('trade_date')
+                        if limit:
+                            result_df = result_df.head(limit)
+                        return result_df
+                    return pd.DataFrame()
             return pd.DataFrame()
         except Exception as e: 
             self.logger.error(f"❌ 查询数据失败: {e}")

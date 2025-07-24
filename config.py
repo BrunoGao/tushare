@@ -23,7 +23,7 @@ CHUNK_SIZE = 1000  # 数据库批量插入大小
 
 # API配置
 API_HOST = os.getenv('API_HOST', '0.0.0.0')
-API_PORT = int(os.getenv('API_PORT', 5000))
+API_PORT = int(os.getenv('API_PORT', 5005))
 API_DEBUG = bool(os.getenv('API_DEBUG', True))
 
 # 缓存配置
@@ -44,4 +44,21 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # LLM配置
 LLM_MODEL = os.getenv('LLM_MODEL', 'lingjingwanxiang:70b')
 LLM_API_URL = os.getenv('LLM_API_URL', 'http://192.168.1.83:11434')
-LLM_TIMEOUT = 30 
+LLM_TIMEOUT = 30
+
+# WebSocket配置
+WS_HOST = os.getenv('WS_HOST', '0.0.0.0')
+WS_PORT = int(os.getenv('WS_PORT', 8765))
+REALTIME_UPDATE_INTERVAL = int(os.getenv('REALTIME_UPDATE_INTERVAL', 10))  # 实时更新间隔(秒)
+MAX_CONNECTIONS = int(os.getenv('MAX_CONNECTIONS', 100))  # 最大连接数
+
+class Config:  #统一配置类
+    TS_TOKEN = TS_TOKEN
+    DB_HOST = DB_HOST
+    DB_PORT = DB_PORT
+    DB_USER = DB_USER
+    DB_PASSWORD = DB_PASSWORD
+    DB_NAME = DB_NAME
+    REALTIME_UPDATE_INTERVAL = REALTIME_UPDATE_INTERVAL
+    WS_HOST = WS_HOST
+    WS_PORT = WS_PORT 

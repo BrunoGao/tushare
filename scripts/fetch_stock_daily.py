@@ -353,13 +353,13 @@ if __name__ == "__main__":
         elif mode == 'test':
             limit = int(sys.argv[2]) if len(sys.argv) > 2 else 10
             success = fetcher.quick_test(limit)
-        elif mode == 'range' and len(sys.argv) >= 4:
-            start_date, end_date = sys.argv[2], sys.argv[3]
-            success = fetcher.batch_fetch_by_date_range(start_date, end_date) > 0
+        elif mode == 'range' and len(sys.argv) >= 5:
+            ts_code, start_date, end_date = sys.argv[2], sys.argv[3], sys.argv[4]
+            success = fetcher.fetch_stock_daily_range(ts_code, start_date, end_date)
         elif mode == '10years':
             success = fetcher.fetch_all_stocks_10years()
         else:
-            print("用法: python fetch_stock_daily.py [plan|update|test|range start_date end_date|10years]")
+            print("用法: python fetch_stock_daily.py [plan|update|test|range ts_code start_date end_date|10years]")
             sys.exit(1)
     else:
         # 默认执行10年数据获取
