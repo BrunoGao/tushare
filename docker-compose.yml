@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # MySQL数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: ljwx_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ljwx123456
+      MYSQL_DATABASE: ljwx_stock
+      MYSQL_USER: ljwx_user
+      MYSQL_PASSWORD: ljwx_password
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=1G
+      --max-connections=1000
+    networks:
+      - ljwx_network
+    restart: unless-stopped
+
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: ljwx_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ljwx123456
+    networks:
+      - ljwx_network
+    restart: unless-stopped
+
+  # 股票分析应用
+  stock_app:
+    build: .
+    container_name: ljwx_stock_app
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ljwx_user
+      DB_PASSWORD: ljwx_password
+      DB_NAME: ljwx_stock
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      TS_TOKEN: ${TS_TOKEN:-your_tushare_token}
+      API_HOST: 0.0.0.0
+      API_PORT: 5000
+      LOG_LEVEL: INFO
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - ljwx_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 定时任务调度器
+  scheduler:
+    build: .
+    container_name: ljwx_scheduler
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ljwx_user
+      DB_PASSWORD: ljwx_password
+      DB_NAME: ljwx_stock
+      TS_TOKEN: ${TS_TOKEN:-your_tushare_token}
+      LOG_LEVEL: INFO
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    depends_on:
+      - mysql
+      - stock_app
+    networks:
+      - ljwx_network
+    restart: unless-stopped
+    command: ["python", "scheduler/daily_tasks.py"]
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ljwx_network:
+    driver: bridge 
