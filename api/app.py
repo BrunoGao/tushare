@@ -982,6 +982,21 @@ def not_found(error): return jsonify({"success": False, "error": "接口不存�
 @app.errorhandler(500)
 def internal_error(error): return jsonify({"success": False, "error": "服务器内部错误"}), 500
 
+# 前端页面路由
+@app.route('/frontend/realtime_dashboard.html')
+def realtime_dashboard():
+    """实时分析前端页面"""
+    try:
+        from pathlib import Path
+        frontend_path = Path(__file__).parent.parent / "frontend" / "realtime_dashboard.html"
+        if frontend_path.exists():
+            return send_file(str(frontend_path))
+        else:
+            return "前端页面文件不存在", 404
+    except Exception as e:
+        logger.error(f"加载前端页面失败: {e}")
+        return f"加载前端页面失败: {e}", 500
+
 if __name__ == '__main__':
     logger.info(f"启动增强版API服务器 {config.API_HOST}:{config.API_PORT}")
     app.run(host=config.API_HOST, port=config.API_PORT, debug=config.API_DEBUG) 

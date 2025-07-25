@@ -81,6 +81,134 @@ class DatabaseHelper:
             self.logger.error(f"❌ 处理表{table_name}失败: {e}")
             return False
 
+    def create_tables(self) -> bool:  # 创建所有必要的表
+        """创建所有数据库表"""
+        try:
+            with self.engine.connect() as conn:
+                # 股票基本信息表
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS stock_basic (
+                        ts_code VARCHAR(10) PRIMARY KEY COMMENT '股票代码',
+                        symbol VARCHAR(10) NOT NULL COMMENT '股票简称代码',
+                        name VARCHAR(20) NOT NULL COMMENT '股票名称',
+                        area VARCHAR(20) COMMENT '地域',
+                        industry VARCHAR(50) COMMENT '所属行业',
+                        sector VARCHAR(50) COMMENT '所属板块',
+                        market VARCHAR(10) COMMENT '市场类型',
+                        list_date DATE COMMENT '上市日期',
+                        list_status VARCHAR(2) DEFAULT 'L' COMMENT '上市状态',
+                        exchange VARCHAR(10) COMMENT '交易所',
+                        is_hs VARCHAR(2) COMMENT '是否沪深港通',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_industry (industry),
+                        INDEX idx_sector (sector),
+                        INDEX idx_list_status (list_status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='股票基本信息表'
+                """))
+                
+                # 技术指标汇总表
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS stock_indicators (
+                        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                        ts_code VARCHAR(10) NOT NULL COMMENT '股票代码',
+                        trade_date DATE NOT NULL COMMENT '交易日期',
+                        close_price DECIMAL(10,2) COMMENT '收盘价',
+                        ma5 DECIMAL(10,2) COMMENT '5日均线',
+                        ma10 DECIMAL(10,2) COMMENT '10日均线',
+                        ma20 DECIMAL(10,2) COMMENT '20日均线',
+                        ma60 DECIMAL(10,2) COMMENT '60日均线',
+                        ema12 DECIMAL(10,2) COMMENT '12日指数均线',
+                        ema26 DECIMAL(10,2) COMMENT '26日指数均线',
+                        macd DECIMAL(10,4) COMMENT 'MACD值',
+                        macd_signal DECIMAL(10,4) COMMENT 'MACD信号线',
+                        macd_histogram DECIMAL(10,4) COMMENT 'MACD柱状图',
+                        rsi14 DECIMAL(10,2) COMMENT 'RSI14',
+                        kdj_k DECIMAL(10,2) COMMENT 'KDJ-K值',
+                        kdj_d DECIMAL(10,2) COMMENT 'KDJ-D值',
+                        kdj_j DECIMAL(10,2) COMMENT 'KDJ-J值',
+                        boll_upper DECIMAL(10,2) COMMENT '布林带上轨',
+                        boll_middle DECIMAL(10,2) COMMENT '布林带中轨',
+                        boll_lower DECIMAL(10,2) COMMENT '布林带下轨',
+                        volume_ratio DECIMAL(10,2) COMMENT '量比',
+                        strength_score DECIMAL(5,2) COMMENT '强弱度评分',
+                        buy_signal TINYINT DEFAULT 0 COMMENT '买入信号',
+                        sell_signal TINYINT DEFAULT 0 COMMENT '卖出信号',
+                        support_price DECIMAL(10,2) COMMENT '支撑位',
+                        resistance_price DECIMAL(10,2) COMMENT '阻力位',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uk_stock_date (ts_code, trade_date),
+                        INDEX idx_trade_date (trade_date),
+                        INDEX idx_strength_score (strength_score),
+                        INDEX idx_signals (buy_signal, sell_signal)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='股票技术指标表'
+                """))
+                
+                # 行业板块信息表
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS industry_sectors (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        industry_name VARCHAR(50) NOT NULL COMMENT '行业名称',
+                        sector_name VARCHAR(50) NOT NULL COMMENT '板块名称',
+                        industry_code VARCHAR(20) NOT NULL COMMENT '行业代码',
+                        sector_code VARCHAR(20) NOT NULL COMMENT '板块代码',
+                        parent_industry VARCHAR(50) COMMENT '父行业',
+                        description TEXT COMMENT '行业描述',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uk_industry_sector (industry_name, sector_name),
+                        INDEX idx_industry_name (industry_name),
+                        INDEX idx_sector_name (sector_name)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='行业板块信息表'
+                """))
+                
+                # 实时数据表
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS realtime_data (
+                        ts_code VARCHAR(10) NOT NULL COMMENT '股票代码',
+                        current_price DECIMAL(10,2) COMMENT '当前价',
+                        change_amount DECIMAL(10,2) COMMENT '涨跌额',
+                        change_pct DECIMAL(10,2) COMMENT '涨跌幅',
+                        volume BIGINT COMMENT '成交量',
+                        amount DECIMAL(15,2) COMMENT '成交额',
+                        turnover_rate DECIMAL(10,2) COMMENT '换手率',
+                        pe_ratio DECIMAL(10,2) COMMENT '市盈率',
+                        pb_ratio DECIMAL(10,2) COMMENT '市净率',
+                        total_mv DECIMAL(15,2) COMMENT '总市值',
+                        circ_mv DECIMAL(15,2) COMMENT '流通市值',
+                        update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        PRIMARY KEY (ts_code),
+                        INDEX idx_update_time (update_time),
+                        INDEX idx_change_pct (change_pct)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='实时数据表'
+                """))
+                
+                # 交易信号记录表
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS trading_signals (
+                        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                        ts_code VARCHAR(10) NOT NULL COMMENT '股票代码',
+                        signal_type ENUM('buy', 'sell', 'hold') NOT NULL COMMENT '信号类型',
+                        signal_strength ENUM('weak', 'moderate', 'strong') DEFAULT 'moderate' COMMENT '信号强度',
+                        trigger_conditions JSON COMMENT '触发条件',
+                        price DECIMAL(10,2) COMMENT '信号价格',
+                        volume BIGINT COMMENT '成交量',
+                        confidence_score DECIMAL(5,2) COMMENT '置信度',
+                        signal_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_ts_code (ts_code),
+                        INDEX idx_signal_type (signal_type),
+                        INDEX idx_signal_time (signal_time),
+                        INDEX idx_confidence (confidence_score)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易信号记录表'
+                """))
+                
+                conn.commit()
+                self.logger.info("✅ 所有数据库表创建完成")
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"❌ 创建数据库表失败: {e}")
+            return False
+
     def insert_batch_data(self, table_name: str, data: List[Dict]) -> int:  # 批量插入数据
         if not data: return 0
         try:

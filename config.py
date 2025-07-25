@@ -8,12 +8,12 @@ TS_RATE_LIMIT = 500  # 每分钟请求限制
 TS_BATCH_SIZE = 100  # 批处理大小
 TS_THREAD_COUNT = 5  # 并发线程数
 
-# 数据库配置
+# 数据库配置 - 使用ljwx_stock数据库
 DB_HOST = os.getenv('DB_HOST', '127.0.0.1')
 DB_PORT = int(os.getenv('DB_PORT', 3306))
 DB_USER = os.getenv('DB_USER', 'root')
 DB_PASSWORD = os.getenv('DB_PASSWORD', '123456')
-DB_NAME = os.getenv('DB_NAME', 'ljwx_stock')
+DB_NAME = os.getenv('DB_NAME', 'ljwx_stock')  # 统一使用ljwx_stock数据库
 DB_CHARSET = 'utf8mb4'
 
 # 数据源配置
@@ -41,7 +41,9 @@ MAX_RECOMMEND = 50  # 最大推荐数量
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-# LLM配置
+# LLM配置 - 优化OpenAI兼容配置
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-fake-key')
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'http://192.168.1.83:11434/v1')
 LLM_MODEL = os.getenv('LLM_MODEL', 'lingjingwanxiang:70b')
 LLM_API_URL = os.getenv('LLM_API_URL', 'http://192.168.1.83:11434')
 LLM_TIMEOUT = 30
@@ -52,13 +54,23 @@ WS_PORT = int(os.getenv('WS_PORT', 8765))
 REALTIME_UPDATE_INTERVAL = int(os.getenv('REALTIME_UPDATE_INTERVAL', 10))  # 实时更新间隔(秒)
 MAX_CONNECTIONS = int(os.getenv('MAX_CONNECTIONS', 100))  # 最大连接数
 
-class Config:  #统一配置类
+# 行业板块配置
+INDUSTRY_MAPPING = {  # 行业板块映射
+    '银行': 'banking', '保险': 'insurance', '证券': 'securities',
+    '房地产': 'real_estate', '建筑': 'construction', '钢铁': 'steel',
+    '煤炭': 'coal', '石油': 'oil', '化工': 'chemical', '电力': 'power',
+    '医药': 'pharmaceutical', '食品': 'food', '汽车': 'automotive',
+    '电子': 'electronics', '计算机': 'computer', '通信': 'telecom',
+    '传媒': 'media', '军工': 'defense', '环保': 'environmental'
+}
+
+class Config:  # 统一配置类
     TS_TOKEN = TS_TOKEN
     DB_HOST = DB_HOST
     DB_PORT = DB_PORT
     DB_USER = DB_USER
     DB_PASSWORD = DB_PASSWORD
     DB_NAME = DB_NAME
-    REALTIME_UPDATE_INTERVAL = REALTIME_UPDATE_INTERVAL
-    WS_HOST = WS_HOST
-    WS_PORT = WS_PORT 
+    OPENAI_API_KEY = OPENAI_API_KEY
+    OPENAI_BASE_URL = OPENAI_BASE_URL
+    LLM_MODEL = LLM_MODEL 

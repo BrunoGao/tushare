@@ -1,4 +1,4 @@
-# 🚀 领京万象 - 实时股票分析系统
+# 🚀 领京万象股票分析系统 - 实时版本
 
 > **WebSocket实时推送 | 专业技术分析 | AI智能问答 | 缓存优化的高性能股票分析平台**
 
@@ -32,32 +32,27 @@
 - **强弱度实时显示**: 动态更新股票强弱度指标
 - **10秒更新频率**: 超高频数据推送
 
-### 💻 **专业级图表系统**
-- **综合技术分析图**: K线+均线+成交量+MACD+RSI+KDJ一体化显示
-- **实时信号图表**: 重点突出交易信号的轻量级图表
-- **投资组合仪表板**: 多维度展示组合表现和信号分布
-- **交互式图表**: 支持缩放、数据点查看、实时更新
-
-### 🎯 **投资组合管理**
-- **组合监控**: 实时监控投资组合表现
-- **信号统计**: 买入/卖出/持有信号数量统计
-- **收益分析**: 组合平均涨跌幅、强弱度分析
-- **风险分散**: RSI分布、行业分布等分析
+### 💻 **专业级前端界面**
+- **响应式设计**: 支持PC/平板/手机多端适配
+- **实时数据面板**: 股价、涨跌幅、成交量实时更新
+- **技术指标图表**: ECharts专业K线图和技术指标展示
+- **AI问答界面**: 智能对话式股票分析助手
+- **订阅管理**: 可视化股票订阅和监控管理
 
 ## 🏗️ 系统架构
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   数据获取层     │    │   技术分析层     │    │   AI分析层      │
-│ TuShare API     │───▶│ 30+技术指标     │───▶│ LLM智能分析     │
-│ 历史数据/实时    │    │ 信号生成器      │    │ 自然语言理解     │
+│  WebSocket服务  │    │   技术分析引擎   │    │   AI分析引擎    │
+│  实时数据推送    │◀──▶│   30+指标计算   │◀──▶│   LLM智能分析   │
+│  订阅管理       │    │   信号生成      │    │   自然语言理解   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   数据存储层     │    │   图表生成层     │    │   前端展示层     │
-│ MySQL分月表     │    │ Plotly专业图表  │    │ Web响应式界面   │
-│ Redis缓存       │───▶│ 实时信号标注    │───▶│ 多页面管理      │
+│   数据库层      │    │   Flask API层   │    │   前端展示层     │
+│ ljwx_stock DB   │◀──▶│   RESTful API   │◀──▶│   专业Web界面   │
+│ MySQL + Redis   │    │   CORS支持      │    │   实时图表      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -75,13 +70,6 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 3. 安装依赖
 pip install -r requirements.txt
-
-# 4. 安装TA-Lib (技术分析库)
-# macOS:
-brew install ta-lib
-# Ubuntu/Debian:
-sudo apt-get install libta-lib-dev
-# Windows: 下载预编译包
 ```
 
 ### 2. 配置设置
@@ -95,419 +83,352 @@ nano config.py
 # 必须配置项:
 # - TS_TOKEN: TuShare Pro Token
 # - DB_PASSWORD: MySQL密码  
-# - LLM_MODEL: AI模型名称 (如lingjingwanxiang:70b)
-# - LLM_API_URL: AI模型API地址 (如http://192.168.1.83:11434)
+# - OPENAI_API_KEY: OpenAI API密钥 (或兼容接口)
+# - OPENAI_BASE_URL: AI模型API地址 (如http://192.168.1.83:11434/v1)
 ```
 
 ### 3. 数据库初始化
 ```bash
-# 1. 创建数据库和表结构
-mysql -u root -p < sql/init_tables.sql
+# 1. 初始化数据库结构
+python3 start_realtime_system.py init
 
 # 2. 获取股票基本信息
 python3 scripts/fetch_stock_basic.py
 
-# 3. 获取历史数据 (可选择模式)
-# 快速测试 (10只股票30天数据)
-python3 scripts/fetch_stock_daily.py test 10
-
-# 全量获取 (所有股票最近10年数据)
-python3 scripts/fetch_stock_daily.py 10years
-
-# 增量更新 (每日新增数据)
-python3 scripts/fetch_stock_daily.py update
+# 3. 获取历史数据 (后台运行)
+python3 run.py fetch-10years &
 ```
 
 ### 4. 启动服务
 
-#### 🚀 **新版实时系统** (推荐)
+#### 🚀 **一键启动实时系统** (推荐)
 ```bash
-# 启动实时系统 (包含WebSocket + Flask API)
-python3 start_realtime_server.py
+# 启动完整实时系统
+python3 start_realtime_system.py
 
-# 访问Web界面
-open http://localhost:5005
-# WebSocket: ws://localhost:8765
+# 访问地址:
+# - 前端界面: http://localhost:5005/frontend/realtime_dashboard.html
+# - API文档: http://localhost:5005/api/stats
+# - WebSocket: ws://localhost:8765
 ```
 
-#### 📊 **传统版本**
+#### 📊 **单独启动服务**
 ```bash
-# 启动API服务
+# 仅启动API服务
 python3 api/app.py
 
-# 访问Web界面  
-open http://localhost:5005
+# 仅启动WebSocket服务
+python3 api/websocket_server.py
 ```
 
-## 📊 使用指南
+## 🌟 新功能特性
 
-### **实时股票分析模块** 🔥
-1. **输入股票代码** (如: 000001.SZ, 600000.SH)
-2. **点击"订阅实时"**: 开启WebSocket实时数据推送
-3. **实时价格面板**: 显示当前价、涨跌额、涨跌幅、成交量
-4. **实时技术指标**: MA5、MA20、RSI、MACD等实时更新
-5. **ECharts实时走势**: 实时K线图表，10天趋势展示
-6. **生成专业图表**: 包含K线、均线、成交量、技术指标的综合图表
+### **实时股票监控界面**
+1. **订阅管理**: 输入股票代码一键订阅实时数据
+2. **实时价格面板**: 显示股价、涨跌幅、成交量等核心指标
+3. **技术指标展示**: MA5/MA20、RSI、MACD等关键指标实时更新
+4. **交易信号**: 智能显示买入🟢/卖出🔴/持有🟡信号
+5. **行业板块**: 显示股票所属行业和板块信息
 
-### **实时信号监控**
-1. **输入监控股票** (支持多只，逗号分隔)
-2. **实时信号显示**: 买入🟢/卖出🔴/持有🟡信号
-3. **强弱度监控**: 实时显示股票强弱度变化
-4. **自动刷新**: 每30秒自动更新最新信号
+### **WebSocket实时推送**
+- **10秒更新**: 超高频实时数据推送
+- **智能缓存**: 30秒缓存机制，减少重复请求
+- **断线重连**: 自动检测连接状态并重连
+- **批量订阅**: 支持同时监控多只股票
 
-### **AI智能问答**
-1. **自然语言提问**: 
-   - "分析一下000001的走势"
-   - "推荐几只好股票"
-   - "银行股怎么样"
-   - "000001和000002哪个更好"
-2. **专业分析报告**: AI生成详细技术分析报告
-3. **投资建议**: 包含风险提示的投资建议
+### **AI智能问答系统**
+```javascript
+// 支持的问题类型：
+"分析一下000001的走势"
+"推荐几只好股票"  
+"银行股怎么样"
+"000001和000002哪个更好"
+"当前市场趋势如何"
+```
 
-### **投资组合监控**
-1. **输入股票组合** (支持最多10只)
-2. **组合统计**: 总数、平均强弱度、平均涨跌幅
-3. **信号分布**: 买入/卖出/持有信号数量统计
-4. **个股详情**: 每只股票的价格、信号、强弱度
+### **技术指标图表**
+- **ECharts集成**: 专业级股票图表库
+- **多指标展示**: K线+均线+成交量+技术指标
+- **实时更新**: 图表数据10秒自动刷新
+- **交互功能**: 支持缩放、数据点查看
+
+## 📋 使用指南
+
+### **基础操作**
+1. **启动系统**: `python3 start_realtime_system.py`
+2. **访问界面**: 浏览器打开 `http://localhost:5005/frontend/realtime_dashboard.html`
+3. **订阅股票**: 输入股票代码(如: 000001.SZ)点击订阅
+4. **查看数据**: 实时监控面板显示股价和技术指标
+5. **AI咨询**: 在AI助手界面提问股票相关问题
+
+### **高级功能**
+1. **批量订阅**: 输入多个股票代码(逗号分隔)
+2. **图表分析**: 选择股票查看详细技术指标图表
+3. **信号监控**: 关注买入/卖出信号变化
+4. **行业分析**: 查看同行业股票对比
 
 ## 🛠️ API接口文档
 
-### 技术分析接口
-```http
-GET /api/technical/indicators/{ts_code}?days=60
-# 获取股票技术指标
+### **WebSocket消息格式**
 
-GET /api/chart/comprehensive/{ts_code}?days=120  
-# 获取综合技术分析图表
-
-GET /api/chart/realtime/{ts_code}
-# 获取实时信号图表
-```
-
-### 智能分析接口
-```http
-POST /api/llm/intelligent
-Content-Type: application/json
+#### 订阅股票
+```json
 {
-  "question": "分析一下000001的走势"
+  "type": "subscribe",
+  "stock_codes": ["000001.SZ", "000002.SZ"]
 }
-# AI智能问答
-
-GET /api/llm/stock/{ts_code}?query=技术分析
-# 单只股票AI分析
 ```
 
-### 实时信号接口
+#### 获取实时数据
+```json
+{
+  "type": "get_realtime",
+  "ts_code": "000001.SZ"
+}
+```
+
+#### AI查询
+```json
+{
+  "type": "ai_query", 
+  "query": "分析一下000001的走势",
+  "ts_code": "000001.SZ"
+}
+```
+
+### **REST API接口**
+
+#### 技术分析
+```http
+GET /api/technical/indicators/000001.SZ?days=60
+```
+
+#### 实时信号
 ```http
 POST /api/signals/realtime
 Content-Type: application/json
 {
   "stock_codes": ["000001.SZ", "000002.SZ"]
 }
-# 获取实时交易信号
 ```
 
-### 投资组合接口
+#### AI分析
 ```http
-POST /api/portfolio/monitor
+POST /api/llm/intelligent
 Content-Type: application/json
 {
-  "stock_codes": ["000001.SZ", "000002.SZ", "600000.SH"]
+  "question": "分析一下银行股的投资机会"
 }
-# 投资组合监控
-
-POST /api/portfolio/dashboard
-# 投资组合仪表板
 ```
 
-## 📁 目录结构
+## 📁 项目结构
 
 ```
 tushare/
-├── 📊 analysis/           # 分析模块
-│   ├── technical_indicators.py  # 技术指标计算
-│   └── recommender.py           # 推荐算法
-├── 🤖 llm/               # AI分析模块  
-│   └── stock_analyzer.py        # 智能分析师
-├── 📈 frontend/          # 前端图表
-│   └── chart_generator.py       # 图表生成器
-├── 🔧 scripts/           # 数据脚本
-│   ├── fetch_stock_basic.py     # 获取基本信息
-│   └── fetch_stock_daily.py     # 获取历史数据
-├── 🌐 api/               # API服务
-│   └── app.py                   # Web服务器
-├── 🗄️ utils/             # 工具模块
-│   └── db_helper.py             # 数据库助手
-├── 📋 sql/               # SQL脚本
-│   └── init_tables.sql          # 建表脚本
-├── ⚙️ config.py          # 配置文件
-├── 📄 requirements.txt   # 依赖包
-└── 📖 README.md          # 项目文档
+├── 🚀 start_realtime_system.py    # 一键启动脚本
+├── 📊 utils/                      # 核心工具模块
+│   ├── technical_indicators.py    # 技术指标计算
+│   ├── llm_analyzer.py           # LLM智能分析
+│   └── db_helper.py              # 数据库操作
+├── 🌐 api/                       # API服务
+│   ├── app.py                    # Flask REST API
+│   └── websocket_server.py       # WebSocket实时服务
+├── 🎨 frontend/                  # 前端界面
+│   └── realtime_dashboard.html   # 实时分析界面
+├── 🔧 scripts/                   # 数据脚本
+│   ├── fetch_stock_basic.py      # 获取基本信息
+│   └── fetch_stock_daily.py      # 获取历史数据
+├── ⚙️ config.py                  # 统一配置
+├── 📄 requirements.txt           # 依赖包
+└── 📖 README.md                  # 项目文档
+```
+
+## 🔧 配置说明
+
+### **数据库配置**
+```python
+DB_HOST = '127.0.0.1'            # MySQL地址
+DB_PORT = 3306                   # MySQL端口  
+DB_USER = 'root'                 # 数据库用户
+DB_PASSWORD = 'your_password'    # 数据库密码
+DB_NAME = 'ljwx_stock'           # 数据库名(固定)
+```
+
+### **WebSocket配置**
+```python
+WS_HOST = '0.0.0.0'              # WebSocket绑定地址
+WS_PORT = 8765                   # WebSocket端口
+REALTIME_UPDATE_INTERVAL = 10    # 实时更新间隔(秒)
+MAX_CONNECTIONS = 100            # 最大连接数
+```
+
+### **AI配置**
+```python
+OPENAI_API_KEY = 'sk-xxx'        # OpenAI API密钥
+OPENAI_BASE_URL = 'http://localhost:11434/v1'  # 本地Ollama地址
+LLM_MODEL = 'lingjingwanxiang:70b'  # 使用的模型
 ```
 
 ## 🎯 技术指标说明
 
 ### **趋势指标**
-- **MA系列**: MA5、MA10、MA20、MA60、MA120 移动平均线
+- **MA系列**: MA5、MA10、MA20、MA60 移动平均线
 - **EMA系列**: EMA12、EMA26 指数移动平均线
-- **ADX**: 平均趋向指标，判断趋势强度
 
-### **震荡指标**  
-- **RSI**: 相对强弱指标 (RSI6、RSI14、RSI24)
-- **KDJ**: 随机指标 (K值、D值、J值)
-- **WR**: 威廉指标 (WR10、WR20)
-- **CCI**: 商品通道指标 (CCI14、CCI20)
-
-### **量价指标**
+### **震荡指标**
+- **RSI**: 相对强弱指标，超买超卖判断
+- **KDJ**: 随机指标，K值、D值、J值
 - **MACD**: 指数平滑移动平均线
-- **OBV**: 能量潮指标
-- **VR**: 量比指标
-- **AD**: 累积/派发线
 
-### **波动指标**
-- **布林带**: 上轨、中轨、下轨、布林带宽度
-- **ATR**: 真实波动幅度 (ATR14、ATR20)
+### **成交量指标**
+- **成交量MA**: 成交量移动平均
+- **量比**: 当前成交量/历史平均成交量
 
-### **自定义指标**
-- **强弱度评分**: 0-100分综合评分
-- **多空力量**: 买方力量、卖方力量对比
-- **价量背离**: 价格与成交量背离程度
-- **支撑阻力**: 动态支撑位、阻力位计算
+### **布林带**
+- **上轨**: 价格突破上轨为超买信号
+- **下轨**: 价格跌破下轨为超卖信号
+- **中轨**: 20日移动平均线
 
-## 🚨 交易信号说明
+## 🚨 交易信号算法
 
-### **买入信号触发条件** (需满足3个以上)
-1. 均线金叉 (MA5 > MA20)
-2. MACD金叉 (MACD > Signal)  
-3. RSI超卖 (RSI < 30)
-4. KDJ金叉 (K > D 且 K < 80)
-5. 强弱度 > 60
+### **买入信号条件** (需满足2个以上)
+1. MA5上穿MA20 (金叉)
+2. MACD上穿信号线
+3. RSI从超卖区回升(RSI < 30后上升)
+4. KDJ金叉(K线上穿D线)
 
-### **卖出信号触发条件** (需满足3个以上)
-1. 均线死叉 (MA5 < MA20)
-2. MACD死叉 (MACD < Signal)
-3. RSI超买 (RSI > 70) 
-4. KDJ死叉 (K < D 且 K > 20)
-5. 强弱度 < 40
+### **卖出信号条件** (需满足2个以上)
+1. MA5下穿MA20 (死叉)
+2. MACD下穿信号线
+3. RSI进入超买区(RSI > 70)
+4. KDJ死叉(K线下穿D线)
 
-### **信号优先级**
-- 🟢 **强烈买入**: 5个条件满足
-- 🟡 **谨慎买入**: 3-4个条件满足  
-- 🔴 **强烈卖出**: 5个条件满足
-- 🟡 **谨慎卖出**: 3-4个条件满足
+### **信号强度分级**
+- 🟢 **强烈买入**: 3+个买入条件满足
+- 🟡 **谨慎买入**: 2个买入条件满足
+- 🔴 **强烈卖出**: 3+个卖出条件满足
+- 🟡 **谨慎卖出**: 2个卖出条件满足
 - ⚪ **持有观望**: 条件不足
-
-## 🔧 配置说明
-
-### **TuShare配置**
-```python
-TS_TOKEN = 'your_token'      # TuShare Pro Token
-TS_RATE_LIMIT = 500          # 每分钟请求限制
-TS_BATCH_SIZE = 100          # 批处理大小  
-TS_THREAD_COUNT = 5          # 并发线程数
-```
-
-### **数据库配置**
-```python
-DB_HOST = '127.0.0.1'        # MySQL地址
-DB_PORT = 3306               # MySQL端口
-DB_USER = 'root'             # 数据库用户
-DB_PASSWORD = 'password'     # 数据库密码
-DB_NAME = 'ljwx_stock'       # 数据库名
-```
-
-### **LLM配置**
-```python
-LLM_MODEL = 'lingjingwanxiang:70b'        # AI模型
-LLM_API_URL = 'http://192.168.1.83:11434' # AI接口地址
-LLM_TIMEOUT = 30                          # 超时时间
-```
 
 ## ⚡ 性能优化
 
 ### **数据库优化**
-- **月度分表**: 按月自动分表，提高查询效率
-- **索引优化**: 股票代码、交易日期、复合索引
-- **连接池**: SQLAlchemy连接池，支持高并发
-- **批量插入**: 使用pandas to_sql批量写入
+- **分表存储**: 按年月自动分表，提升查询效率
+- **索引优化**: 股票代码、交易日期复合索引
+- **连接池**: SQLAlchemy连接池支持高并发
+- **批量操作**: pandas批量插入数据
 
-### **计算优化**  
-- **向量化计算**: 使用numpy/pandas向量化操作
-- **多线程**: ThreadPoolExecutor并发获取数据
-- **缓存机制**: Redis缓存热点数据
-- **增量更新**: 只获取新增数据，避免重复
+### **缓存策略**
+- **Redis缓存**: 热门股票数据30秒缓存
+- **本地缓存**: WebSocket连接级别数据缓存
+- **智能预加载**: 订阅股票数据预先加载
 
 ### **前端优化**
-- **懒加载**: 图表按需生成和加载
-- **自动刷新**: 实时数据30秒刷新
-- **响应式**: 支持不同屏幕尺寸
-- **CDN**: Plotly使用CDN加载
+- **异步加载**: WebSocket异步数据推送
+- **虚拟滚动**: 大量股票列表虚拟化渲染
+- **图表优化**: ECharts按需加载和更新
+- **响应式布局**: 适配不同屏幕尺寸
 
-## 🔮 扩展方向
+## 🐳 Docker部署
+
+```bash
+# 使用Docker Compose一键部署
+docker-compose up -d
+
+# 服务地址:
+# - 前端: http://localhost:5005
+# - MySQL: localhost:3306
+# - Redis: localhost:6379
+```
+
+## 🔍 故障排查
+
+### **常见问题**
+
+1. **WebSocket连接失败**
+   ```bash
+   # 检查端口占用
+   lsof -i :8765
+   
+   # 检查防火墙设置
+   sudo ufw allow 8765
+   ```
+
+2. **数据库连接失败**
+   ```bash
+   # 测试数据库连接
+   python3 start_realtime_system.py test
+   
+   # 检查配置
+   cat config.py | grep -E "DB_|MYSQL"
+   ```
+
+3. **AI功能不可用**
+   ```bash
+   # 检查API配置
+   curl -X POST http://localhost:11434/v1/chat/completions \
+        -H "Content-Type: application/json" \
+        -d '{"model":"lingjingwanxiang:70b","messages":[{"role":"user","content":"测试"}]}'
+   ```
+
+### **日志查看**
+```bash
+# 系统日志
+tail -f logs/fetch_daily.log
+
+# WebSocket日志
+python3 api/websocket_server.py
+
+# API日志  
+python3 api/app.py
+```
+
+## 🔮 未来规划
 
 ### **算法增强**
-- **机器学习**: 集成更多ML预测模型
-- **深度学习**: LSTM、GRU时间序列预测
-- **量化策略**: 更多专业量化交易策略
-- **因子分析**: 多因子选股模型
+- [ ] 集成更多机器学习预测模型
+- [ ] LSTM深度学习趋势预测
+- [ ] 多因子量化选股模型
+- [ ] 风险控制和仓位管理
 
 ### **数据源扩展**
-- **实时行情**: 接入实时tick数据
-- **基本面数据**: 财务数据、估值指标
-- **资金流向**: 大单流入流出数据
-- **舆情分析**: 新闻、公告情感分析
+- [ ] 实时tick级别数据
+- [ ] 基本面财务数据集成
+- [ ] 资金流向大单监控
+- [ ] 新闻舆情情感分析
 
 ### **功能扩展**
-- **回测系统**: 策略历史回测框架
-- **风控系统**: 仓位管理、风险控制
-- **推送服务**: 微信、邮件信号推送
-- **移动端**: React Native/Flutter APP
+- [ ] 策略回测系统
+- [ ] 移动端APP开发
+- [ ] 微信/邮件信号推送
+- [ ] 投资组合管理工具
 
 ## 📞 技术支持
 
-- **技术讨论**: 欢迎提Issue讨论技术问题
-- **功能建议**: 请在GitHub提交Feature Request
-- **Bug报告**: 请详细描述复现步骤
-- **文档更新**: 随系统功能持续更新
-
-## 🔌 WebSocket实时系统详解
-
-### **系统架构升级**
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  WebSocket服务  │    │   缓存优化器     │    │   前端实时渲染   │
-│  实时数据推送    │◀──▶│   预加载热门股    │◀──▶│   ECharts图表   │
-│  订阅管理       │    │   5分钟TTL缓存   │    │   自动重连机制   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   技术指标引擎   │    │   数据库优化     │    │   用户界面增强   │
-│   实时计算30+指标│    │   MySQL连接池   │    │   连接状态显示   │
-│   10秒推送频率   │    │   Redis分层缓存 │    │   订阅式数据流   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### **核心优势**
-
-#### ⚡ **性能提升**
-- **预加载机制**: 热门股票(000001.SZ等)自动预加载，响应提升10倍
-- **智能缓存**: 5分钟TTL缓存，减少数据库查询90%
-- **并发推送**: 支持100+用户同时订阅不同股票
-- **内存优化**: 只缓存最近30天数据，内存占用小
-
-#### 🔄 **实时性**
-- **10秒推送**: 比传统30秒刷新快3倍
-- **增量更新**: 只推送变化数据，减少网络传输
-- **自动重连**: 网络断开自动重连，保证连续性
-- **状态监控**: 实时显示WebSocket连接状态
-
-#### 📊 **用户体验**
-- **一键订阅**: 点击按钮即可开启实时推送
-- **可视化数据**: 实时价格面板+ECharts走势图
-- **响应式设计**: 适配PC/平板/手机多端
-- **错误处理**: 友好的错误提示和处理
-
-### **技术实现细节**
-
-#### 🔧 **WebSocket服务器**
-```python
-# websocket/realtime_server.py
-class RealtimeDataServer:
-    def __init__(self):
-        self.clients = set()                    # 连接管理
-        self.subscriptions = {}                 # 订阅关系
-        self.data_cache = {}                   # 数据缓存
-        
-    async def broadcast_updates(self):
-        while True:
-            for stock_code, subscribers in self.subscriptions.items():
-                data = await self.get_latest_data(stock_code)
-                await self.push_to_subscribers(subscribers, data)
-            await asyncio.sleep(10)  # 10秒推送频率
-```
-
-#### 🧠 **缓存优化器**
-```python
-# frontend/cache_optimizer.py  
-class CacheOptimizer:
-    def preload_stock_data(self, stock_code):
-        # 预加载股票数据，包含技术指标计算
-        # 5分钟TTL，自动刷新热门股票
-        
-    def get_fast_data(self, stock_code):
-        # 优先返回缓存数据，未命中时实时计算
-        # 响应时间从2000ms降低到50ms
-```
-
-#### 🎨 **前端实时渲染**
-```javascript
-// WebSocket客户端
-let ws = new WebSocket('ws://localhost:8765');
-
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    updateRealtimeDisplay(data.data);      // 更新价格面板
-    updateMiniChart(data.data.trend_data); // 更新ECharts图表
-};
-
-function subscribeRealtime() {
-    ws.send(JSON.stringify({
-        type: 'subscribe', 
-        code: document.getElementById('analysis-code').value
-    }));
-}
-```
-
-### **部署和扩展**
-
-#### 🚀 **生产环境部署**
-```bash
-# 使用gunicorn + nginx生产环境部署
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker start_realtime_server:app
-nginx配置WebSocket代理
-
-# Docker容器化部署
-docker build -t stock-realtime-system .
-docker-compose up -d
-```
-
-#### 📈 **扩展能力**
-- **水平扩展**: 支持多个WebSocket服务器实例
-- **消息队列**: 可接入Redis Pub/Sub实现集群
-- **负载均衡**: nginx upstream支持多实例负载均衡
-- **监控告警**: 集成Prometheus+Grafana监控
-
-### **新版功能对比**
-
-| 功能项 | 传统版本 | WebSocket实时版 | 提升效果 |
-|--------|----------|-----------------|----------|
-| 数据更新 | 手动刷新 | 10秒自动推送 | ⚡ 快3倍 |
-| 响应速度 | 2000ms | 50ms缓存命中 | 🚀 快40倍 |
-| 用户体验 | 需点击刷新 | 实时数据流 | 💯 极佳 |
-| 系统负载 | 每次全量查询 | 智能缓存 | 📉 降低90% |
-| 并发支持 | 10用户 | 100+用户 | 📈 提升10倍 |
+- **在线文档**: [项目Wiki](./wiki)
+- **问题反馈**: [GitHub Issues](./issues)
+- **功能建议**: [Feature Requests](./issues/new?template=feature_request.md)
+- **技术交流**: 欢迎提交PR参与开发
 
 ---
 
-## 📈 效果预览
+## 🎊 更新日志
 
-### **技术分析图表**
-- K线图 + 均线系统 + 交易信号标注
-- 成交量 + 量价分析
-- MACD + 金叉死叉信号
-- RSI + KDJ + 超买超卖区域
+### v2.0.0 (2025-07-25)
+- ✨ 新增WebSocket实时数据推送
+- ✨ 全新专业前端界面
+- ✨ AI智能分析助手
+- ✨ 30+技术指标计算
+- 🔧 数据库迁移到ljwx_stock
+- 🔧 支持断点续传数据获取
+- 🔧 优化性能和缓存机制
 
-### **AI分析报告**  
-- 基于实时技术指标的专业分析
-- 支撑阻力位分析和突破概率
-- 风险评估和投资建议
-- 中文自然语言展示
+### v1.0.0
+- 🎉 基础功能发布
+- 📊 技术指标分析
+- 🤖 推荐算法
+- 🗄️ 数据存储管理
 
-### **实时信号监控**
-- 多股票实时信号一览表
-- 强弱度实时变化监控  
-- 买卖信号自动标注
-- 30秒自动刷新更新
+---
 
-> **让AI赋能您的投资决策，专业技术分析助您把握市场脉搏！** 🚀📊🤖 
+**🚀 让数据驱动投资决策，让AI助力财富增长！** 

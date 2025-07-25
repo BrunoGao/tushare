@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>领京万象股票分析系统 - 实时数据分析</title>
+    
+    <!-- 样式库 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --border-color: #e5e7eb;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--dark-color) 0%, #374151 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+        
+        .status-disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+        
+        .search-section {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--light-color) 0%, #e5e7eb 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+        }
+        
+        .price-display {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .price-positive { color: var(--success-color); }
+        .price-negative { color: var(--danger-color); }
+        .price-neutral { color: var(--dark-color); }
+        
+        .change-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .change-positive {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .change-negative {
+            background: var(--danger-color);
+            color: white;
+        }
+        
+        .indicator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .indicator-item {
+            background: var(--light-color);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .indicator-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+        
+        .indicator-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+        
+        .signal-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .signal-buy {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .signal-sell {
+            background: var(--danger-color);
+            color: white;
+        }
+        
+        .signal-hold {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .chart-container {
+            height: 400px;
+            width: 100%;
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .subscription-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .subscription-item {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s ease;
+        }
+        
+        .subscription-item:hover {
+            background: var(--light-color);
+        }
+        
+        .log-container {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .ai-chat-container {
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--light-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .chat-message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        
+        .chat-message.user {
+            background: var(--primary-color);
+            color: white;
+            margin-left: 2rem;
+        }
+        
+        .chat-message.ai {
+            background: white;
+            border: 1px solid var(--border-color);
+            margin-right: 2rem;
+        }
+        
+        .btn-custom {
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary-custom {
+            background: var(--primary-color);
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary-custom:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+        
+        .form-control {
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 头部 -->
+        <div class="header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1"><i class="fas fa-chart-line me-2"></i>领京万象股票分析系统</h2>
+                    <p class="mb-0 opacity-75">实时数据分析 · 智能技术指标 · AI辅助决策</p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span id="connectionStatus" class="status-indicator status-disconnected">
+                        <i class="fas fa-circle"></i>
+                        <span>未连接</span>
+                    </span>
+                    <span class="text-sm opacity-75" id="currentTime"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">股票代码</label>
+                    <div class="input-group">
+                        <input type="text" id="stockCodeInput" class="form-control" 
+                               placeholder="输入股票代码 (如: 000001.SZ)">
+                        <button class="btn btn-primary-custom btn-custom" onclick="subscribeStock()">
+                            <i class="fas fa-plus me-1"></i>订阅
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">快速选择</label>
+                    <select class="form-control" id="quickSelect" onchange="quickSelectStock()">
+                        <option value="">选择热门股票</option>
+                        <option value="000001.SZ">平安银行</option>
+                        <option value="000002.SZ">万科A</option>
+                        <option value="600000.SH">浦发银行</option>
+                        <option value="600036.SH">招商银行</option>
+                        <option value="600519.SH">贵州茅台</option>
+                        <option value="000858.SZ">五粮液</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">批量操作</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-danger btn-custom" onclick="clearAllSubscriptions()">
+                            <i class="fas fa-trash me-1"></i>清空订阅
+                        </button>
+                        <button class="btn btn-outline-primary btn-custom" onclick="refreshAllData()">
+                            <i class="fas fa-sync me-1"></i>刷新数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 主要内容区域 -->
+        <div class="container-fluid p-4">
+            <div class="row g-4">
+                <!-- 实时数据面板 -->
+                <div class="col-xl-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>实时股价监控</h5>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-primary" id="subscribedCount">已订阅: 0</span>
+                                    <span class="badge bg-success" id="updateCount">更新: 0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="stockDataContainer">
+                                <div class="text-center py-5">
+                                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">请订阅股票开始实时监控</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 订阅管理 -->
+                <div class="col-xl-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>订阅管理</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="subscriptionList" class="subscription-list">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-bell fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted mb-0">暂无订阅</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-4 mt-2">
+                <!-- 技术指标图表 -->
+                <div class="col-xl-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>技术指标分析</h5>
+                                <select class="form-select w-auto" id="chartStock" onchange="updateChart()">
+                                    <option value="">选择股票查看图表</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="chartContainer" class="chart-container">
+                                <div class="text-center h-100 d-flex align-items-center justify-content-center">
+                                    <div>
+                                        <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">选择股票查看技术指标图表</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI助手 -->
+                <div class="col-xl-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI智能助手</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="ai-chat-container">
+                                <div id="chatMessages" class="chat-messages">
+                                    <div class="chat-message ai">
+                                        <strong>AI助手：</strong> 您好！我可以帮您分析股票技术指标、市场趋势和投资建议。请输入您的问题。
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" id="aiQuery" class="form-control" 
+                                           placeholder="询问股票分析、技术指标等问题..." 
+                                           onkeypress="handleAIKeyPress(event)">
+                                    <button class="btn btn-primary-custom btn-custom" onclick="sendAIQuery()">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 系统日志 -->
+            <div class="row g-4 mt-2">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>系统日志</h5>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">
+                                    <i class="fas fa-broom me-1"></i>清空日志
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="systemLogs" class="log-container">
+                                系统初始化中...<br>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    
+    <script>
+        // 全局变量
+        let websocket = null;
+        let isConnected = false;
+        let subscriptions = new Set();
+        let stockData = new Map();
+        let technicalData = new Map();
+        let updateCounter = 0;
+        let chart = null;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeWebSocket();
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+        });
+        
+        // 更新当前时间
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('zh-CN');
+        }
+        
+        // 初始化WebSocket连接
+        function initializeWebSocket() {
+            const wsUrl = `ws://${window.location.hostname}:8765`;
+            addLog(`尝试连接WebSocket: ${wsUrl}`);
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    addLog('WebSocket连接成功');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        addLog(`解析消息失败: ${error.message}`);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    addLog('WebSocket连接断开，5秒后重试...');
+                    setTimeout(initializeWebSocket, 5000);
+                };
+                
+                websocket.onerror = function(error) {
+                    addLog(`WebSocket错误: ${error.message || '连接失败'}`);
+                };
+                
+            } catch (error) {
+                addLog(`WebSocket初始化失败: ${error.message}`);
+                setTimeout(initializeWebSocket, 5000);
+            }
+        }
+        
+        // 处理WebSocket消息
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'welcome':
+                    addLog(`服务器欢迎: ${data.message}`);
+                    break;
+                    
+                case 'subscribe_success':
+                    addLog(`订阅成功: ${data.stock_codes.join(', ')}`);
+                    data.stock_codes.forEach(code => {
+                        subscriptions.add(code);
+                        addToSubscriptionList(code);
+                        addToChartSelect(code);
+                    });
+                    updateSubscriptionCount();
+                    break;
+                    
+                case 'stock_update':
+                    updateCounter++;
+                    updateStockData(data);
+                    updateUpdateCount();
+                    break;
+                    
+                case 'realtime_data':
+                    displayRealtimeData(data.ts_code, data.data);
+                    break;
+                    
+                case 'technical_data':
+                    technicalData.set(data.ts_code, data.data);
+                    if (document.getElementById('chartStock').value === data.ts_code) {
+                        updateChart();
+                    }
+                    break;
+                    
+                case 'ai_response':
+                    displayAIResponse(data.query, data.response);
+                    break;
+                    
+                case 'error':
+                    addLog(`错误: ${data.message}`, 'error');
+                    break;
+                    
+                default:
+                    addLog(`未知消息类型: ${data.type}`);
+            }
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connected) {
+                statusElement.className = 'status-indicator status-connected';
+                statusElement.innerHTML = '<i class="fas fa-circle"></i><span>已连接</span>';
+            } else {
+                statusElement.className = 'status-indicator status-disconnected';
+                statusElement.innerHTML = '<i class="fas fa-circle"></i><span>未连接</span>';
+            }
+        }
+        
+        // 订阅股票
+        function subscribeStock() {
+            const stockCode = document.getElementById('stockCodeInput').value.trim().toUpperCase();
+            if (!stockCode) {
+                alert('请输入股票代码');
+                return;
+            }
+            
+            if (!isConnected) {
+                alert('WebSocket未连接，请等待连接成功后重试');
+                return;
+            }
+            
+            if (subscriptions.has(stockCode)) {
+                alert('该股票已在订阅列表中');
+                return;
+            }
+            
+            const message = {
+                type: 'subscribe',
+                stock_codes: [stockCode]
+            };
+            
+            websocket.send(JSON.stringify(message));
+            addLog(`发送订阅请求: ${stockCode}`);
+            
+            // 清空输入框
+            document.getElementById('stockCodeInput').value = '';
+        }
+        
+        // 快速选择股票
+        function quickSelectStock() {
+            const select = document.getElementById('quickSelect');
+            if (select.value) {
+                document.getElementById('stockCodeInput').value = select.value;
+                subscribeStock();
+                select.value = '';
+            }
+        }
+        
+        // 取消订阅股票
+        function unsubscribeStock(stockCode) {
+            if (!isConnected) return;
+            
+            const message = {
+                type: 'unsubscribe',
+                stock_codes: [stockCode]
+            };
+            
+            websocket.send(JSON.stringify(message));
+            subscriptions.delete(stockCode);
+            stockData.delete(stockCode);
+            technicalData.delete(stockCode);
+            
+            removeFromSubscriptionList(stockCode);
+            removeFromChartSelect(stockCode);
+            updateSubscriptionCount();
+            updateStockDataDisplay();
+            
+            addLog(`取消订阅: ${stockCode}`);
+        }
+        
+        // 清空所有订阅
+        function clearAllSubscriptions() {
+            if (subscriptions.size === 0) return;
+            
+            if (confirm('确定要清空所有订阅吗？')) {
+                Array.from(subscriptions).forEach(stockCode => {
+                    unsubscribeStock(stockCode);
+                });
+            }
+        }
+        
+        // 刷新所有数据
+        function refreshAllData() {
+            if (!isConnected) {
+                alert('WebSocket未连接');
+                return;
+            }
+            
+            subscriptions.forEach(stockCode => {
+                const message = {
+                    type: 'get_realtime',
+                    ts_code: stockCode
+                };
+                websocket.send(JSON.stringify(message));
+            });
+            
+            addLog('刷新所有数据...');
+        }
+        
+        // 更新股票数据
+        function updateStockData(data) {
+            const { ts_code, realtime, technical } = data;
+            
+            if (realtime && !realtime.error) {
+                stockData.set(ts_code, realtime);
+            }
+            
+            if (technical && !technical.error) {
+                technicalData.set(ts_code, technical);
+            }
+            
+            updateStockDataDisplay();
+            addLog(`更新数据: ${ts_code} - ${realtime.name || ts_code}`);
+        }
+        
+        // 更新股票数据显示
+        function updateStockDataDisplay() {
+            const container = document.getElementById('stockDataContainer');
+            
+            if (stockData.size === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">请订阅股票开始实时监控</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="row g-3">';
+            
+            Array.from(stockData.entries()).forEach(([tsCode, data]) => {
+                const technical = technicalData.get(tsCode);
+                const changeClass = data.change_pct > 0 ? 'positive' : data.change_pct < 0 ? 'negative' : 'neutral';
+                
+                html += `
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">${data.name || tsCode}</h6>
+                                        <small class="text-muted">${tsCode}</small>
+                                        ${data.industry ? `<br><small class="text-info">${data.industry}</small>` : ''}
+                                    </div>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="unsubscribeStock('${tsCode}')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="price-display price-${changeClass}">
+                                        ¥${data.current_price.toFixed(2)}
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 mt-1">
+                                        <span class="change-badge change-${changeClass}">
+                                            ${data.change_pct >= 0 ? '+' : ''}${data.change_pct.toFixed(2)}%
+                                        </span>
+                                        <span class="text-muted">
+                                            ${data.change_amount >= 0 ? '+' : ''}${data.change_amount.toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="indicator-grid">
+                                    <div class="indicator-item">
+                                        <div class="indicator-label">成交量</div>
+                                        <div class="indicator-value">${formatVolume(data.volume)}</div>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <div class="indicator-label">成交额</div>
+                                        <div class="indicator-value">${formatAmount(data.amount)}</div>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <div class="indicator-label">换手率</div>
+                                        <div class="indicator-value">${data.turnover_rate.toFixed(2)}%</div>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <div class="indicator-label">市盈率</div>
+                                        <div class="indicator-value">${data.pe_ratio.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                
+                                ${technical ? generateTechnicalIndicators(technical) : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // 生成技术指标显示
+        function generateTechnicalIndicators(technical) {
+            if (!technical.indicators) return '';
+            
+            const { indicators, signals } = technical;
+            
+            // 生成交易信号
+            let signalHtml = '';
+            if (signals) {
+                const buySignals = Object.entries(signals).filter(([key, value]) => 
+                    key.includes('golden') || key.includes('oversold') && value === 1).length;
+                const sellSignals = Object.entries(signals).filter(([key, value]) => 
+                    key.includes('death') || key.includes('overbought') && value === 1).length;
+                
+                if (buySignals >= 2) {
+                    signalHtml = '<span class="signal-badge signal-buy"><i class="fas fa-arrow-up"></i>买入信号</span>';
+                } else if (sellSignals >= 2) {
+                    signalHtml = '<span class="signal-badge signal-sell"><i class="fas fa-arrow-down"></i>卖出信号</span>';
+                } else {
+                    signalHtml = '<span class="signal-badge signal-hold"><i class="fas fa-minus"></i>持有观望</span>';
+                }
+            }
+            
+            return `
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="fw-bold text-muted">技术指标</small>
+                        ${signalHtml}
+                    </div>
+                    <div class="indicator-grid">
+                        <div class="indicator-item">
+                            <div class="indicator-label">MA5</div>
+                            <div class="indicator-value">${indicators.ma5.toFixed(2)}</div>
+                        </div>
+                        <div class="indicator-item">
+                            <div class="indicator-label">MA20</div>
+                            <div class="indicator-value">${indicators.ma20.toFixed(2)}</div>
+                        </div>
+                        <div class="indicator-item">
+                            <div class="indicator-label">RSI</div>
+                            <div class="indicator-value">${indicators.rsi.toFixed(2)}</div>
+                        </div>
+                        <div class="indicator-item">
+                            <div class="indicator-label">MACD</div>
+                            <div class="indicator-value">${indicators.macd.toFixed(4)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 格式化成交量
+        function formatVolume(volume) {
+            if (volume >= 100000000) {
+                return (volume / 100000000).toFixed(1) + '亿';
+            } else if (volume >= 10000) {
+                return (volume / 10000).toFixed(1) + '万';
+            }
+            return volume.toString();
+        }
+        
+        // 格式化成交额
+        function formatAmount(amount) {
+            if (amount >= 100000000) {
+                return (amount / 100000000).toFixed(1) + '亿';
+            } else if (amount >= 10000) {
+                return (amount / 10000).toFixed(1) + '万';
+            }
+            return amount.toFixed(0);
+        }
+        
+        // 添加到订阅列表
+        function addToSubscriptionList(stockCode) {
+            const list = document.getElementById('subscriptionList');
+            
+            if (subscriptions.size === 1) {
+                list.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'subscription-item';
+            item.id = `sub-${stockCode}`;
+            item.innerHTML = `
+                <div>
+                    <strong>${stockCode}</strong>
+                    <div class="text-muted small">实时监控中</div>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" onclick="unsubscribeStock('${stockCode}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            list.appendChild(item);
+        }
+        
+        // 从订阅列表移除
+        function removeFromSubscriptionList(stockCode) {
+            const item = document.getElementById(`sub-${stockCode}`);
+            if (item) {
+                item.remove();
+            }
+            
+            if (subscriptions.size === 0) {
+                document.getElementById('subscriptionList').innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-bell fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">暂无订阅</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 添加到图表选择
+        function addToChartSelect(stockCode) {
+            const select = document.getElementById('chartStock');
+            const option = document.createElement('option');
+            option.value = stockCode;
+            option.textContent = stockCode;
+            select.appendChild(option);
+        }
+        
+        // 从图表选择移除
+        function removeFromChartSelect(stockCode) {
+            const select = document.getElementById('chartStock');
+            const option = select.querySelector(`option[value="${stockCode}"]`);
+            if (option) {
+                option.remove();
+            }
+        }
+        
+        // 更新图表
+        function updateChart() {
+            const stockCode = document.getElementById('chartStock').value;
+            if (!stockCode || !technicalData.has(stockCode)) return;
+            
+            const data = technicalData.get(stockCode);
+            const container = document.getElementById('chartContainer');
+            
+            if (!chart) {
+                chart = echarts.init(container);
+            }
+            
+            // 这里可以扩展更复杂的图表配置
+            const option = {
+                title: {
+                    text: `${stockCode} 技术指标`,
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['收盘价', 'MA5', 'MA20', 'RSI'],
+                    bottom: 0
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [data.trade_date]
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '价格'
+                    },
+                    {
+                        type: 'value',
+                        name: 'RSI',
+                        min: 0,
+                        max: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: '收盘价',
+                        type: 'line',
+                        data: [data.indicators.close]
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: [data.indicators.ma5]
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: [data.indicators.ma20]
+                    },
+                    {
+                        name: 'RSI',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: [data.indicators.rsi]
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+        }
+        
+        // 发送AI查询
+        function sendAIQuery() {
+            const query = document.getElementById('aiQuery').value.trim();
+            if (!query) return;
+            
+            if (!isConnected) {
+                alert('WebSocket未连接');
+                return;
+            }
+            
+            const message = {
+                type: 'ai_query',
+                query: query,
+                ts_code: document.getElementById('chartStock').value || null
+            };
+            
+            websocket.send(JSON.stringify(message));
+            
+            // 显示用户消息
+            const chatMessages = document.getElementById('chatMessages');
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chat-message user';
+            userMessage.innerHTML = `<strong>您：</strong> ${query}`;
+            chatMessages.appendChild(userMessage);
+            
+            // 显示加载状态
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'chat-message ai';
+            loadingMessage.id = 'ai-loading';
+            loadingMessage.innerHTML = `<strong>AI助手：</strong> <span class="loading-spinner"></span> 分析中...`;
+            chatMessages.appendChild(loadingMessage);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            document.getElementById('aiQuery').value = '';
+        }
+        
+        // 显示AI回复
+        function displayAIResponse(query, response) {
+            const chatMessages = document.getElementById('chatMessages');
+            const loadingMessage = document.getElementById('ai-loading');
+            
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+            
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'chat-message ai';
+            aiMessage.innerHTML = `<strong>AI助手：</strong> ${response}`;
+            chatMessages.appendChild(aiMessage);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // 处理AI输入框回车键
+        function handleAIKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendAIQuery();
+            }
+        }
+        
+        // 更新订阅数量
+        function updateSubscriptionCount() {
+            document.getElementById('subscribedCount').textContent = `已订阅: ${subscriptions.size}`;
+        }
+        
+        // 更新更新次数
+        function updateUpdateCount() {
+            document.getElementById('updateCount').textContent = `更新: ${updateCounter}`;
+        }
+        
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('systemLogs');
+            const timestamp = new Date().toLocaleTimeString('zh-CN');
+            const color = type === 'error' ? '#ff4444' : '#00ff00';
+            logs.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span><br>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        // 清空日志
+        function clearLogs() {
+            document.getElementById('systemLogs').innerHTML = '';
+        }
+        
+        // 股票代码输入框回车键处理
+        document.getElementById('stockCodeInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                subscribeStock();
+            }
+        });
+        
+        // 窗口大小变化时重新调整图表
+        window.addEventListener('resize', function() {
+            if (chart) {
+                chart.resize();
+            }
+        });
+    </script>
+</body>
+</html> 
