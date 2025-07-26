@@ -163,17 +163,17 @@ def main():
     
     parser = argparse.ArgumentParser(description='A股智能推荐系统管理工具')
     parser.add_argument('command', choices=[
-        'init', 'fetch-basic', 'fetch-history', 'fetch-update', 'fetch-10years',
-        'recommend', 'api', 'scheduler', 'task', 'llm-test',
-        'docker', 'status'
-    ], help='执行命令')
-    
-    parser.add_argument('--strategy', choices=['ma_crossover', 'momentum'], 
-                       default='ma_crossover', help='推荐策略')
-    parser.add_argument('--task', choices=['update', 'recommend', 'cleanup'],
-                       default='update', help='手动任务类型')
-    parser.add_argument('--llm-test', choices=['ask', 'trend', 'advice'],
-                       default='ask', help='LLM测试类型')
+        'fetch-history', 'fetch-10years', 'serve-api', 'recommend', 
+        'fetch-comprehensive', 'scheduler', 'init-schema', 'health-check'
+    ], help='要执行的命令')
+    parser.add_argument('--category', choices=['basic', 'financial', 'money_flow', 
+                                              'shareholder', 'announcement', 'market_ext', 'macro', 'all'],
+                       default='all', help='数据类别 (用于fetch-comprehensive)')
+    parser.add_argument('--mode', choices=['full', 'incremental'], default='incremental',
+                       help='获取模式 (用于fetch-comprehensive)')
+    parser.add_argument('--task', help='任务名称 (用于scheduler)')
+    parser.add_argument('--scheduler-cmd', choices=['start', 'status', 'run', 'health'], 
+                       help='调度器命令')
     
     args = parser.parse_args()
     
@@ -191,19 +191,48 @@ def main():
         fetch_historical_data('update')
         
     elif args.command == 'fetch-10years':
+        print("🚀 开始获取所有股票最近10年历史数据...")
         fetch_historical_data('10years')
         
-    elif args.command == 'recommend':
-        generate_recommendations(args.strategy)
+    elif args.command == 'serve-api':
+        print("🌐 启动API服务...")
+        run_command(['python3', 'api/app.py'], "启动API服务")
         
-    elif args.command == 'api':
-        start_api_server()
+    elif args.command == 'recommend':
+        print("💡 生成股票推荐...")
+        run_command(['python3', '-c', 'from analysis.recommender import recommender; print(recommender.get_recommendations())'], 
+                   "生成股票推荐")
+        
+    elif args.command == 'fetch-comprehensive':
+        print(f"📊 开始获取A股全维度数据 - 类别: {args.category}, 模式: {args.mode}")
+        cmd = ['python3', 'scripts/fetch_comprehensive_data.py', 
+               '--category', args.category, '--mode', args.mode]
+        run_command(cmd, f"获取{args.category}数据")
         
     elif args.command == 'scheduler':
-        start_scheduler()
+        if not args.scheduler_cmd:
+            print("❌ 请指定调度器命令 --scheduler-cmd")
+            return
+            
+        print(f"⏰ 执行调度器命令: {args.scheduler_cmd}")
+        cmd = ['python3', 'utils/data_scheduler.py', args.scheduler_cmd]
         
-    elif args.command == 'task':
-        run_manual_task(args.task)
+        if args.scheduler_cmd == 'run' and args.task:
+            cmd.extend(['--task', args.task, '--mode', args.mode])
+            
+        run_command(cmd, f"调度器{args.scheduler_cmd}")
+        
+    elif args.command == 'init-schema':
+        print("🔧 初始化全维度数据库表结构...")
+        run_command(['python3', '-c', 
+                    'from utils.comprehensive_data_schema import ComprehensiveDataSchema; '
+                    'from utils.db_helper import db; '
+                    'ComprehensiveDataSchema.create_all_tables(db)'], 
+                   "初始化数据库表结构")
+        
+    elif args.command == 'health-check':
+        print("🏥 执行系统健康检查...")
+        run_command(['python3', 'utils/data_scheduler.py', 'health'], "系统健康检查")
         
     elif args.command == 'llm-test':
         test_llm(args.llm_test)

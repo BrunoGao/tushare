@@ -308,5 +308,95 @@ class DatabaseHelper:
             self.logger.error(f"❌ 记录日志失败: {e}")
             return False
 
+    def upsert_dataframe(self, df, table_name: str, unique_cols: List[str], 
+                        update_cols: List[str] = None) -> int:
+        """批量插入或更新DataFrame数据
+        
+        Args:
+            df: 要插入的DataFrame
+            table_name: 目标表名
+            unique_cols: 唯一键列名列表，用于判断是否重复
+            update_cols: 需要更新的列名列表，为None时更新除unique_cols外的所有列
+            
+        Returns:
+            int: 成功处理的记录数
+        """
+        if df.empty:
+            return 0
+            
+        try:
+            # 如果update_cols为None，则更新除unique_cols外的所有列
+            if update_cols is None:
+                update_cols = [col for col in df.columns if col not in unique_cols]
+                
+            # 构建ON DUPLICATE KEY UPDATE语句
+            update_statements = []
+            for col in update_cols:
+                update_statements.append(f"`{col}` = VALUES(`{col}`)")
+                
+            # 生成列名列表（加上反引号防止关键字冲突）
+            columns = [f"`{col}`" for col in df.columns]
+            columns_str = ", ".join(columns)
+            
+            # 生成占位符
+            placeholders = ", ".join(["%s"] * len(df.columns))
+            
+            # 构建完整的SQL语句
+            sql = f"""
+                INSERT INTO {table_name} ({columns_str})
+                VALUES ({placeholders})
+                ON DUPLICATE KEY UPDATE
+                {", ".join(update_statements)}
+            """
+            
+            # 准备数据
+            data_tuples = []
+            for _, row in df.iterrows():
+                # 处理NaN值，转换为None
+                row_data = []
+                for value in row:
+                    if pd.isna(value):
+                        row_data.append(None)
+                    else:
+                        row_data.append(value)
+                data_tuples.append(tuple(row_data))
+            
+            # 批量执行
+            with self.engine.connect() as conn:
+                cursor = conn.connection.cursor()
+                cursor.executemany(sql, data_tuples)
+                affected_rows = cursor.rowcount
+                conn.commit()
+                cursor.close()
+                
+            self.logger.info(f"✅ {table_name} 批量upsert完成: {affected_rows} 条记录")
+            return affected_rows
+            
+        except Exception as e:
+            self.logger.error(f"❌ {table_name} 批量upsert失败: {e}")
+            return 0
+            
+    def execute_sql(self, sql: str, params: Dict = None) -> bool:
+        """执行SQL语句
+        
+        Args:
+            sql: SQL语句
+            params: 参数字典
+            
+        Returns:
+            bool: 执行是否成功
+        """
+        try:
+            with self.engine.connect() as conn:
+                if params:
+                    conn.execute(text(sql), params)
+                else:
+                    conn.execute(text(sql))
+                conn.commit()
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ 执行SQL失败: {e}")
+            return False
+
 # 全局数据库实例
 db = DatabaseHelper() 

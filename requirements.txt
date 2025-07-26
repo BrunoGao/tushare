@@ -19,4 +19,5 @@ requests>=2.31.0
 plotly>=5.15.0
 kaleido>=0.2.1
 TA-Lib>=0.4.25
-ccxt>=4.0.0 
+ccxt>=4.0.0
+schedule>=1.2.0 

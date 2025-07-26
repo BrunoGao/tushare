@@ -39,6 +39,21 @@
 - **AI问答界面**: 智能对话式股票分析助手
 - **订阅管理**: 可视化股票订阅和监控管理
 
+### **🗂️ 全维度数据管理系统** ⭐NEW⭐
+- **基本面信息**: 股票基本信息、行业分类、指数成分、股本结构、公司高管
+- **财务类信息**: 资产负债表、利润表、现金流量表、财务指标、业绩预告/快报  
+- **资金流向**: 个股资金流、龙虎榜数据、主力资金监控
+- **股东及股权**: 十大股东、流通股东、股东户数、限售解禁
+- **公告类信息**: 分红送股、股票回购、重要公告
+- **行情扩展**: 停复牌、涨跌停、概念板块分类
+- **宏观经济**: 沪深港通、融资融券、CPI/PPI/GDP等宏观指标
+
+### **⏰ 智能调度系统** ⭐NEW⭐ 
+- **定时任务**: 基本信息周更新、财务季更新、资金流日更新
+- **错误重试**: 失败任务自动重试，指数退避策略
+- **健康监控**: 数据库连接、API状态、磁盘空间监控
+- **手动执行**: 支持单个任务手动触发和全量/增量模式
+
 ## 🏗️ 系统架构
 
 ```
@@ -166,6 +181,44 @@ python3 api/websocket_server.py
 2. **图表分析**: 选择股票查看详细技术指标图表
 3. **信号监控**: 关注买入/卖出信号变化
 4. **行业分析**: 查看同行业股票对比
+
+### **全维度数据获取** ⭐NEW⭐
+```bash
+# 初始化全维度数据库表结构
+python3 run.py init-schema
+
+# 获取所有维度数据（首次全量获取）
+python3 run.py fetch-comprehensive --mode full
+
+# 增量更新特定类别数据
+python3 run.py fetch-comprehensive --category financial --mode incremental
+python3 run.py fetch-comprehensive --category money_flow --mode incremental
+
+# 可用数据类别:
+# basic - 基本面信息 | financial - 财务数据 | money_flow - 资金流向
+# shareholder - 股东数据 | announcement - 公告数据 | market_ext - 行情扩展  
+# macro - 宏观数据 | all - 全部数据
+```
+
+### **智能调度管理** ⭐NEW⭐
+```bash
+# 启动定时调度器（后台运行）
+python3 run.py scheduler --scheduler-cmd start
+
+# 查看调度状态
+python3 run.py scheduler --scheduler-cmd status
+
+# 手动执行特定任务
+python3 run.py scheduler --scheduler-cmd run --task money_flow --mode incremental
+
+# 系统健康检查
+python3 run.py health-check
+
+# 可用任务:
+# stock_basic - 基本信息 | financial_data - 财务数据 | money_flow - 资金流向
+# shareholder_data - 股东数据 | announcement_data - 公告数据
+# market_extension - 行情扩展 | macro_data - 宏观数据
+```
 
 ## 🛠️ API接口文档
 
