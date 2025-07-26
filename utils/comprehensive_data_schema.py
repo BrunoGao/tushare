@@ -1122,8 +1122,7 @@ class ComprehensiveDataSchema:
         """沪深港通资金流向表"""
         sql = """
         CREATE TABLE IF NOT EXISTS t_money_flow_hsgt (
-            id BIGINT PRIMARY KEY AUTO_INCREMENT,
-            trade_date DATE NOT NULL COMMENT '交易日期',
+            trade_date DATE PRIMARY KEY COMMENT '交易日期',
             ggt_ss DECIMAL(20,2) COMMENT '港股通(上海)当日成交金额(万元)',
             ggt_sz DECIMAL(20,2) COMMENT '港股通(深圳)当日成交金额(万元)',
             hgt DECIMAL(20,2) COMMENT '沪股通当日成交金额(万元)',
@@ -1131,7 +1130,6 @@ class ComprehensiveDataSchema:
             north_money DECIMAL(20,2) COMMENT '北向资金(万元)',
             south_money DECIMAL(20,2) COMMENT '南向资金(万元)',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (trade_date),
             INDEX idx_trade_date (trade_date)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='沪深港通资金流向表'
         """
