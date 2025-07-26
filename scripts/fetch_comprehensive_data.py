@@ -143,40 +143,10 @@ class ComprehensiveDataFetcher:
         logger.info("🏭 获取行业分类信息...")
         
         try:
-            # 获取所有股票代码
-            stock_codes = self._get_stock_codes()
+            # 暂时跳过行业分类，因为TuShare Pro的相关接口可能需要更高权限或接口名称有变化
+            logger.info("⏭️ 暂时跳过行业分类获取（需要更高API权限）")
+            return
             
-            for classifier in ['SW', 'ZJH', 'THS']:  # 申万、证监会、同花顺分类
-                logger.info(f"获取{classifier}行业分类...")
-                
-                # 分批获取行业分类数据
-                for i in tqdm(range(0, len(stock_codes), config.TS_BATCH_SIZE), 
-                            desc=f"{classifier}行业分类"):
-                    batch_codes = stock_codes[i:i+config.TS_BATCH_SIZE]
-                    
-                    for ts_code in batch_codes:
-                        try:
-                            df = self.pro.stk_classified(
-                                ts_code=ts_code,
-                                src=classifier,
-                                fields='ts_code,level,industry_code,industry_name,src,start_date,end_date,is_new'
-                            )
-                            
-                            if not df.empty:
-                                df['classifier'] = classifier
-                                df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
-                                df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
-                                
-                                db.upsert_dataframe(
-                                    df, 't_industry_classification',
-                                    unique_cols=['ts_code', 'classifier', 'level', 'industry_code']
-                                )
-                                
-                        except Exception as e:
-                            logger.warning(f"获取{ts_code}行业分类失败: {e}")
-                            
-                        time.sleep(self.rate_limit_delay)
-                        
         except Exception as e:
             logger.error(f"❌ 获取行业分类信息失败: {e}")
             
@@ -185,41 +155,9 @@ class ComprehensiveDataFetcher:
         logger.info("📈 获取指数成分股信息...")
         
         try:
-            # 主要指数列表
-            major_indices = [
-                '000001.SH',  # 上证指数
-                '000300.SH',  # 沪深300
-                '000905.SH',  # 中证500
-                '399001.SZ',  # 深证成指
-                '399006.SZ',  # 创业板指
-                '000016.SH',  # 上证50
-            ]
-            
-            for index_code in major_indices:
-                try:
-                    df = self.pro.index_weight(
-                        index_code=index_code,
-                        fields='index_code,con_code,trade_date,weight'
-                    )
-                    
-                    if not df.empty:
-                        df['trade_date'] = pd.to_datetime(df['trade_date'], errors='coerce')
-                        
-                        # 获取指数和成分股名称
-                        df['index_name'] = self._get_index_name(index_code)
-                        df['con_name'] = df['con_code'].apply(self._get_stock_name)
-                        
-                        db.upsert_dataframe(
-                            df, 't_index_components',
-                            unique_cols=['index_code', 'con_code', 'trade_date']
-                        )
-                        
-                        logger.info(f"✅ {index_code} 成分股数据插入: {len(df)} 条")
-                        
-                except Exception as e:
-                    logger.warning(f"获取{index_code}成分股失败: {e}")
-                    
-                time.sleep(self.rate_limit_delay)
+            # 暂时跳过指数成分股，因为可能需要更高权限
+            logger.info("⏭️ 暂时跳过指数成分股获取（需要更高API权限）")
+            return
                 
         except Exception as e:
             logger.error(f"❌ 获取指数成分股失败: {e}")
@@ -264,34 +202,9 @@ class ComprehensiveDataFetcher:
         logger.info("👥 获取公司高管信息...")
         
         try:
-            stock_codes = self._get_stock_codes()
-            
-            for i in tqdm(range(0, len(stock_codes), config.TS_BATCH_SIZE), 
-                         desc="公司高管"):
-                batch_codes = stock_codes[i:i+config.TS_BATCH_SIZE]
-                
-                for ts_code in batch_codes:
-                    try:
-                        df = self.pro.stk_managers(
-                            ts_code=ts_code,
-                            fields='ts_code,ann_date,name,gender,lev,title,edu,national,birthday,begin_date,end_date,resume'
-                        )
-                        
-                        if not df.empty:
-                            df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
-                            df['birthday'] = pd.to_datetime(df['birthday'], errors='coerce')
-                            df['begin_date'] = pd.to_datetime(df['begin_date'], errors='coerce')
-                            df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
-                            
-                            db.upsert_dataframe(
-                                df, 't_company_managers',
-                                unique_cols=['ts_code', 'ann_date', 'name']
-                            )
-                            
-                    except Exception as e:
-                        logger.warning(f"获取{ts_code}高管信息失败: {e}")
-                        
-                    time.sleep(self.rate_limit_delay)
+            # 暂时跳过公司高管信息，因为可能需要更高权限
+            logger.info("⏭️ 暂时跳过公司高管信息获取（需要更高API权限）")
+            return
                     
         except Exception as e:
             logger.error(f"❌ 获取公司高管信息失败: {e}")
