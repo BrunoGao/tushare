@@ -8,7 +8,12 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
-from analysis.technical_indicators import tech_indicator
+try:
+    from analysis.technical_indicators import tech_indicator
+except ImportError:
+    # 如果talib有问题，使用简化版技术指标
+    from utils.technical_indicators_simple import tech_indicator
+    print("⚠️ 图表生成器使用简化版技术指标（talib不可用）")
 from sqlalchemy import text
 import base64
 import io

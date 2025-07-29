@@ -8,9 +8,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
 from analysis.recommender import recommender
-from analysis.technical_indicators import tech_indicator
+try:
+    from analysis.technical_indicators import tech_indicator
+except ImportError:
+    # 如果talib有问题，使用简化版技术指标
+    from utils.technical_indicators_simple import tech_indicator
+    print("⚠️ 使用简化版技术指标（talib不可用）")
 from llm.stock_analyzer import stock_analyzer
-from frontend.chart_generator import chart_generator
+try:
+    from frontend.chart_generator import chart_generator
+except ImportError:
+    # 如果原图表生成器有问题，使用简化版
+    from frontend.simple_chart_generator import simple_chart_generator as chart_generator
+    print("⚠️ 使用简化版图表生成器")
 from sqlalchemy import text
 import tempfile
 import uuid
@@ -84,7 +94,16 @@ th{background:#333;color:#fff}
 <h3>📊 技术分析</h3>
 <div class="input-group">
 <label>股票代码:</label>
-<input type="text" id="analysis-code" placeholder="000001.SZ" value="000001.SZ">
+<div style="position:relative;">
+<input type="text" id="analysis-code" placeholder="输入股票代码或名称搜索" value="000001.SZ" autocomplete="off">
+<div id="search-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#333;border:1px solid #555;border-top:none;max-height:200px;overflow-y:auto;z-index:1000;"></div>
+</div>
+<div style="margin-top:10px;">
+<button class="btn" style="font-size:12px;padding:5px 10px;" onclick="loadPopularStocks('all')">热门股票</button>
+<button class="btn" style="font-size:12px;padding:5px 10px;" onclick="loadPopularStocks('bank')">银行股</button>
+<button class="btn" style="font-size:12px;padding:5px 10px;" onclick="loadPopularStocks('tech')">科技股</button>
+<button class="btn" style="font-size:12px;padding:5px 10px;" onclick="loadPopularStocks('consumer')">消费股</button>
+</div>
 </div>
 <div class="input-group">
 <label>分析周期:</label>
@@ -133,7 +152,10 @@ th{background:#333;color:#fff}
 <h3>🎯 实时交易信号</h3>
 <div class="input-group">
 <label>监控股票:</label>
-<input type="text" id="signal-codes" placeholder="000001.SZ,000002.SZ" value="000001.SZ">
+<div style="position:relative;">
+<input type="text" id="signal-codes" placeholder="输入股票代码，用逗号分隔" value="000001.SZ" autocomplete="off">
+<div id="signal-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#333;border:1px solid #555;border-top:none;max-height:200px;overflow-y:auto;z-index:1000;"></div>
+</div>
 </div>
 <button class="btn success" onclick="loadRealTimeSignals()">开始监控</button>
 <button class="btn" onclick="loadSignalChart()">信号图表</button>
@@ -201,7 +223,10 @@ th{background:#333;color:#fff}
 <h3>📈 投资组合监控</h3>
 <div class="input-group">
 <label>股票组合:</label>
-<input type="text" id="portfolio-codes" placeholder="000001.SZ,000002.SZ,600000.SH" value="000001.SZ,000002.SZ,600000.SH">
+<div style="position:relative;">
+<input type="text" id="portfolio-codes" placeholder="输入股票代码，用逗号分隔" value="000001.SZ,000002.SZ,600000.SH" autocomplete="off">
+<div id="portfolio-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#333;border:1px solid #555;border-top:none;max-height:200px;overflow-y:auto;z-index:1000;"></div>
+</div>
 </div>
 <button class="btn success" onclick="loadPortfolio()">监控组合</button>
 <button class="btn" onclick="loadPortfolioDashboard()">仪表板</button>
@@ -624,6 +649,195 @@ setInterval(() => {
     }
 }, 30000); // 30秒刷新一次
 
+// 股票搜索功能
+let searchTimeout = null;
+let currentSuggestionBox = null;
+
+function setupStockSearch() {
+    // 为所有股票输入框添加搜索功能
+    const inputs = [
+        {id: 'analysis-code', suggestions: 'search-suggestions'},
+        {id: 'signal-codes', suggestions: 'signal-suggestions'},
+        {id: 'portfolio-codes', suggestions: 'portfolio-suggestions'}
+    ];
+    
+    inputs.forEach(config => {
+        const input = document.getElementById(config.id);
+        const suggestions = document.getElementById(config.suggestions);
+        
+        if (!input || !suggestions) return;
+        
+        input.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                searchStocks(query, suggestions, input);
+            }, 300);
+        });
+        
+        input.addEventListener('focus', (e) => {
+            currentSuggestionBox = suggestions;
+        });
+        
+        input.addEventListener('blur', (e) => {
+            // 延迟隐藏，以便点击建议项
+            setTimeout(() => {
+                if (suggestions) suggestions.style.display = 'none';
+            }, 200);
+        });
+    });
+    
+    // 点击其他地方隐藏建议框
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.input-group')) {
+            document.querySelectorAll('[id$=\"-suggestions\"]').forEach(s => {
+                s.style.display = 'none';
+            });
+        }
+    });
+}
+
+async function searchStocks(query, suggestionsEl, inputEl) {
+    try {
+        const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(query)}&limit=8`);
+        const data = await response.json();
+        
+        if (data.success && data.data.length > 0) {
+            displaySearchSuggestions(data.data, suggestionsEl, inputEl);
+        } else {
+            suggestionsEl.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('搜索失败:', error);
+        suggestionsEl.style.display = 'none';
+    }
+}
+
+function displaySearchSuggestions(stocks, suggestionsEl, inputEl) {
+    let html = '';
+    stocks.forEach(stock => {
+        html += `
+            <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #555;"
+                 onmouseover="this.style.background='#444'"
+                 onmouseout="this.style.background='transparent'"
+                 onclick="selectStock('${stock.ts_code}', '${stock.display_name}', '${inputEl.id}')">
+                <div style="font-weight:bold;">${stock.display_name}</div>
+                <div style="font-size:12px;color:#999;">${stock.industry} | ${stock.market}</div>
+            </div>
+        `;
+    });
+    
+    suggestionsEl.innerHTML = html;
+    suggestionsEl.style.display = 'block';
+}
+
+function selectStock(tsCode, displayName, inputId) {
+    const input = document.getElementById(inputId);
+    
+    if (inputId === 'analysis-code') {
+        // 单个股票输入
+        input.value = tsCode;
+    } else {
+        // 多个股票输入（信号监控、投资组合）
+        const currentValue = input.value.trim();
+        const codes = currentValue ? currentValue.split(',').map(s => s.trim()) : [];
+        
+        // 避免重复添加
+        if (!codes.includes(tsCode)) {
+            codes.push(tsCode);
+            input.value = codes.join(',');
+        }
+    }
+    
+    // 隐藏建议框
+    document.querySelectorAll('[id$=\"-suggestions\"]').forEach(s => {
+        s.style.display = 'none';
+    });
+}
+
+async function loadPopularStocks(category) {
+    try {
+        const response = await fetch(`/api/stocks/popular?category=${category}&limit=12`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayPopularStocks(data.data, category);
+        } else {
+            alert('加载热门股票失败');
+        }
+    } catch (error) {
+        console.error('加载热门股票失败:', error);
+        alert('加载热门股票失败');
+    }
+}
+
+function displayPopularStocks(stocks, category) {
+    const categoryNames = {
+        'all': '热门股票',
+        'bank': '银行股',
+        'tech': '科技股',
+        'consumer': '消费股'
+    };
+    
+    let html = `
+        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+                    background:#2d2d2d;border:1px solid #555;border-radius:8px;
+                    padding:20px;max-width:600px;max-height:500px;overflow-y:auto;z-index:2000;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4>${categoryNames[category] || '股票列表'}</h4>
+                <button onclick="closePopularStocks()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+    `;
+    
+    stocks.forEach(stock => {
+        html += `
+            <div style="background:#333;padding:10px;border-radius:5px;cursor:pointer;text-align:center;"
+                 onclick="selectPopularStock('${stock.ts_code}', '${stock.display_name}')">
+                <div style="font-weight:bold;font-size:14px;">${stock.name}</div>
+                <div style="font-size:12px;color:#999;margin:2px 0;">${stock.ts_code}</div>
+                <div style="font-size:11px;color:#666;">${stock.industry}</div>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+        <div id="popular-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1999;" onclick="closePopularStocks()"></div>
+    `;
+    
+    // 添加到页面
+    const overlay = document.createElement('div');
+    overlay.id = 'popular-stocks-modal';
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+}
+
+function selectPopularStock(tsCode, displayName) {
+    const input = document.getElementById('analysis-code');
+    input.value = tsCode;
+    closePopularStocks();
+}
+
+function closePopularStocks() {
+    const modal = document.getElementById('popular-stocks-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// 页面加载完成后初始化搜索功能
+window.addEventListener('load', () => {
+    setupStockSearch();
+});
+
 </script>
 </body></html>
 '''
@@ -699,17 +913,21 @@ def get_comprehensive_chart(ts_code):
     """获取综合技术分析图表"""
     try:
         days = int(request.args.get('days', 120))
-        result = chart_generator.create_comprehensive_chart(ts_code, days)
+        
+        # 使用简化图表生成器
+        if hasattr(chart_generator, 'create_basic_chart'):
+            result = chart_generator.create_basic_chart(ts_code, days)
+        else:
+            result = chart_generator.create_comprehensive_chart(ts_code, days)
         
         if result['success']:
             return jsonify({
                 "success": True,
                 "chart_html": result['chart_html'],
                 "stock_info": {
-                    "code": result['stock_code'],
-                    "name": result['stock_name'],
-                    "latest_price": result['latest_price'],
-                    "signals": result['latest_signals']
+                    "code": result.get('stock_code', ts_code),
+                    "latest_price": result.get('latest_price', 0),
+                    "data_points": result.get('data_points', 0)
                 },
                 "timestamp": datetime.now().isoformat()
             })
@@ -912,6 +1130,101 @@ def portfolio_dashboard():
         logger.error(f"组合仪表板失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# 多策略推荐接口
+@app.route('/api/recommendations/generate', methods=['POST'])
+def generate_multi_strategy_recommendations():
+    """生成多策略推荐"""
+    try:
+        from utils.multi_strategy_recommender import multi_strategy_recommender
+        
+        data = request.get_json()
+        strategy = data.get('strategy', 'multi_strategy')
+        limit = int(data.get('limit', 20))
+        min_score = float(data.get('min_score', 60))
+        
+        # 根据策略类型生成推荐
+        if strategy == 'multi_strategy':
+            # 综合推荐
+            result = multi_strategy_recommender.generate_enhanced_recommendations(
+                strategy_weights=None,
+                limit=limit,
+                min_score=min_score
+            )
+            recommendations = result.get('recommendations', [])
+        else:
+            # 单一策略推荐
+            recommendations = multi_strategy_recommender.get_strategy_recommendations(
+                strategy_name=strategy,
+                limit=limit
+            )
+        
+        return jsonify({
+            "success": True,
+            "data": recommendations,
+            "count": len(recommendations),
+            "strategy": strategy,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"生成多策略推荐失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/recommendations/performance')
+def get_recommendation_performance():
+    """获取推荐表现统计"""
+    try:
+        from utils.multi_strategy_recommender import multi_strategy_recommender
+        
+        days_back = int(request.args.get('days', 30))
+        performance = multi_strategy_recommender.get_recommendation_performance(days_back)
+        
+        return jsonify({
+            "success": True,
+            "data": performance,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取推荐表现失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/system/health')
+def get_system_health():
+    """获取系统健康状态"""
+    try:
+        from utils.data_health_checker import data_health_checker
+        from utils.redis_cache_manager import cache_manager
+        from utils.system_monitor import system_monitor
+        
+        # 数据健康检查
+        data_health = data_health_checker.check_system_health()
+        
+        # 缓存健康检查
+        cache_health = cache_manager.health_check()
+        
+        # 系统监控状态
+        system_status = system_monitor.get_current_status()
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "data_health": data_health,
+                "cache_health": cache_health,
+                "system_status": system_status,
+                "overall_status": "healthy" if all([
+                    data_health.get('overall_status') == 'HEALTHY',
+                    cache_health.get('status') == 'healthy',
+                    system_status.get('status') in ['healthy', 'warning']
+                ]) else "warning"
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取系统健康状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # 保留原有接口
 @app.route('/api/recommend')
 def get_recommendations():
@@ -974,6 +1287,155 @@ def get_stats():
         
     except Exception as e:
         logger.error(f"获取统计信息失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 股票搜索接口 - 改善用户体验
+@app.route('/api/stocks/search')
+def search_stocks():
+    """股票代码和名称搜索"""
+    try:
+        query = request.args.get('q', '').strip()
+        limit = int(request.args.get('limit', 10))
+        
+        if not query:
+            return jsonify({"success": False, "error": "搜索关键词不能为空"}), 400
+        
+        if len(query) < 2:
+            return jsonify({"success": False, "error": "搜索关键词至少2个字符"}), 400
+        
+        with db.engine.connect() as conn:
+            # 搜索股票代码或名称
+            sql = """
+                SELECT ts_code, name, industry, market
+                FROM stock_basic
+                WHERE list_status = 'L'
+                AND (
+                    ts_code LIKE :query_code OR
+                    name LIKE :query_name OR
+                    ts_code LIKE :query_simple
+                )
+                ORDER BY
+                    CASE
+                        WHEN ts_code = :exact_code THEN 1
+                        WHEN ts_code LIKE :start_code THEN 2
+                        WHEN name LIKE :start_name THEN 3
+                        ELSE 4
+                    END,
+                    ts_code
+                LIMIT :limit
+            """
+            
+            result = conn.execute(text(sql), {
+                'query_code': f'%{query}%',
+                'query_name': f'%{query}%',
+                'query_simple': f'{query}%',
+                'exact_code': query,
+                'start_code': f'{query}%',
+                'start_name': f'{query}%',
+                'limit': limit
+            })
+            
+            stocks = []
+            for row in result:
+                stocks.append({
+                    'ts_code': row.ts_code,
+                    'name': row.name,
+                    'industry': row.industry or '未知',
+                    'market': row.market or '未知',
+                    'display_name': f"{row.name}({row.ts_code})"
+                })
+        
+        return jsonify({
+            "success": True,
+            "data": stocks,
+            "count": len(stocks),
+            "query": query,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"股票搜索失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/stocks/popular')
+def get_popular_stocks():
+    """获取热门股票建议"""
+    try:
+        category = request.args.get('category', 'all')  # all, bank, tech, consumer
+        limit = int(request.args.get('limit', 20))
+        
+        with db.engine.connect() as conn:
+            # 根据分类获取热门股票
+            if category == 'bank':
+                sql = """
+                    SELECT ts_code, name, industry, market
+                    FROM stock_basic
+                    WHERE list_status = 'L'
+                    AND (industry LIKE '%银行%' OR industry LIKE '%金融%')
+                    ORDER BY ts_code
+                    LIMIT :limit
+                """
+            elif category == 'tech':
+                sql = """
+                    SELECT ts_code, name, industry, market
+                    FROM stock_basic
+                    WHERE list_status = 'L'
+                    AND (industry LIKE '%软件%' OR industry LIKE '%互联网%' OR industry LIKE '%电子%' OR industry LIKE '%通信%')
+                    ORDER BY ts_code
+                    LIMIT :limit
+                """
+            elif category == 'consumer':
+                sql = """
+                    SELECT ts_code, name, industry, market
+                    FROM stock_basic
+                    WHERE list_status = 'L'
+                    AND (industry LIKE '%消费%' OR industry LIKE '%食品%' OR industry LIKE '%饮料%' OR industry LIKE '%家电%')
+                    ORDER BY ts_code
+                    LIMIT :limit
+                """
+            else:
+                # 获取一些知名的大盘股
+                popular_codes = [
+                    '000001.SZ', '000002.SZ', '000858.SZ', '000725.SZ',  # 平安银行、万科、五粮液、京东方
+                    '600000.SH', '600036.SH', '600519.SH', '600887.SH',  # 浦发银行、招商银行、贵州茅台、伊利股份
+                    '002415.SZ', '002594.SZ', '300015.SZ', '300059.SZ'   # 海康威视、比亚迪、爱尔眼科、东方财富
+                ]
+                
+                placeholders = ','.join([f':code{i}' for i in range(len(popular_codes))])
+                sql = f"""
+                    SELECT ts_code, name, industry, market
+                    FROM stock_basic
+                    WHERE list_status = 'L'
+                    AND ts_code IN ({placeholders})
+                    ORDER BY ts_code
+                """
+                
+                params = {f'code{i}': code for i, code in enumerate(popular_codes)}
+                result = conn.execute(text(sql), params)
+            
+            if category != 'all':
+                result = conn.execute(text(sql), {'limit': limit})
+            
+            stocks = []
+            for row in result:
+                stocks.append({
+                    'ts_code': row.ts_code,
+                    'name': row.name,
+                    'industry': row.industry or '未知',
+                    'market': row.market or '未知',
+                    'display_name': f"{row.name}({row.ts_code})"
+                })
+        
+        return jsonify({
+            "success": True,
+            "data": stocks,
+            "count": len(stocks),
+            "category": category,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取热门股票失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.errorhandler(404)

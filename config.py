@@ -54,6 +54,21 @@ WS_PORT = int(os.getenv('WS_PORT', 8765))
 REALTIME_UPDATE_INTERVAL = int(os.getenv('REALTIME_UPDATE_INTERVAL', 10))  # 实时更新间隔(秒)
 MAX_CONNECTIONS = int(os.getenv('MAX_CONNECTIONS', 100))  # 最大连接数
 
+# 数据清洗配置
+DATA_CLEAN_RULES = {
+    'REQUIRED_DATE_COLS': ['ann_date'],  # 必需的日期字段
+    'FILTER_NULL_ANN_DATE': True,       # 过滤ann_date为空的记录
+    'MAX_RETRY_COUNT': 3,                # 最大重试次数
+    'RETRY_DELAY': 2                     # 重试延迟(秒)
+}
+
+# 错误处理配置  
+ERROR_HANDLING = {
+    'IGNORE_EMPTY_DATA': True,           # 忽略空数据错误
+    'LOG_FILTERED_RECORDS': True,        # 记录被过滤的记录数
+    'FALLBACK_INDUSTRY_API': True        # 使用备用行业分类API
+}
+
 # 行业板块配置
 INDUSTRY_MAPPING = {  # 行业板块映射
     '银行': 'banking', '保险': 'insurance', '证券': 'securities',

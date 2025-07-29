@@ -361,13 +361,13 @@ class DatabaseHelper:
                         row_data.append(value)
                 data_tuples.append(tuple(row_data))
             
-            # 批量执行
-            with self.engine.connect() as conn:
+            # 使用SQLAlchemy事务管理
+            with self.engine.begin() as conn:  # 使用begin()确保事务自动提交
                 cursor = conn.connection.cursor()
                 cursor.executemany(sql, data_tuples)
                 affected_rows = cursor.rowcount
-                conn.commit()
                 cursor.close()
+                # 事务会在with块结束时自动提交
                 
             self.logger.info(f"✅ {table_name} 批量upsert完成: {affected_rows} 条记录")
             return affected_rows

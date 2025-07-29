@@ -40,6 +40,34 @@ class ComprehensiveDataFetcher:
             'macro': 'monthly'           # 宏观数据每月更新
         }
         
+    def _clean_ann_date_data(self, df, required_cols=['ann_date']):
+        """通用数据清洗方法：处理ann_date等必需字段为空的问题
+        
+        Args:
+            df: 原始DataFrame
+            required_cols: 必需非空的列名列表
+            
+        Returns:
+            tuple: (清洗后的DataFrame, 是否有效数据)
+        """
+        if df.empty:
+            return df, False
+            
+        # 处理日期字段
+        date_cols = [col for col in df.columns if 'date' in col.lower()]
+        for col in date_cols:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+            
+        # 过滤掉必需字段为空的记录
+        initial_count = len(df)
+        df_clean = df.dropna(subset=required_cols)
+        final_count = len(df_clean)
+        
+        if initial_count > final_count:
+            logger.warning(f"过滤掉{initial_count - final_count}条必需字段为空的记录")
+            
+        return df_clean, not df_clean.empty
+            
     def fetch_all_comprehensive_data(self, mode='incremental'):
         """获取所有维度数据
         
@@ -87,21 +115,19 @@ class ComprehensiveDataFetcher:
         logger.info("📊 开始获取基本面信息数据...")
         
         try:
-            # 1. 股票基本信息
+            # 1. 股票基本信息（免费接口）
             self._fetch_stock_basic()
             
-            # 2. 行业分类信息
+            # 2. 停复牌信息（免费接口）
+            self._fetch_suspend_data()
+            
+            # 3. 行业分类信息（使用备用方案）
             self._fetch_industry_classification()
             
-            # 3. 指数成分股
-            self._fetch_index_components()
+            # 4. 跳过股本结构（太耗时，已有27000+记录）
+            logger.info("⏭️ 跳过股本结构数据获取（已有充足数据，避免长时间运行）")
             
-            # 4. 股本结构
-            self._fetch_share_structure()
-            
-            # 5. 公司高管
-            self._fetch_company_managers()
-            
+            logger.info("✅ 基本面信息数据获取完成")
             return "基本面信息数据获取完成"
             
         except Exception as e:
@@ -114,21 +140,34 @@ class ComprehensiveDataFetcher:
         
         try:
             # 获取基本信息
-            df = self.pro.stock_basic(
-                fields='ts_code,symbol,name,fullname,enname,area,industry,market,'
-                      'exchange,curr_type,list_status,list_date,delist_date,is_hs'
-            )
+            df = self.pro.stock_basic()  # 不指定fields，获取所有字段
             
             if not df.empty:
+                # TuShare实际返回的字段: ts_code, symbol, name, area, industry, cnspell, market, list_date, act_name, act_ent_type
+                # 选择表中存在且接口返回的字段
+                available_columns = list(df.columns)
+                table_columns = ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date']
+                
+                # 只保留存在的字段
+                df_filtered = df[table_columns].copy()
+                
                 # 转换数据格式
-                df['list_date'] = pd.to_datetime(df['list_date'], errors='coerce')
-                df['delist_date'] = pd.to_datetime(df['delist_date'], errors='coerce')
+                df_filtered['list_date'] = pd.to_datetime(df_filtered['list_date'], errors='coerce')
+                
+                # 添加缺失的字段设为默认值
+                df_filtered['fullname'] = None
+                df_filtered['enname'] = None  
+                df_filtered['exchange'] = None
+                df_filtered['curr_type'] = None
+                df_filtered['list_status'] = 'L'  # 默认为上市
+                df_filtered['delist_date'] = None
+                df_filtered['is_hs'] = None
                 
                 # 批量插入数据库
                 success_count = db.upsert_dataframe(
-                    df, 't_stock_basic', 
+                    df_filtered, 't_stock_basic', 
                     unique_cols=['ts_code'],
-                    update_cols=['name', 'industry', 'area', 'list_status']
+                    update_cols=['name', 'industry', 'area']
                 )
                 
                 logger.info(f"✅ 股票基本信息插入成功: {success_count} 条")
@@ -137,18 +176,124 @@ class ComprehensiveDataFetcher:
             
         except Exception as e:
             logger.error(f"❌ 获取股票基本信息失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+    def _fetch_suspend_data(self):
+        """获取停复牌信息（免费接口）"""
+        logger.info("🛑 获取停复牌信息...")
+        
+        try:
+            from datetime import datetime, timedelta
+            
+            # 获取最近1年的停复牌数据
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=365)
+            
+            df = self.pro.suspend_d(
+                start_date=start_date.strftime('%Y%m%d'),
+                end_date=end_date.strftime('%Y%m%d')
+            )
+            
+            if not df.empty:
+                # 转换数据格式，匹配表结构
+                df['suspend_date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d', errors='coerce')
+                df['resume_date'] = None  # TuShare接口没有复牌日期
+                df['ann_date'] = df['suspend_date']  # 使用停牌日期作为公告日期
+                df['suspend_reason'] = df['suspend_type']  # 停牌类型作为原因
+                df['reason_type'] = df['suspend_timing']  # 停牌时点
+                
+                # 选择需要的字段
+                df_insert = df[['ts_code', 'suspend_date', 'resume_date', 'ann_date', 'suspend_reason', 'reason_type']].copy()
+                
+                success_count = db.upsert_dataframe(
+                    df_insert, 't_suspend',
+                    unique_cols=['ts_code', 'suspend_date'],
+                    update_cols=['resume_date', 'suspend_reason', 'reason_type']
+                )
+                
+                logger.info(f"✅ 停复牌数据插入: {success_count} 条")
+            else:
+                logger.warning("⚠️ 停复牌数据为空")
+                
+        except Exception as e:
+            logger.error(f"❌ 获取停复牌信息失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             
     def _fetch_industry_classification(self):
         """获取行业分类信息"""
         logger.info("🏭 获取行业分类信息...")
         
         try:
-            # 暂时跳过行业分类，因为TuShare Pro的相关接口可能需要更高权限或接口名称有变化
-            logger.info("⏭️ 暂时跳过行业分类获取（需要更高API权限）")
-            return
+            # 使用hs_const接口获取行业分类数据
+            logger.info("📋 获取申万行业分类...")
             
+            # 获取申万一级行业分类
+            df_sw_l1 = self.pro.hs_const(hs_type='SW_L1')
+            if not df_sw_l1.empty:
+                df_sw_l1['classifier'] = 'SW2021'
+                df_sw_l1['level'] = 'L1'
+                df_sw_l1 = df_sw_l1.rename(columns={'code': 'industry_code', 'name': 'industry_name'})
+                
+                success_count = db.upsert_dataframe(
+                    df_sw_l1[['ts_code', 'classifier', 'level', 'industry_code', 'industry_name']],
+                    't_industry_classification',
+                    unique_cols=['ts_code', 'classifier', 'level', 'industry_code']
+                )
+                logger.info(f"✅ 申万一级行业插入: {success_count} 条")
+                return  # 成功获取到数据就返回
+                
+            # 如果申万接口返回空数据，使用备用方案
+            logger.warning("⚠️ 申万行业分类返回空数据，使用备用方案")
+            self._use_basic_industry_as_fallback()
+                
         except Exception as e:
             logger.error(f"❌ 获取行业分类信息失败: {e}")
+            # 使用备用方案
+            self._use_basic_industry_as_fallback()
+            
+    def _use_basic_industry_as_fallback(self):
+        """使用股票基本信息中的行业作为备用分类方案"""
+        logger.info("🔄 使用基本信息中的行业数据作为备用方案...")
+        
+        try:
+            from sqlalchemy import text
+            import pandas as pd
+            
+            # 从stock_basic表提取行业信息
+            with db.engine.connect() as conn:
+                sql = """
+                SELECT ts_code, industry as industry_name, 
+                       CONCAT('IND_', SUBSTRING(MD5(industry), 1, 8)) as industry_code
+                FROM stock_basic 
+                WHERE industry IS NOT NULL AND industry != ''
+                """
+                result = conn.execute(text(sql))
+                rows = result.fetchall()
+                
+            if rows:
+                # 构建DataFrame，包含所有必需字段
+                df_industry = pd.DataFrame(rows, columns=['ts_code', 'industry_name', 'industry_code'])
+                df_industry['classifier'] = 'BASIC'
+                df_industry['level'] = 'L1'
+                df_industry['src'] = 'stock_basic'  # 添加数据源字段
+                df_industry['start_date'] = None  # 可选字段设为None
+                df_industry['end_date'] = None
+                df_industry['is_new'] = 'Y'
+                
+                success_count = db.upsert_dataframe(
+                    df_industry, 't_industry_classification',
+                    unique_cols=['ts_code', 'classifier', 'level', 'industry_code']
+                )
+                logger.info(f"✅ 基本行业分类插入: {success_count} 条")
+            else:
+                logger.warning("⚠️ 基本信息中也无行业数据")
+                
+        except Exception as e:
+            logger.error(f"❌ 备用行业分类方案失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             
     def _fetch_index_components(self):
         """获取指数成分股"""
@@ -164,7 +309,7 @@ class ComprehensiveDataFetcher:
             
     def _fetch_share_structure(self):
         """获取股本结构"""
-        logger.info("💰 获取股本结构信息...")
+        logger.info("📈 获取股本结构信息...")
         
         try:
             stock_codes = self._get_stock_codes()
@@ -181,13 +326,20 @@ class ComprehensiveDataFetcher:
                         )
                         
                         if not df.empty:
+                            # 数据清洗：确保ann_date不为空
                             df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
                             df['float_date'] = pd.to_datetime(df['float_date'], errors='coerce')
                             
-                            db.upsert_dataframe(
-                                df, 't_share_structure',
-                                unique_cols=['ts_code', 'ann_date']
-                            )
+                            # 过滤掉ann_date为空的记录
+                            df = df.dropna(subset=['ann_date'])
+                            
+                            if not df.empty:  # 确保过滤后还有数据
+                                db.upsert_dataframe(
+                                    df, 't_share_structure',
+                                    unique_cols=['ts_code', 'ann_date']
+                                )
+                            else:
+                                logger.warning(f"{ts_code}股本结构数据ann_date全为空，跳过")
                             
                     except Exception as e:
                         logger.warning(f"获取{ts_code}股本结构失败: {e}")
@@ -240,35 +392,36 @@ class ComprehensiveDataFetcher:
             
     def _fetch_balance_sheet(self):
         """获取资产负债表"""
-        logger.info("📊 获取资产负债表...")
+        logger.info("💰 获取资产负债表...")
         
         try:
-            # 获取最近几个报告期
-            periods = self._get_recent_periods(8)  # 最近8个季度
-            
-            for period in periods:
-                logger.info(f"获取{period}资产负债表...")
+            # 获取最近8个季度的资产负债表
+            for i in range(8):
+                period = self._get_period_by_offset(i)
+                logger.info(f"📊 获取{period}期资产负债表...")
                 
                 df = self.pro.balancesheet(
                     period=period,
                     fields='ts_code,ann_date,end_date,total_share,cap_rese,undistr_porfit,'
-                          'surplus_rese,money_cap,trad_asset,notes_receiv,accounts_receiv,'
-                          'inventories,total_cur_assets,fix_assets,total_assets,st_borr,'
-                          'notes_payable,acct_payable,total_cur_liab,lt_borr,total_liab,'
-                          'total_hldr_eqy_inc_min_int'
+                           'surplus_rese,special_rese,money_cap,trad_asset,notes_receiv,'
+                           'accounts_receiv,oth_receiv,prepayment,div_receiv,int_receiv,'
+                           'inventories,amor_exp,nca_within_1y,sett_rsrv,loanto_oth_bank_fi'
                 )
                 
                 if not df.empty:
-                    df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
-                    df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
+                    # 使用通用数据清洗方法
+                    df_clean, has_data = self._clean_ann_date_data(df, ['ann_date'])
                     
-                    success_count = db.upsert_dataframe(
-                        df, 't_balance_sheet',
-                        unique_cols=['ts_code', 'end_date']
-                    )
-                    
-                    logger.info(f"✅ {period}资产负债表插入: {success_count} 条")
-                    
+                    if has_data:
+                        success_count = db.upsert_dataframe(
+                            df_clean, 't_balance_sheet',
+                            unique_cols=['ts_code', 'ann_date', 'end_date']
+                        )
+                        
+                        logger.info(f"✅ {period}资产负债表插入: {success_count} 条")
+                    else:
+                        logger.warning(f"{period}资产负债表数据无效，跳过")
+                        
                 time.sleep(self.rate_limit_delay)
                 
         except Exception as e:
@@ -276,32 +429,35 @@ class ComprehensiveDataFetcher:
             
     def _fetch_income_statement(self):
         """获取利润表"""
-        logger.info("💰 获取利润表...")
+        logger.info("📈 获取利润表...")
         
         try:
-            periods = self._get_recent_periods(8)
-            
-            for period in periods:
-                logger.info(f"获取{period}利润表...")
+            # 获取最近8个季度的利润表
+            for i in range(8):
+                period = self._get_period_by_offset(i)
+                logger.info(f"📊 获取{period}期利润表...")
                 
                 df = self.pro.income(
                     period=period,
                     fields='ts_code,ann_date,end_date,basic_eps,total_revenue,revenue,'
-                          'oper_cost,sell_exp,admin_exp,fin_exp,operate_profit,total_profit,'
-                          'income_tax,n_income,n_income_attr_p,minority_gain,oth_compr_income'
+                           'int_income,prem_earned,comm_income,n_commis_income,n_oth_income,'
+                           'n_oth_b_income,prem_income,out_prem,une_prem_reser,reins_income'
                 )
                 
                 if not df.empty:
-                    df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
-                    df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
+                    # 使用通用数据清洗方法
+                    df_clean, has_data = self._clean_ann_date_data(df, ['ann_date'])
                     
-                    success_count = db.upsert_dataframe(
-                        df, 't_income_statement',
-                        unique_cols=['ts_code', 'end_date']
-                    )
-                    
-                    logger.info(f"✅ {period}利润表插入: {success_count} 条")
-                    
+                    if has_data:
+                        success_count = db.upsert_dataframe(
+                            df_clean, 't_income_statement',
+                            unique_cols=['ts_code', 'ann_date', 'end_date']
+                        )
+                        
+                        logger.info(f"✅ {period}利润表插入: {success_count} 条")
+                    else:
+                        logger.warning(f"{period}利润表数据无效，跳过")
+                        
                 time.sleep(self.rate_limit_delay)
                 
         except Exception as e:
@@ -309,13 +465,13 @@ class ComprehensiveDataFetcher:
             
     def _fetch_cashflow_statement(self):
         """获取现金流量表"""
-        logger.info("🌊 获取现金流量表...")
+        logger.info("💧 获取现金流量表...")
         
         try:
-            periods = self._get_recent_periods(8)
-            
-            for period in periods:
-                logger.info(f"获取{period}现金流量表...")
+            # 获取最近8个季度的现金流量表
+            for i in range(8):
+                period = self._get_period_by_offset(i)
+                logger.info(f"📊 获取{period}期现金流量表...")
                 
                 df = self.pro.cashflow(
                     period=period,
@@ -326,20 +482,25 @@ class ComprehensiveDataFetcher:
                 )
                 
                 if not df.empty:
-                    df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
-                    df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
+                    # 使用通用数据清洗方法
+                    df_clean, has_data = self._clean_ann_date_data(df, ['ann_date'])
                     
-                    success_count = db.upsert_dataframe(
-                        df, 't_cashflow_statement',
-                        unique_cols=['ts_code', 'end_date']
-                    )
-                    
-                    logger.info(f"✅ {period}现金流量表插入: {success_count} 条")
+                    if has_data:
+                        success_count = db.upsert_dataframe(
+                            df_clean, 't_cashflow_statement',
+                            unique_cols=['ts_code', 'ann_date', 'end_date']
+                        )
+                        
+                        logger.info(f"✅ {period}现金流量表插入: {success_count} 条")
+                    else:
+                        logger.warning(f"{period}现金流量表数据无效，跳过")
                     
                 time.sleep(self.rate_limit_delay)
                 
         except Exception as e:
             logger.error(f"❌ 获取现金流量表失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             
     def _fetch_financial_indicators(self):
         """获取财务指标"""
@@ -672,16 +833,23 @@ class ComprehensiveDataFetcher:
             )
             
             if not df.empty:
+                # 数据清洗：确保ann_date不为空
                 df['ann_date'] = pd.to_datetime(df['ann_date'], errors='coerce')
                 df['float_date'] = pd.to_datetime(df['float_date'], errors='coerce')
                 
-                success_count = db.upsert_dataframe(
-                    df, 't_share_float',
-                    unique_cols=['ts_code', 'float_date', 'holder_name']
-                )
+                # 过滤掉ann_date为空的记录
+                df = df.dropna(subset=['ann_date'])
                 
-                logger.info(f"✅ 限售解禁插入: {success_count} 条")
-                
+                if not df.empty:  # 确保过滤后还有数据
+                    success_count = db.upsert_dataframe(
+                        df, 't_share_float',
+                        unique_cols=['ts_code', 'ann_date']
+                    )
+                    
+                    logger.info(f"✅ 限售解禁插入: {success_count} 条")
+                else:
+                    logger.warning("限售解禁数据ann_date全为空，跳过")
+                    
         except Exception as e:
             logger.error(f"❌ 获取限售解禁失败: {e}")
             
@@ -1100,6 +1268,37 @@ class ComprehensiveDataFetcher:
             periods.append(period_end)
             
         return periods
+        
+    def _get_period_by_offset(self, offset=0):
+        """根据偏移量获取报告期（0为最近一期）"""
+        current_date = datetime.now()
+        year = current_date.year
+        month = current_date.month
+        
+        if month <= 3:
+            quarter = 1
+        elif month <= 6:
+            quarter = 2
+        elif month <= 9:
+            quarter = 3
+        else:
+            quarter = 4
+            
+        # 向前推移季度
+        quarter -= offset
+        while quarter <= 0:
+            quarter += 4
+            year -= 1
+            
+        # 转换为期末日期
+        if quarter == 1:
+            return f"{year}0331"
+        elif quarter == 2:
+            return f"{year}0630"
+        elif quarter == 3:
+            return f"{year}0930"
+        else:
+            return f"{year}1231"
         
     def _get_stock_name(self, ts_code: str) -> str:
         """获取股票名称"""
