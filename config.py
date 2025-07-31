@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # TuShare配置
-TS_TOKEN = os.getenv('TS_TOKEN', 'f4b30b0b2f4ea3f5ae7daedb1c280f0d4e380599ef16647df5e80ac8')  # TuShare Token
+TS_TOKEN = os.getenv('TS_TOKEN', '05b8d2c8cc89bf19206a152b0898200cf08827e7e6a93d2a59267863')  # TuShare Token
 TS_RATE_LIMIT = 500  # 每分钟请求限制
 TS_BATCH_SIZE = 100  # 批处理大小
 TS_THREAD_COUNT = 5  # 并发线程数

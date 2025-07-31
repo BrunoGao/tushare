@@ -1,0 +1,10 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "ljwx-stock-analysis",
+  "version": "1.0.0",
+  "description": "灵境万象股票分析系统 - HarmonyOS客户端",
+  "author": "lingjiang",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

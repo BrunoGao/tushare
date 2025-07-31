@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}AI分析 - 灵境万象{% endblock %}
+
+{% block content %}
+<div x-data="aiAnalysisApp()" x-cloak>
+    <!-- 页面头部 -->
+    <div class="mb-6">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🤖 AI股票分析</h1>
+        <p class="mt-1 text-gray-600">基于机器学习的智能股票分析与预测系统</p>
+    </div>
+    
+    <!-- 系统状态面板 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">AI系统状态</h2>
+            <button @click="checkModelStatus()" 
+                    :disabled="isLoadingStatus"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                <span x-show="!isLoadingStatus">检查状态</span>
+                <span x-show="isLoadingStatus" class="flex items-center">
+                    <i data-lucide="loader" class="animate-spin h-4 w-4 mr-2"></i>
+                    检查中...
+                </span>
+            </button>
+        </div>
+        
+        <div x-show="modelStatus" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-bold text-blue-600" x-text="modelStatus?.available_models?.length || 0"></div>
+                <div class="text-sm text-gray-500">可用模型</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-bold text-green-600" x-text="modelStatus?.trained_models?.length || 0"></div>
+                <div class="text-sm text-gray-500">已训练模型</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-bold text-purple-600" x-text="modelStatus?.feature_count || 0"></div>
+                <div class="text-sm text-gray-500">特征数量</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-bold" 
+                     :class="modelStatus?.trained_models?.length > 0 ? 'text-green-600' : 'text-red-600'"
+                     x-text="modelStatus?.trained_models?.length > 0 ? '✅ 就绪' : '❌ 未训练'"></div>
+                <div class="text-sm text-gray-500">系统状态</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 模型训练面板 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">📊 模型训练</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">训练天数</label>
+                <select x-model="trainingSettings.daysBack" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="90">90天</option>
+                    <option value="180">180天</option>
+                    <option value="365">365天</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">股票数量</label>
+                <select x-model="trainingSettings.stockLimit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="100">100只</option>
+                    <option value="300">300只</option>
+                    <option value="500">500只</option>
+                    <option value="1000">1000只</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button @click="trainModels()" 
+                        :disabled="isTraining"
+                        class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span x-show="!isTraining">🚀 开始训练</span>
+                    <span x-show="isTraining" class="flex items-center justify-center">
+                        <i data-lucide="loader" class="animate-spin h-4 w-4 mr-2"></i>
+                        训练中...
+                    </span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 训练进度和结果 -->
+        <div x-show="trainingResult" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 class="text-lg font-semibold text-blue-900 mb-2">📈 训练结果</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <span class="text-blue-700">训练样本: </span>
+                    <span class="font-bold" x-text="trainingResult?.training_samples || 0"></span>
+                </div>
+                <div>
+                    <span class="text-blue-700">特征数量: </span>
+                    <span class="font-bold" x-text="trainingResult?.feature_count || 0"></span>
+                </div>
+                <div>
+                    <span class="text-blue-700">训练模型: </span>
+                    <span class="font-bold" x-text="trainingResult?.models_trained || 0"></span>
+                </div>
+                <div>
+                    <span class="text-blue-700">保存状态: </span>
+                    <span class="font-bold" :class="trainingResult?.models_saved ? 'text-green-600' : 'text-red-600'" 
+                          x-text="trainingResult?.models_saved ? '✅ 已保存' : '❌ 失败'"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 模型性能面板 -->
+    <div x-show="modelPerformance" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">📊 模型性能对比</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">模型</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">准确率</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F1得分</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">交叉验证</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">训练时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="(perf, modelName) in modelPerformance" :key="modelName">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="modelName"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="(perf.accuracy * 100).toFixed(2) + '%'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="(perf.f1_score * 100).toFixed(2) + '%'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="(perf.cv_mean * 100).toFixed(2) + '±' + (perf.cv_std * 100).toFixed(2) + '%'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="perf.training_time.toFixed(2) + 's'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button @click="viewFeatureImportance(modelName)" 
+                                        class="text-blue-600 hover:text-blue-900">查看特征</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 股票预测面板 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">🎯 股票AI预测</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">股票代码</label>
+                <input type="text" x-model="predictionInput.stockCode" 
+                       placeholder="输入股票代码，如: 000001.SZ" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">选择模型</label>
+                <select x-model="predictionInput.modelName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">自动选择最佳模型</option>
+                    <template x-for="model in (modelStatus?.trained_models || [])" :key="model">
+                        <option :value="model" x-text="model"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button @click="predictStock()" 
+                        :disabled="isPredicting || !predictionInput.stockCode"
+                        class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span x-show="!isPredicting">🔮 AI预测</span>
+                    <span x-show="isPredicting" class="flex items-center justify-center">
+                        <i data-lucide="loader" class="animate-spin h-4 w-4 mr-2"></i>
+                        预测中...
+                    </span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 预测结果 -->
+        <div x-show="predictionResult" class="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">🎯 AI预测结果</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-white rounded-lg border">
+                    <div class="text-sm text-gray-500 mb-1">股票代码</div>
+                    <div class="text-lg font-bold text-gray-900" x-text="predictionResult?.ts_code"></div>
+                </div>
+                <div class="text-center p-4 bg-white rounded-lg border">
+                    <div class="text-sm text-gray-500 mb-1">预测结果</div>
+                    <div class="text-lg font-bold" 
+                         :class="getPredictionColor(predictionResult?.prediction)"
+                         x-text="predictionResult?.prediction_text"></div>
+                </div>
+                <div class="text-center p-4 bg-white rounded-lg border">
+                    <div class="text-sm text-gray-500 mb-1">置信度</div>
+                    <div class="text-lg font-bold text-blue-600" x-text="((predictionResult?.confidence || 0) * 100).toFixed(1) + '%'"></div>
+                </div>
+                <div class="text-center p-4 bg-white rounded-lg border">
+                    <div class="text-sm text-gray-500 mb-1">使用模型</div>
+                    <div class="text-sm font-bold text-gray-700" x-text="predictionResult?.model_name"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 特征重要性面板 -->
+    <div x-show="featureImportance" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">📈 特征重要性分析</h2>
+            <button @click="featureImportance = null" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="h-5 w-5"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-3">
+            <template x-for="(feature, index) in (featureImportance?.feature_importance || [])" :key="index">
+                <div class="flex items-center space-x-3">
+                    <div class="w-32 text-sm font-medium text-gray-700" x-text="feature.feature"></div>
+                    <div class="flex-1 bg-gray-200 rounded-full h-4">
+                        <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" 
+                             :style="`width: ${(feature.importance * 100)}%`"></div>
+                    </div>
+                    <div class="w-16 text-sm text-gray-600" x-text="(feature.importance * 100).toFixed(1) + '%'"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+function aiAnalysisApp() {
+    return {
+        modelStatus: null,
+        modelPerformance: null,
+        trainingResult: null,
+        predictionResult: null,
+        featureImportance: null,
+        
+        isLoadingStatus: false,
+        isTraining: false,
+        isPredicting: false,
+        
+        trainingSettings: {
+            daysBack: 180,
+            stockLimit: 500
+        },
+        
+        predictionInput: {
+            stockCode: '',
+            modelName: ''
+        },
+        
+        init() {
+            this.checkModelStatus();
+        },
+        
+        async checkModelStatus() {
+            this.isLoadingStatus = true;
+            try {
+                // 首先检查AI健康状态
+                const healthResponse = await apiRequest('/api/ai/health');
+                if (healthResponse.success) {
+                    const health = healthResponse.data;
+                    if (health.overall_status === 'error') {
+                        showToast(`AI系统不可用: ${health.recommendations.join('; ')}`, 'error');
+                        this.showHealthError(health);
+                        return;
+                    }
+                }
+                
+                const response = await apiRequest('/api/ai/models/performance');
+                if (response.success) {
+                    this.modelStatus = response.data;
+                    this.modelPerformance = response.data.performance;
+                    
+                    // 显示健康状态信息
+                    if (response.data.health_status) {
+                        this.displayHealthInfo(response.data.health_status);
+                    }
+                } else {
+                    // 显示详细的错误信息和修复建议
+                    this.showDetailedError(response);
+                }
+            } catch (error) {
+                showToast('获取模型状态失败: ' + error.message, 'error');
+                this.showNetworkError();
+            } finally {
+                this.isLoadingStatus = false;
+            }
+        },
+        
+        showHealthError(health) {
+            // 创建健康状态错误面板
+            const errorPanel = document.createElement('div');
+            errorPanel.className = 'bg-red-50 border border-red-200 rounded-xl p-4 mb-6';
+            errorPanel.innerHTML = `
+                <h3 class="text-lg font-semibold text-red-900 mb-2">❌ AI系统不可用</h3>
+                <div class="text-sm text-red-700 mb-3">
+                    <p>系统可用性: ${(health.overall_availability * 100).toFixed(1)}%</p>
+                </div>
+                <div class="mb-3">
+                    <h4 class="font-medium text-red-800 mb-2">📦 依赖包状态:</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        ${Object.entries(health.dependencies.dependencies).map(([dep, status]) => 
+                            `<div class="flex items-center"><span class="${status ? 'text-green-600' : 'text-red-600'}">${status ? '✅' : '❌'}</span> <span class="ml-2">${dep}</span></div>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <h4 class="font-medium text-red-800 mb-2">🧩 模块状态:</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        ${Object.entries(health.modules.modules).map(([mod, status]) => 
+                            `<div class="flex items-center"><span class="${status ? 'text-green-600' : 'text-red-600'}">${status ? '✅' : '❌'}</span> <span class="ml-2 truncate">${mod}</span></div>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium text-red-800 mb-2">💡 修复建议:</h4>
+                    <ul class="text-sm text-red-700 space-y-1">
+                        ${health.recommendations.map(rec => `<li>• ${rec}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+            
+            // 插入到页面中
+            const container = document.querySelector('[x-data="aiAnalysisApp()"]');
+            const firstPanel = container.querySelector('.bg-white');
+            container.insertBefore(errorPanel, firstPanel);
+        },
+        
+        showDetailedError(response) {
+            let errorMessage = response.error || '未知错误';
+            let suggestions = [];
+            
+            if (response.health_status) {
+                suggestions = response.health_status.recommendations || [];
+            } else if (response.fallback_info) {
+                suggestions = response.fallback_info.suggestions || [];
+            }
+            
+            // 特定错误处理
+            if (errorMessage.includes('xgboost')) {
+                suggestions.unshift('安装XGBoost: pip install xgboost');
+            }
+            if (errorMessage.includes('talib')) {
+                suggestions.unshift('安装TA-Lib: pip install talib-binary');
+            }
+            
+            showToast(errorMessage, 'error');
+            
+            if (suggestions.length > 0) {
+                console.log('修复建议:', suggestions);
+                // 可以在这里添加更详细的错误显示逻辑
+            }
+        },
+        
+        showNetworkError() {
+            showToast('网络连接错误，请检查API服务是否正常运行', 'error');
+        },
+        
+        displayHealthInfo(health) {
+            if (health.overall_status !== 'healthy') {
+                const statusText = health.overall_status === 'warning' ? '⚠️ 警告' : '❌ 错误';
+                showToast(`AI系统状态: ${statusText}`, 'warning');
+            }
+        },
+        
+        async trainModels() {
+            this.isTraining = true;
+            this.trainingResult = null;
+            
+            try {
+                showToast('开始训练AI模型，这可能需要几分钟时间...', 'info');
+                
+                const response = await apiRequest('/api/ai/models/train', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        days_back: parseInt(this.trainingSettings.daysBack),
+                        stock_limit: parseInt(this.trainingSettings.stockLimit)
+                    })
+                });
+                
+                if (response.success) {
+                    this.trainingResult = response.data;
+                    showToast('AI模型训练完成！', 'success');
+                    
+                    // 刷新模型状态
+                    await this.checkModelStatus();
+                } else {
+                    showToast('模型训练失败: ' + response.error, 'error');
+                }
+            } catch (error) {
+                showToast('模型训练失败: ' + error.message, 'error');
+            } finally {
+                this.isTraining = false;
+            }
+        },
+        
+        async predictStock() {
+            if (!this.predictionInput.stockCode.trim()) {
+                showToast('请输入股票代码', 'error');
+                return;
+            }
+            
+            this.isPredicting = true;
+            this.predictionResult = null;
+            
+            try {
+                const url = `/api/ai/models/predict/${this.predictionInput.stockCode}` + 
+                           (this.predictionInput.modelName ? `?model=${this.predictionInput.modelName}` : '');
+                
+                const response = await apiRequest(url);
+                
+                if (response.success) {
+                    this.predictionResult = response.data;
+                    showToast('AI预测完成！', 'success');
+                } else {
+                    showToast('预测失败: ' + response.error, 'error');
+                }
+            } catch (error) {
+                showToast('预测失败: ' + error.message, 'error');
+            } finally {
+                this.isPredicting = false;
+            }
+        },
+        
+        async viewFeatureImportance(modelName) {
+            try {
+                const response = await apiRequest(`/api/ai/models/features/${modelName}`);
+                if (response.success) {
+                    this.featureImportance = response.data;
+                } else {
+                    showToast('获取特征重要性失败: ' + response.error, 'error');
+                }
+            } catch (error) {
+                showToast('获取特征重要性失败: ' + error.message, 'error');
+            }
+        },
+        
+        getPredictionColor(prediction) {
+            switch (prediction) {
+                case 1: return 'text-green-600';
+                case -1: return 'text-red-600';
+                default: return 'text-yellow-600';
+            }
+        }
+    }
+}
+</script>
+
+<style>
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}

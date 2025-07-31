@@ -1,0 +1,20 @@
+{
+  "app": {
+    "bundleName": "com.ljwx.stockanalysis",
+    "vendor": "lingjiang",
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name",
+    "description": "$string:app_description",
+    "distributedNotificationEnabled": true,
+    "keepAlive": true,
+    "singleUser": true,
+    "minAPIVersion": 12,
+    "targetAPIVersion": 15,
+    "car": {
+      "apiCompatibleVersion": 12,
+      "targetAPIVersion": 15
+    }
+  }
+}

@@ -1,0 +1,662 @@
+{% extends "base.html" %}
+
+{% block title %}技术分析 - 灵境万象{% endblock %}
+
+{% block content %}
+<div x-data="analysisApp()" x-cloak>
+    <!-- 页面头部 -->
+    <div class="mb-6">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">技术分析</h1>
+        <p class="mt-1 text-gray-600">专业的股票技术指标分析</p>
+    </div>
+    
+    <!-- 搜索和参数控制面板 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- 股票搜索 -->
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">股票代码</label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        x-model="stockCode"
+                        @input="searchStocks"
+                        placeholder="输入股票代码或名称..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                    >
+                    <div x-show="searchResults.length > 0" 
+                         class="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                        <template x-for="stock in searchResults" :key="stock.ts_code">
+                            <div @click="selectStock(stock)" 
+                                 class="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                <div class="font-medium text-sm" x-text="stock.display_name"></div>
+                                <div class="text-xs text-gray-500" x-text="stock.ts_code + ' | ' + stock.industry"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 分析周期 -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">分析周期</label>
+                <select x-model="analysisPeriod" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                    <option value="30">30天</option>
+                    <option value="60">60天</option>
+                    <option value="120">120天</option>
+                    <option value="250">250天</option>
+                </select>
+            </div>
+            
+            <!-- 分析按钮 -->
+            <div class="flex items-end">
+                <button @click="performAnalysis()" 
+                        :disabled="!stockCode || isLoading"
+                        class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span x-show="!isLoading">开始分析</span>
+                    <span x-show="isLoading" class="flex items-center justify-center">
+                        <i data-lucide="loader" class="animate-spin h-4 w-4 mr-2"></i>
+                        分析中...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 股票基本信息 -->
+    <div x-show="stockInfo" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div class="text-center">
+                <div class="text-sm text-gray-500">当前价格</div>
+                <div class="text-lg font-bold" x-text="formatNumber(stockInfo?.latest_price)"></div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm text-gray-500">涨跌</div>
+                <div class="text-lg font-bold" 
+                     :class="stockInfo?.change >= 0 ? 'text-bull' : 'text-bear'"
+                     x-text="stockInfo?.change >= 0 ? '+' + formatNumber(stockInfo?.change) : formatNumber(stockInfo?.change)"></div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm text-gray-500">涨跌幅</div>
+                <div class="text-lg font-bold" 
+                     :class="stockInfo?.pct_chg >= 0 ? 'text-bull' : 'text-bear'"
+                     x-text="formatPercent(stockInfo?.pct_chg)"></div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm text-gray-500">成交量</div>
+                <div class="text-lg font-bold" x-text="formatNumber(stockInfo?.volume/10000, 0) + '万'"></div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm text-gray-500">市盈率</div>
+                <div class="text-lg font-bold" x-text="formatNumber(stockInfo?.pe)"></div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm text-gray-500">市净率</div>
+                <div class="text-lg font-bold" x-text="formatNumber(stockInfo?.pb)"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图表区域 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-900 mb-2 sm:mb-0">价格走势图</h2>
+            <div class="flex space-x-2">
+                <button @click="chartType = 'candlestick'" 
+                        :class="chartType === 'candlestick' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                        class="px-3 py-1 rounded-md text-sm">K线图</button>
+                <button @click="chartType = 'line'" 
+                        :class="chartType === 'line' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                        class="px-3 py-1 rounded-md text-sm">折线图</button>
+                <button @click="exportChart()" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm">
+                    <i data-lucide="download" class="h-4 w-4 inline mr-1"></i>导出
+                </button>
+            </div>
+        </div>
+        <div id="main-chart" class="chart-container w-full"></div>
+    </div>
+    
+    <!-- 技术指标面板 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- 趋势指标 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">趋势指标</h3>
+            <div class="space-y-4">
+                <template x-for="indicator in trendIndicators" :key="indicator.name">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <div class="font-medium text-sm" x-text="indicator.name"></div>
+                            <div class="text-xs text-gray-500" x-text="indicator.description"></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-medium text-sm" x-text="formatNumber(indicator.value)"></div>
+                            <div :class="indicator.signal === 'buy' ? 'text-bull' : indicator.signal === 'sell' ? 'text-bear' : 'text-gray-500'"
+                                 class="text-xs font-medium" x-text="indicator.signal_text"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- 动量指标 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">动量指标</h3>
+            <div class="space-y-4">
+                <template x-for="indicator in momentumIndicators" :key="indicator.name">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <div class="font-medium text-sm" x-text="indicator.name"></div>
+                            <div class="text-xs text-gray-500" x-text="indicator.description"></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-medium text-sm" x-text="formatNumber(indicator.value)"></div>
+                            <div :class="indicator.signal === 'buy' ? 'text-bull' : indicator.signal === 'sell' ? 'text-bear' : 'text-gray-500'"
+                                 class="text-xs font-medium" x-text="indicator.signal_text"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI分析结果 -->
+    <div x-show="aiAnalysis" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">AI智能分析</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-2xl font-bold" 
+                     :class="aiAnalysis?.overall_score >= 7 ? 'text-bull' : aiAnalysis?.overall_score <= 3 ? 'text-bear' : 'text-yellow-600'"
+                     x-text="aiAnalysis?.overall_score + '/10'"></div>
+                <div class="text-sm text-gray-500">综合评分</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-medium" 
+                     :class="aiAnalysis?.recommendation === 'buy' ? 'text-bull' : aiAnalysis?.recommendation === 'sell' ? 'text-bear' : 'text-yellow-600'"
+                     x-text="aiAnalysis?.recommendation_text"></div>
+                <div class="text-sm text-gray-500">投资建议</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-lg font-medium" x-text="aiAnalysis?.risk_level_text"></div>
+                <div class="text-sm text-gray-500">风险等级</div>
+            </div>
+        </div>
+        <div class="prose max-w-none">
+            <p class="text-gray-700" x-text="aiAnalysis?.analysis_text"></p>
+        </div>
+    </div>
+    
+    <!-- 资金流向和龙虎榜信息 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- 资金流向 -->
+        <div x-show="moneyFlow" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 资金流向</h3>
+            
+            <!-- 流向概览 -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="text-center p-3 bg-red-50 rounded-lg">
+                    <div class="text-lg font-bold text-bull" x-text="formatMoney(moneyFlow?.main_inflow || 0)"></div>
+                    <div class="text-sm text-gray-600">主力净流入</div>
+                </div>
+                <div class="text-center p-3 bg-green-50 rounded-lg">
+                    <div class="text-lg font-bold" 
+                         :class="(moneyFlow?.inflow_ratio || 0) > 50 ? 'text-bull' : 'text-bear'"
+                         x-text="(moneyFlow?.inflow_ratio || 0).toFixed(1) + '%'"></div>
+                    <div class="text-sm text-gray-600">资金流入比例</div>
+                </div>
+            </div>
+            
+            <!-- 资金流向详情 -->
+            <div class="space-y-2">
+                <template x-for="flow in (moneyFlow?.flow_details || [])" :key="flow.type">
+                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span class="text-sm font-medium" x-text="flow.type"></span>
+                        <div class="text-right">
+                            <div class="text-sm font-bold" 
+                                 :class="flow.amount >= 0 ? 'text-bull' : 'text-bear'"
+                                 x-text="formatMoney(flow.amount)"></div>
+                            <div class="text-xs text-gray-500" x-text="flow.ratio + '%'"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            
+            <div class="mt-3 text-center text-sm text-gray-600" x-text="moneyFlow?.recent_trend"></div>
+        </div>
+        
+        <!-- 龙虎榜信息 -->
+        <div x-show="dragonTiger" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">🐲 龙虎榜</h3>
+            
+            <div x-show="dragonTiger?.is_on_list">
+                <!-- 上榜信息 -->
+                <div class="mb-4 p-3 bg-yellow-50 rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium">上榜日期</span>
+                        <span class="text-sm" x-text="dragonTiger?.latest_date"></span>
+                    </div>
+                    <div class="text-xs text-gray-600" x-text="dragonTiger?.reason"></div>
+                </div>
+                
+                <!-- 买卖汇总 -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="text-center p-2 bg-red-50 rounded">
+                        <div class="text-sm font-bold text-bull" x-text="formatMoney(dragonTiger?.summary?.total_buy || 0)"></div>
+                        <div class="text-xs text-gray-600">买入金额</div>
+                    </div>
+                    <div class="text-center p-2 bg-green-50 rounded">
+                        <div class="text-sm font-bold text-bear" x-text="formatMoney(dragonTiger?.summary?.total_sell || 0)"></div>
+                        <div class="text-xs text-gray-600">卖出金额</div>
+                    </div>
+                </div>
+                
+                <!-- 买卖席位 -->
+                <div x-show="(dragonTiger?.buy_list || []).length > 0">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">买入席位前五</h4>
+                    <div class="space-y-1 mb-3">
+                        <template x-for="seat in (dragonTiger?.buy_list || []).slice(0, 3)" :key="seat.rank">
+                            <div class="flex justify-between text-xs p-1 bg-red-50 rounded">
+                                <span x-text="seat.name"></span>
+                                <span class="font-medium text-bull" x-text="formatMoney(seat.amount)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div x-show="(dragonTiger?.sell_list || []).length > 0">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">卖出席位前三</h4>
+                    <div class="space-y-1">
+                        <template x-for="seat in (dragonTiger?.sell_list || []).slice(0, 3)" :key="seat.rank">
+                            <div class="flex justify-between text-xs p-1 bg-green-50 rounded">
+                                <span x-text="seat.name"></span>
+                                <span class="font-medium text-bear" x-text="formatMoney(seat.amount)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            
+            <div x-show="!dragonTiger?.is_on_list" class="text-center text-gray-500 py-8">
+                <i data-lucide="info" class="h-8 w-8 mx-auto mb-2 opacity-50"></i>
+                <p class="text-sm" x-text="dragonTiger?.reason || '该股票近期未上龙虎榜'"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function analysisApp() {
+    return {
+        stockCode: '',
+        analysisPeriod: '120',
+        chartType: 'candlestick',
+        isLoading: false,
+        searchResults: [],
+        stockInfo: null,
+        trendIndicators: [],
+        momentumIndicators: [],
+        aiAnalysis: null,
+        moneyFlow: null,
+        dragonTiger: null,
+        chart: null,
+        
+        init() {
+            // 从URL参数获取股票代码
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            if (code) {
+                this.stockCode = code;
+                this.performAnalysis();
+            }
+        },
+        
+        async searchStocks() {
+            if (this.stockCode.length < 2) {
+                this.searchResults = [];
+                return;
+            }
+            
+            try {
+                const response = await apiRequest(`/api/stocks/search?q=${encodeURIComponent(this.stockCode)}&limit=8`);
+                this.searchResults = response.data || [];
+            } catch (error) {
+                this.searchResults = [];
+            }
+        },
+        
+        selectStock(stock) {
+            this.stockCode = stock.ts_code;
+            this.searchResults = [];
+            this.performAnalysis();
+        },
+        
+        async performAnalysis() {
+            if (!this.stockCode) return;
+            
+            this.isLoading = true;
+            
+            try {
+                // 并行请求多个API
+                const [chartResponse, indicatorsResponse, aiResponse, moneyFlowResponse, dragonTigerResponse] = await Promise.all([
+                    apiRequest(`/api/chart/comprehensive/${this.stockCode}?days=${this.analysisPeriod}`),
+                    apiRequest(`/api/indicators/${this.stockCode}?days=${this.analysisPeriod}`),
+                    apiRequest(`/api/ai/analysis/${this.stockCode}`),
+                    apiRequest(`/api/stocks/money-flow/${this.stockCode}`),
+                    apiRequest(`/api/stocks/dragon-tiger/${this.stockCode}`)
+                ]);
+                
+                if (chartResponse.success) {
+                    this.stockInfo = chartResponse.stock_info;
+                    this.renderChart(chartResponse.chart_data);
+                }
+                
+                if (indicatorsResponse.success) {
+                    this.trendIndicators = indicatorsResponse.data.trend || [];
+                    this.momentumIndicators = indicatorsResponse.data.momentum || [];
+                }
+                
+                if (aiResponse.success) {
+                    this.aiAnalysis = aiResponse.data;
+                }
+                
+                if (moneyFlowResponse.success) {
+                    this.moneyFlow = moneyFlowResponse.data;
+                }
+                
+                if (dragonTigerResponse.success) {
+                    this.dragonTiger = dragonTigerResponse.data;
+                }
+                
+                // 更新URL
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('code', this.stockCode);
+                window.history.replaceState({}, '', newUrl);
+                
+            } catch (error) {
+                showToast('分析失败: ' + error.message, 'error');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+        
+        renderChart(chartData) {
+            const chartDom = document.getElementById('main-chart');
+            if (this.chart) {
+                this.chart.dispose();
+            }
+            this.chart = echarts.init(chartDom);
+            
+            // 根据图表类型渲染不同的图表
+            if (this.chartType === 'candlestick') {
+                this.renderCandlestickChart(chartData);
+            } else {
+                this.renderLineChart(chartData);
+            }
+        },
+        
+        renderCandlestickChart(chartData) {
+            const option = {
+                animation: false,
+                legend: {
+                    bottom: 10,
+                    left: 'center',
+                    data: ['K线', 'MA5', 'MA10', 'MA20']
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    },
+                    borderWidth: 1,
+                    borderColor: '#ccc',
+                    padding: 10,
+                    textStyle: {
+                        color: '#000'
+                    }
+                },
+                axisPointer: {
+                    link: { xAxisIndex: 'all' },
+                    label: {
+                        backgroundColor: '#777'
+                    }
+                },
+                toolbox: {
+                    feature: {
+                        dataZoom: {
+                            yAxisIndex: false
+                        },
+                        brush: {
+                            type: ['lineX', 'clear']
+                        }
+                    }
+                },
+                brush: {
+                    xAxisIndex: 'all',
+                    brushLink: 'all',
+                    outOfBrush: {
+                        colorAlpha: 0.1
+                    }
+                },
+                visualMap: {
+                    show: false,
+                    seriesIndex: 5,
+                    dimension: 2,
+                    pieces: [{
+                        value: 1,
+                        color: '#00da3c'
+                    }, {
+                        value: -1,
+                        color: '#ec0000'
+                    }]
+                },
+                grid: [
+                    {
+                        left: '10%',
+                        right: '8%',
+                        height: '50%'
+                    },
+                    {
+                        left: '10%',
+                        right: '8%',
+                        top: '63%',
+                        height: '16%'
+                    }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: chartData.dates,
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax',
+                        axisPointer: {
+                            z: 100
+                        }
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: chartData.dates,
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax'
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1,
+                        splitNumber: 2,
+                        axisLabel: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 50,
+                        end: 100
+                    },
+                    {
+                        show: true,
+                        xAxisIndex: [0, 1],
+                        type: 'slider',
+                        top: '85%',
+                        start: 50,
+                        end: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: chartData.kline,
+                        itemStyle: {
+                            color: '#FD1050',
+                            color0: '#0CF49B',
+                            borderColor: '#FD1050',
+                            borderColor0: '#0CF49B'
+                        }
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: chartData.ma5,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: 'MA10',
+                        type: 'line',
+                        data: chartData.ma10,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: chartData.ma20,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: chartData.volume
+                    }
+                ]
+            };
+            
+            this.chart.setOption(option);
+        },
+        
+        renderLineChart(chartData) {
+            const option = {
+                title: {
+                    text: this.stockCode + ' 价格走势',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['收盘价', 'MA5', 'MA20'],
+                    bottom: 10
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: chartData.dates
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: '收盘价',
+                        type: 'line',
+                        data: chartData.close,
+                        smooth: true
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: chartData.ma5,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.7
+                        }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: chartData.ma20,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.7
+                        }
+                    }
+                ]
+            };
+            
+            this.chart.setOption(option);
+        },
+        
+        exportChart() {
+            if (this.chart) {
+                const url = this.chart.getDataURL({
+                    pixelRatio: 2,
+                    backgroundColor: '#fff'
+                });
+                const link = document.createElement('a');
+                link.download = `${this.stockCode}_chart.png`;
+                link.href = url;
+                link.click();
+            }
+        },
+        
+        formatMoney(amount) {
+            if (!amount || amount === 0) return '0';
+            const absAmount = Math.abs(amount);
+            if (absAmount >= 100000000) {
+                return (amount / 100000000).toFixed(2) + '亿';
+            } else if (absAmount >= 10000) {
+                return (amount / 10000).toFixed(2) + '万';
+            } else {
+                return amount.toLocaleString();
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

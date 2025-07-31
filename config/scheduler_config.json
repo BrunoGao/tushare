@@ -1,0 +1,62 @@
+{
+  "daily_update": {
+    "enabled": true,
+    "times": [
+      "09:35",
+      "15:05",
+      "21:00"
+    ],
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "enhanced_data_update": {
+    "enabled": true,
+    "times": [
+      "10:00",
+      "16:00"
+    ],
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "technical_indicators_update": {
+    "enabled": true,
+    "times": [
+      "10:30",
+      "16:30"
+    ],
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "weekly_full_sync": {
+    "enabled": true,
+    "day": 6,
+    "time": "20:00",
+    "days_to_sync": 7
+  },
+  "monthly_enhanced_sync": {
+    "enabled": true,
+    "day_of_month": 1,
+    "time": "03:00"
+  },
+  "market_hours": {
+    "morning_start": "09:30",
+    "morning_end": "11:30",
+    "afternoon_start": "13:00",
+    "afternoon_end": "15:00"
+  }
+}

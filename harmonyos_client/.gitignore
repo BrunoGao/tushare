@@ -1,0 +1,37 @@
+# Byte-Order Mark
+/**/*.bom
+
+# Build Outputs
+**/build/
+**/node_modules/
+**/oh_modules/
+
+# Log Files
+/**/*.log
+
+# DevEco Studio
+/.idea/
+*.iml
+
+# Local Configuration Files
+**/local.properties
+**/signing.json
+
+# System Files
+.DS_Store
+**/Thumbs.db
+
+# Temporary Files
+**/tmp/
+**/temp/
+
+# Generated Files
+**/generated/
+
+# Archive Files
+**/*.zip
+**/*.tar.gz
+**/*.rar
+
+# ArkTS Build Cache
+.arkts-cache/

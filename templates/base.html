@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}灵境万象 - 股票分析系统{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- Alpine.js for reactive components -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-card { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+        .chart-container { min-height: 400px; }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .chart-container { min-height: 300px; }
+            .mobile-padding { padding: 0.75rem; }
+        }
+        
+        /* 股票涨跌颜色 */
+        .text-bull { color: #10b981; }
+        .text-bear { color: #ef4444; }
+        .bg-bull { background-color: #dcfce7; }
+        .bg-bear { background-color: #fee2e2; }
+    </style>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="gradient-primary shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center space-x-2 text-white">
+                        <i data-lucide="trending-up" class="h-8 w-8"></i>
+                        <span class="font-bold text-xl hidden sm:block">灵境万象</span>
+                        <span class="font-bold text-lg sm:hidden">股票分析</span>
+                    </a>
+                </div>
+                
+                <!-- 桌面端导航 -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="/" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="home" class="inline h-4 w-4 mr-1"></i>首页
+                    </a>
+                    <a href="/analysis" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="bar-chart-3" class="inline h-4 w-4 mr-1"></i>技术分析
+                    </a>
+                    <a href="/market-dashboard" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="dashboard" class="inline h-4 w-4 mr-1"></i>市场仪表板
+                    </a>
+                    <a href="/intelligent-recommendations" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="brain" class="inline h-4 w-4 mr-1"></i>智能推荐
+                    </a>
+                    <a href="/watchlist" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="bookmark" class="inline h-4 w-4 mr-1"></i>自选股
+                    </a>
+                    <a href="/signals" class="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium">
+                        <i data-lucide="bell" class="inline h-4 w-4 mr-1"></i>信号监控
+                    </a>
+                </div>
+                
+                <!-- 移动端菜单按钮 -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-btn" class="text-white hover:text-gray-200 p-2">
+                        <i data-lucide="menu" class="h-6 w-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="hidden md:hidden bg-purple-800">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="/" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="home" class="inline h-4 w-4 mr-2"></i>首页
+                </a>
+                <a href="/analysis" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="bar-chart-3" class="inline h-4 w-4 mr-2"></i>技术分析
+                </a>
+                <a href="/market-dashboard" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="dashboard" class="inline h-4 w-4 mr-2"></i>市场仪表板
+                </a>
+                <a href="/intelligent-recommendations" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="brain" class="inline h-4 w-4 mr-2"></i>智能推荐
+                </a>
+                <a href="/watchlist" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="bookmark" class="inline h-4 w-4 mr-2"></i>自选股
+                </a>
+                <a href="/signals" class="text-white hover:bg-purple-700 block px-3 py-2 rounded-md text-base font-medium">
+                    <i data-lucide="bell" class="inline h-4 w-4 mr-2"></i>信号监控
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Toast 通知组件 -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
+    
+    <!-- 全局JavaScript -->
+    <script>
+        // 移动端菜单切换
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+        
+        // 初始化Lucide图标
+        lucide.createIcons();
+        
+        // Toast通知函数
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+            }`;
+            toast.textContent = message;
+            
+            document.getElementById('toast-container').appendChild(toast);
+            
+            // 动画显示
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            
+            // 自动隐藏
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // 全局API请求函数
+        async function apiRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`请求失败: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                showToast(error.message, 'error');
+                throw error;
+            }
+        }
+        
+        // 格式化数字
+        function formatNumber(num, decimals = 2) {
+            if (num === null || num === undefined) return '--';
+            return Number(num).toFixed(decimals);
+        }
+        
+        // 格式化百分比
+        function formatPercent(num, decimals = 2) {
+            if (num === null || num === undefined) return '--';
+            const formatted = Number(num).toFixed(decimals);
+            return num >= 0 ? `+${formatted}%` : `${formatted}%`;
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/MarketPage",
+    "pages/StockListPage", 
+    "pages/StockDetailPage",
+    "pages/RecommendationPage",
+    "pages/WatchlistPage",
+    "pages/SettingsPage"
+  ]
+}

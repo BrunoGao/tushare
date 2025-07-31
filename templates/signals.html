@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}信号监控 - 灵境万象{% endblock %}
+
+{% block content %}
+<div x-data="signalsApp()" x-cloak>
+    <!-- 页面头部 -->
+    <div class="mb-6">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">信号监控</h1>
+        <p class="mt-1 text-gray-600">实时交易信号和技术指标提醒</p>
+    </div>
+    
+    <!-- 监控控制面板 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <span class="text-sm text-gray-600 mr-2">监控状态:</span>
+                    <span :class="isMonitoring ? 'text-green-600' : 'text-gray-500'" 
+                          x-text="isMonitoring ? '监控中' : '已停止'"></span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-sm text-gray-600 mr-2">监控股票:</span>
+                    <span class="font-medium" x-text="monitoredStocks + '只'"></span>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <button @click="toggleMonitoring()" 
+                        :class="isMonitoring ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'"
+                        class="px-4 py-2 text-white rounded-lg">
+                    <span x-text="isMonitoring ? '停止监控' : '开始监控'"></span>
+                </button>
+                <button @click="clearAllSignals()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                    清空信号
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 信号统计 -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="trending-up" class="h-6 w-6 text-green-600"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-600">买入信号</p>
+                    <p class="text-xl font-semibold text-green-600" x-text="signalStats.buy"></p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-center">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <i data-lucide="trending-down" class="h-6 w-6 text-red-600"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-600">卖出信号</p>
+                    <p class="text-xl font-semibold text-red-600" x-text="signalStats.sell"></p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-lg">
+                    <i data-lucide="minus" class="h-6 w-6 text-yellow-600"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-600">持有信号</p>
+                    <p class="text-xl font-semibold text-yellow-600" x-text="signalStats.hold"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 实时信号列表 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="p-4 sm:p-6 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">实时信号</h2>
+                <div class="flex items-center space-x-2">
+                    <select x-model="signalFilter" class="text-sm border-gray-300 rounded-md">
+                        <option value="all">全部信号</option>
+                        <option value="buy">买入信号</option>
+                        <option value="sell">卖出信号</option>
+                        <option value="hold">持有信号</option>
+                    </select>
+                    <button @click="refreshSignals()" class="text-purple-600 hover:text-purple-700">
+                        <i data-lucide="refresh-cw" class="h-5 w-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="max-h-96 overflow-y-auto">
+            <template x-for="signal in filteredSignals" :key="signal.id">
+                <div class="px-4 sm:px-6 py-4 border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <div :class="{
+                                    'bg-green-100 text-green-800': signal.type === 'buy',
+                                    'bg-red-100 text-red-800': signal.type === 'sell',
+                                    'bg-yellow-100 text-yellow-800': signal.type === 'hold'
+                                }" class="px-2 py-1 rounded-full text-xs font-medium">
+                                    <span x-text="signal.type_text"></span>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-gray-900" x-text="signal.stock_name"></div>
+                                    <div class="text-sm text-gray-500" x-text="signal.ts_code"></div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm text-gray-600" x-text="signal.description"></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium" x-text="formatNumber(signal.price)"></div>
+                            <div class="text-xs text-gray-500" x-text="signal.time"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            
+            <div x-show="filteredSignals.length === 0" class="px-6 py-12 text-center text-gray-500">
+                <i data-lucide="bell-off" class="h-12 w-12 mx-auto mb-4 text-gray-300"></i>
+                <p>暂无信号</p>
+                <p class="text-sm">开始监控后将显示实时交易信号</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function signalsApp() {
+    return {
+        isMonitoring: false,
+        monitoredStocks: 0,
+        signalFilter: 'all',
+        signals: [],
+        signalStats: {
+            buy: 0,
+            sell: 0,
+            hold: 0
+        },
+        
+        get filteredSignals() {
+            if (this.signalFilter === 'all') {
+                return this.signals;
+            }
+            return this.signals.filter(signal => signal.type === this.signalFilter);
+        },
+        
+        init() {
+            this.loadSignals();
+            this.connectWebSocket();
+        },
+        
+        toggleMonitoring() {
+            this.isMonitoring = !this.isMonitoring;
+            if (this.isMonitoring) {
+                this.startMonitoring();
+                showToast('监控已启动');
+            } else {
+                this.stopMonitoring();
+                showToast('监控已停止');
+            }
+        },
+        
+        startMonitoring() {
+            // 模拟开始监控
+            this.monitoredStocks = 25;
+            // 可以在这里发送WebSocket消息启动监控
+        },
+        
+        stopMonitoring() {
+            // 模拟停止监控
+            // 可以在这里发送WebSocket消息停止监控
+        },
+        
+        loadSignals() {
+            // 模拟信号数据
+            this.signals = [
+                {
+                    id: 1,
+                    ts_code: '000001.SZ',
+                    stock_name: '平安银行',
+                    type: 'buy',
+                    type_text: '买入',
+                    description: 'MACD金叉，RSI从超卖区域回升',
+                    price: 12.35,
+                    time: '09:30:15'
+                },
+                {
+                    id: 2,
+                    ts_code: '600036.SH',
+                    stock_name: '招商银行',
+                    type: 'sell',
+                    type_text: '卖出',
+                    description: 'KDJ高位死叉，成交量萎缩',
+                    price: 45.78,
+                    time: '10:15:32'
+                },
+                {
+                    id: 3,
+                    ts_code: '000002.SZ',
+                    stock_name: '万科A',
+                    type: 'hold',
+                    type_text: '持有',
+                    description: '震荡整理中，等待突破信号',
+                    price: 18.56,
+                    time: '11:22:45'
+                }
+            ];
+            
+            this.updateSignalStats();
+        },
+        
+        updateSignalStats() {
+            this.signalStats = {
+                buy: this.signals.filter(s => s.type === 'buy').length,
+                sell: this.signals.filter(s => s.type === 'sell').length,
+                hold: this.signals.filter(s => s.type === 'hold').length
+            };
+        },
+        
+        connectWebSocket() {
+            try {
+                const ws = new WebSocket(`ws://${window.location.hostname}:8765`);
+                
+                ws.onopen = () => {
+                    console.log('信号监控WebSocket连接成功');
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'trading_signal') {
+                        this.addNewSignal(data);
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket错误:', error);
+                };
+            } catch (error) {
+                console.error('WebSocket连接失败:', error);
+            }
+        },
+        
+        addNewSignal(signalData) {
+            const newSignal = {
+                id: Date.now(),
+                ts_code: signalData.ts_code,
+                stock_name: signalData.stock_name,
+                type: signalData.signal_type,
+                type_text: signalData.signal_text,
+                description: signalData.description,
+                price: signalData.price,
+                time: new Date().toLocaleTimeString()
+            };
+            
+            this.signals.unshift(newSignal);
+            
+            // 限制信号数量
+            if (this.signals.length > 50) {
+                this.signals = this.signals.slice(0, 50);
+            }
+            
+            this.updateSignalStats();
+            
+            // 显示通知
+            showToast(`${newSignal.stock_name} - ${newSignal.type_text}信号`);
+        },
+        
+        refreshSignals() {
+            this.loadSignals();
+            showToast('信号已刷新');
+        },
+        
+        clearAllSignals() {
+            this.signals = [];
+            this.signalStats = { buy: 0, sell: 0, hold: 0 };
+            showToast('所有信号已清空');
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -50,7 +50,7 @@ class OptimizedSystemManager:
     
     def start_system(self):
         """启动优化系统"""
-        logger.info("🚀 启动领京万象优化系统")
+        logger.info("🚀 启动灵境万象优化系统")
         logger.info("=" * 80)
         
         try:
@@ -306,7 +306,7 @@ class OptimizedSystemManager:
         startup_duration = (datetime.now() - self.startup_time).total_seconds()
         
         logger.info("=" * 80)
-        logger.info("🎉 领京万象优化系统已就绪")
+        logger.info("🎉 灵境万象优化系统已就绪")
         logger.info("=" * 80)
         logger.info(f"🕐 启动时间: {startup_duration:.2f}秒")
         logger.info(f"🧵 运行线程: {len([t for t in self.threads.values() if t.is_alive()])}")

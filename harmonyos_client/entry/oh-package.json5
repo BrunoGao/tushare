@@ -1,0 +1,10 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Entry module for ljwx-stock-analysis",
+  "author": "lingjiang",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

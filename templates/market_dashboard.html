@@ -1,0 +1,651 @@
+{% extends "base.html" %}
+
+{% block title %}市场数据仪表板 - 灵境万象{% endblock %}
+
+{% block head %}
+<style>
+    .indicator-card {
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+    }
+    .indicator-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    .metric-value {
+        font-family: 'Monaco', 'Menlo', monospace;
+    }
+    .sector-bar {
+        height: 8px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+    .dragon-tiger-item {
+        border-left: 4px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .dragon-tiger-item:hover {
+        border-left-color: #8b5cf6;
+        background-color: #f8fafc;
+    }
+    .money-flow-positive { color: #10b981; }
+    .money-flow-negative { color: #ef4444; }
+    .loading-spinner {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #8b5cf6;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="marketDashboard()" x-init="init()" class="space-y-6">
+    <!-- 页面标题 -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">市场数据仪表板</h1>
+            <p class="text-gray-600 mt-1">实时技术指标、板块轮动、资金流向分析</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button @click="refreshData()" 
+                    :disabled="loading"
+                    class="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                <div x-show="loading" class="loading-spinner mr-2"></div>
+                <i data-lucide="refresh-cw" class="h-4 w-4 mr-2" x-show="!loading"></i>
+                <span x-text="loading ? '刷新中...' : '刷新数据'"></span>
+            </button>
+            <div class="text-sm text-gray-500">
+                最后更新: <span x-text="lastUpdate"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速统计 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="indicator-card rounded-xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">活跃股票</p>
+                    <p class="text-3xl font-bold text-gray-900 metric-value" x-text="stats.active_stocks"></p>
+                </div>
+                <div class="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="trending-up" class="h-6 w-6 text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="indicator-card rounded-xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">技术指标覆盖</p>
+                    <p class="text-3xl font-bold text-gray-900 metric-value" x-text="stats.indicator_coverage"></p>
+                </div>
+                <div class="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="bar-chart-3" class="h-6 w-6 text-green-600"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="indicator-card rounded-xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">板块数量</p>
+                    <p class="text-3xl font-bold text-gray-900 metric-value" x-text="stats.sector_count"></p>
+                </div>
+                <div class="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="pie-chart" class="h-6 w-6 text-purple-600"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="indicator-card rounded-xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">资金净流入</p>
+                    <p class="text-3xl font-bold metric-value"
+                       :class="stats.net_money_flow >= 0 ? 'money-flow-positive' : 'money-flow-negative'"
+                       x-text="formatMoney(stats.net_money_flow)"></p>
+                </div>
+                <div class="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="dollar-sign" class="h-6 w-6 text-yellow-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <!-- 技术指标热力图 -->
+        <div class="xl:col-span-2">
+            <div class="indicator-card rounded-xl p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">技术指标热力图</h2>
+                    <div class="flex space-x-2">
+                        <button @click="setIndicatorType('macd')" 
+                                :class="indicatorType === 'macd' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded-lg text-sm font-medium">MACD</button>
+                        <button @click="setIndicatorType('kdj')" 
+                                :class="indicatorType === 'kdj' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded-lg text-sm font-medium">KDJ</button>
+                        <button @click="setIndicatorType('rsi')" 
+                                :class="indicatorType === 'rsi' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded-lg text-sm font-medium">RSI</button>
+                    </div>
+                </div>
+                <div id="technical-heatmap" class="chart-container"></div>
+            </div>
+        </div>
+
+        <!-- 热门板块 -->
+        <div>
+            <div class="indicator-card rounded-xl p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">热门板块</h2>
+                <div class="space-y-4">
+                    <template x-for="sector in hotSectors" :key="sector.name">
+                        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-medium text-gray-900" x-text="sector.name"></span>
+                                    <span class="text-sm font-medium"
+                                          :class="sector.change >= 0 ? 'money-flow-positive' : 'money-flow-negative'"
+                                          x-text="formatPercent(sector.change)"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="sector-bar rounded-full h-2"
+                                         :class="sector.change >= 0 ? 'bg-green-500' : 'bg-red-500'"
+                                         :style="`width: ${Math.abs(sector.change) * 10}%`"></div>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1" x-text="`${sector.stock_count} 只股票`"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <!-- 龙虎榜 -->
+        <div class="indicator-card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-900">龙虎榜</h2>
+                <div class="flex space-x-2">
+                    <button @click="setDragonTigerType('buy')"
+                            :class="dragonTigerType === 'buy' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'"
+                            class="px-3 py-1 rounded-lg text-sm font-medium">买入榜</button>
+                    <button @click="setDragonTigerType('sell')"
+                            :class="dragonTigerType === 'sell' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'"
+                            class="px-3 py-1 rounded-lg text-sm font-medium">卖出榜</button>
+                </div>
+            </div>
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                <template x-for="item in dragonTigerList" :key="item.ts_code">
+                    <div class="dragon-tiger-item p-4 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-3">
+                                <span class="font-bold text-gray-900" x-text="item.name"></span>
+                                <span class="text-sm text-gray-500" x-text="item.ts_code"></span>
+                            </div>
+                            <span class="font-medium"
+                                  :class="item.change >= 0 ? 'money-flow-positive' : 'money-flow-negative'"
+                                  x-text="formatPercent(item.change)"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-600">买入金额:</span>
+                                <span class="font-medium money-flow-positive" x-text="formatMoney(item.buy_amount)"></span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">卖出金额:</span>
+                                <span class="font-medium money-flow-negative" x-text="formatMoney(item.sell_amount)"></span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2" x-text="item.reason"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- 资金流向 -->
+        <div class="indicator-card rounded-xl p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">资金流向分析</h2>
+            <div id="money-flow-chart" class="chart-container"></div>
+            
+            <!-- 资金流向详情 -->
+            <div class="mt-6 grid grid-cols-2 gap-4">
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-2xl font-bold money-flow-positive" x-text="formatMoney(moneyFlow.main_inflow)"></div>
+                    <div class="text-sm text-gray-600">主力净流入</div>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                    <div class="text-2xl font-bold money-flow-negative" x-text="formatMoney(moneyFlow.retail_outflow)"></div>
+                    <div class="text-sm text-gray-600">散户净流出</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 个股技术指标表格 -->
+    <div class="indicator-card rounded-xl p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-900">个股技术指标</h2>
+            <div class="flex items-center space-x-4">
+                <input type="text" 
+                       x-model="searchStock"
+                       @input="filterStocks()"
+                       placeholder="搜索股票代码或名称"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <select x-model="sortBy" @change="sortStocks()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="pct_chg">涨跌幅</option>
+                    <option value="ma5">MA5</option>
+                    <option value="rsi6">RSI6</option>
+                    <option value="vol_ratio">量比</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">股票</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">价格</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">涨跌幅</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">MA5</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">MA20</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">RSI6</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">量比</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="stock in filteredStocks.slice(0, 50)" :key="stock.ts_code">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900" x-text="stock.name"></div>
+                                    <div class="text-sm text-gray-500" x-text="stock.ts_code"></div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 metric-value" x-text="formatNumber(stock.close)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium"
+                                :class="stock.pct_chg >= 0 ? 'money-flow-positive' : 'money-flow-negative'"
+                                x-text="formatPercent(stock.pct_chg)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 metric-value" x-text="formatNumber(stock.ma5)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 metric-value" x-text="formatNumber(stock.ma20)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 metric-value" x-text="formatNumber(stock.rsi6)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 metric-value" x-text="formatNumber(stock.vol_ratio)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span x-show="stock.signal" 
+                                      :class="getSignalColor(stock.signal)"
+                                      class="px-2 py-1 text-xs font-medium rounded-full"
+                                      x-text="stock.signal"></span>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function marketDashboard() {
+    return {
+        loading: false,
+        lastUpdate: '--',
+        indicatorType: 'macd',
+        dragonTigerType: 'buy',
+        searchStock: '',
+        sortBy: 'pct_chg',
+        
+        // 数据
+        stats: {
+            active_stocks: '--',
+            indicator_coverage: '--',
+            sector_count: '--',
+            net_money_flow: 0
+        },
+        hotSectors: [],
+        dragonTigerList: [],
+        moneyFlow: {
+            main_inflow: 0,
+            retail_outflow: 0
+        },
+        stocks: [],
+        filteredStocks: [],
+        
+        // 图表实例
+        heatmapChart: null,
+        moneyFlowChart: null,
+        
+        async init() {
+            await this.loadData();
+            this.initCharts();
+            // 每30秒刷新一次数据
+            setInterval(() => this.refreshData(), 30000);
+        },
+        
+        async loadData() {
+            this.loading = true;
+            try {
+                // 并行加载所有数据
+                const [statsData, sectorsData, dragonTigerData, moneyFlowData, stocksData] = await Promise.all([
+                    this.fetchStats(),
+                    this.fetchHotSectors(),
+                    this.fetchDragonTigerList(),
+                    this.fetchMoneyFlow(),
+                    this.fetchStocks()
+                ]);
+                
+                this.stats = statsData;
+                this.hotSectors = sectorsData;
+                this.dragonTigerList = dragonTigerData;
+                this.moneyFlow = moneyFlowData;
+                this.stocks = stocksData;
+                this.filteredStocks = [...this.stocks];
+                
+                this.lastUpdate = new Date().toLocaleTimeString();
+                this.updateCharts();
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast('数据加载失败', 'error');
+            }
+            this.loading = false;
+        },
+        
+        async fetchStats() {
+            try {
+                const response = await fetch('/api/market/stats');
+                return await response.json();
+            } catch (error) {
+                console.error('获取统计数据失败:', error);
+                return {
+                    active_stocks: '5,150',
+                    indicator_coverage: '2,805',
+                    sector_count: '879',
+                    net_money_flow: 125600000
+                };
+            }
+        },
+        
+        async fetchHotSectors() {
+            try {
+                const response = await fetch('/api/market/hot-sectors');
+                return await response.json();
+            } catch (error) {
+                console.error('获取热门板块数据失败:', error);
+                return [
+                    { name: '人工智能', change: 5.67, stock_count: 128 },
+                    { name: '新能源汽车', change: 3.24, stock_count: 89 },
+                    { name: '半导体', change: -2.11, stock_count: 156 },
+                    { name: '医疗器械', change: 1.89, stock_count: 93 },
+                    { name: '5G通信', change: -0.78, stock_count: 67 }
+                ];
+            }
+        },
+        
+        async fetchDragonTigerList() {
+            try {
+                const response = await fetch('/api/market/dragon-tiger');
+                return await response.json();
+            } catch (error) {
+                console.error('获取龙虎榜数据失败:', error);
+                return [
+                    {
+                        ts_code: '000001.SZ',
+                        name: '平安银行',
+                        change: 4.56,
+                        buy_amount: 890000000,
+                        sell_amount: 234000000,
+                        reason: '日涨幅偏离值达7%'
+                    }
+                ];
+            }
+        },
+        
+        async fetchMoneyFlow() {
+            try {
+                const response = await fetch('/api/market/money-flow');
+                return await response.json();
+            } catch (error) {
+                console.error('获取资金流向数据失败:', error);
+                return {
+                    main_inflow: 2340000000,
+                    retail_outflow: -890000000
+                };
+            }
+        },
+        
+        async fetchStocks() {
+            try {
+                const response = await fetch(`/api/market/stocks?limit=100&search=${this.searchStock}`);
+                return await response.json();
+            } catch (error) {
+                console.error('获取股票数据失败:', error);
+                return [];
+            }
+        },
+        
+        initCharts() {
+            // 初始化技术指标热力图
+            this.heatmapChart = echarts.init(document.getElementById('technical-heatmap'));
+            
+            // 初始化资金流向图表
+            this.moneyFlowChart = echarts.init(document.getElementById('money-flow-chart'));
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                this.heatmapChart?.resize();
+                this.moneyFlowChart?.resize();
+            });
+        },
+        
+        updateCharts() {
+            this.updateHeatmapChart();
+            this.updateMoneyFlowChart();
+        },
+        
+        async updateHeatmapChart() {
+            if (!this.heatmapChart) return;
+            
+            const heatmapData = await this.generateHeatmapData();
+            
+            const option = {
+                title: {
+                    text: `${this.indicatorType.toUpperCase()} 指标分布`,
+                    left: 'center',
+                    textStyle: { fontSize: 14 }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        return `${params.name}<br/>数值: ${params.value[2]}<br/>强度: ${params.data.count || 0}`;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['科技', '金融', '医药', '消费', '工业', '其他'],
+                    axisLabel: { fontSize: 12 }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: ['强买入', '买入', '中性', '卖出', '强卖出'],
+                    axisLabel: { fontSize: 12 }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...heatmapData.map(item => item[2]), 100),
+                    calculable: true,
+                    inRange: {
+                        color: ['#e3f2fd', '#1976d2']
+                    },
+                    textStyle: { fontSize: 12 }
+                },
+                series: [{
+                    type: 'heatmap',
+                    data: heatmapData,
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            this.heatmapChart.setOption(option);
+        },
+        
+        updateMoneyFlowChart() {
+            if (!this.moneyFlowChart) return;
+            
+            const option = {
+                title: {
+                    text: '资金流向趋势',
+                    left: 'center',
+                    textStyle: { fontSize: 14 }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        let result = `${params[0].axisValue}<br/>`;
+                        params.forEach(param => {
+                            const value = param.value >= 0 ? `+${param.value}` : param.value;
+                            result += `${param.seriesName}: ${value}亿<br/>`;
+                        });
+                        return result;
+                    }
+                },
+                legend: {
+                    data: ['主力资金', '散户资金'],
+                    bottom: 0
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00']
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value}亿'
+                    }
+                },
+                series: [
+                    {
+                        name: '主力资金',
+                        type: 'line',
+                        data: [12, 18, -5, 25, 15, -8, 22, 30, -12, 20],
+                        itemStyle: { color: '#10b981' },
+                        areaStyle: { color: 'rgba(16, 185, 129, 0.1)' }
+                    },
+                    {
+                        name: '散户资金',
+                        type: 'line',
+                        data: [-8, -12, 3, -18, -10, 5, -15, -22, 8, -14],
+                        itemStyle: { color: '#ef4444' },
+                        areaStyle: { color: 'rgba(239, 68, 68, 0.1)' }
+                    }
+                ]
+            };
+            
+            this.moneyFlowChart.setOption(option);
+        },
+        
+        async generateHeatmapData() {
+            try {
+                const response = await fetch(`/api/market/heatmap/${this.indicatorType}`);
+                return await response.json();
+            } catch (error) {
+                console.error('获取热力图数据失败:', error);
+                // 回退到模拟数据
+                const data = [];
+                for (let i = 0; i < 6; i++) {
+                    for (let j = 0; j < 5; j++) {
+                        data.push([i, j, Math.round(Math.random() * 100), Math.round(Math.random() * 50)]);
+                    }
+                }
+                return data;
+            }
+        },
+        
+        async refreshData() {
+            await this.loadData();
+            showToast('数据刷新成功');
+        },
+        
+        setIndicatorType(type) {
+            this.indicatorType = type;
+            this.updateHeatmapChart();
+        },
+        
+        setDragonTigerType(type) {
+            this.dragonTigerType = type;
+        },
+        
+        filterStocks() {
+            if (!this.searchStock) {
+                this.filteredStocks = [...this.stocks];
+            } else {
+                const search = this.searchStock.toLowerCase();
+                this.filteredStocks = this.stocks.filter(stock => 
+                    stock.name.toLowerCase().includes(search) || 
+                    stock.ts_code.toLowerCase().includes(search)
+                );
+            }
+        },
+        
+        sortStocks() {
+            this.filteredStocks.sort((a, b) => {
+                const aVal = parseFloat(a[this.sortBy]) || 0;
+                const bVal = parseFloat(b[this.sortBy]) || 0;
+                return bVal - aVal;
+            });
+        },
+        
+        formatMoney(amount) {
+            if (!amount) return '0';
+            const absAmount = Math.abs(amount);
+            if (absAmount >= 100000000) {
+                return `${(amount / 100000000).toFixed(2)}亿`;
+            } else if (absAmount >= 10000) {
+                return `${(amount / 10000).toFixed(2)}万`;
+            }
+            return amount.toFixed(2);
+        },
+        
+        formatPercent(num, decimals = 2) {
+            if (num === null || num === undefined) return '--';
+            const formatted = Number(num).toFixed(decimals);
+            return num >= 0 ? `+${formatted}%` : `${formatted}%`;
+        },
+        
+        formatNumber(num, decimals = 2) {
+            if (num === null || num === undefined) return '--';
+            return Number(num).toFixed(decimals);
+        },
+        
+        getSignalColor(signal) {
+            if (signal === '买入') return 'bg-green-100 text-green-800';
+            if (signal === '卖出') return 'bg-red-100 text-red-800';
+            return 'bg-gray-100 text-gray-800';
+        }
+    }
+}
+</script>
+{% endblock %}

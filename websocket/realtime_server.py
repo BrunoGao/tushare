@@ -1,8 +1,29 @@
-import asyncio,websockets,json,logging,threading,time
+import asyncio,websockets,json,logging,threading,time,sys,os
 from datetime import datetime,timedelta
 from typing import Dict,Set,Any
+
+# 添加项目根目录到路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database.db_manager import DatabaseManager
-from analysis.technical_indicators import TechnicalIndicators
+try:
+    from analysis.technical_indicators import TechnicalIndicators
+except ImportError:
+    # 如果talib有问题，使用简化版技术指标
+    print("⚠️ WebSocket使用简化版技术指标（talib不可用）")
+    class TechnicalIndicators:
+        def calculate_all_indicators(self, df):
+            # 简化版技术指标计算
+            df['ma5'] = df['close'].rolling(5).mean()
+            df['ma20'] = df['close'].rolling(20).mean()
+            df['ma60'] = df['close'].rolling(60).mean()
+            df['rsi'] = 50  # 简化RSI
+            df['macd'] = 0  # 简化MACD
+            df['macd_signal'] = 0
+            df['kdj_k'] = 50  # 简化KDJ
+            df['kdj_d'] = 50
+            return df
+            
 from frontend.cache_optimizer import cache_optimizer
 from config import Config
 
@@ -162,7 +183,7 @@ class RealtimeDataServer:
                         await asyncio.gather(*[
                             self.safe_send(ws,message) for ws in subscribers.copy()
                         ],return_exceptions=True)
-                await asyncio.sleep(Config.REALTIME_UPDATE_INTERVAL)  #更新间隔
+                await asyncio.sleep(10)  # 10秒更新间隔
             except Exception as e:
                 self.logger.error(f"广播更新错误: {e}")
                 await asyncio.sleep(5)
@@ -181,13 +202,20 @@ class RealtimeDataServer:
         logging.basicConfig(level=logging.INFO)
         self.logger.info(f"启动WebSocket服务器 {host}:{port}")
         
-        #启动广播任务
-        asyncio.create_task(self.broadcast_updates())
-        
         return websockets.serve(self.register,host,port)
 
 if __name__=="__main__":
-    server=RealtimeDataServer()
-    start_server=server.start_server()
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever() 
+    async def main():
+        server=RealtimeDataServer()
+        start_server=server.start_server()
+        
+        # 启动广播任务
+        asyncio.create_task(server.broadcast_updates())
+        
+        # 启动WebSocket服务器
+        await start_server
+        
+        # 保持运行
+        await asyncio.Future()  # run forever
+    
+    asyncio.run(main())

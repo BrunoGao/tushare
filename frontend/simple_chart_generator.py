@@ -59,8 +59,13 @@ class SimpleChartGenerator:
     def _prepare_chart_data(self, df: pd.DataFrame) -> Dict:
         """准备图表数据"""
         try:
-            # 转换日期格式
-            df['date_str'] = df['trade_date'].dt.strftime('%Y-%m-%d')
+            # 转换日期格式 - 修复日期类型问题
+            if hasattr(df['trade_date'].iloc[0], 'strftime'):
+                # 如果是date或datetime对象
+                df['date_str'] = df['trade_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+            else:
+                # 如果是字符串
+                df['date_str'] = df['trade_date'].astype(str)
             
             # K线数据
             kline_data = []

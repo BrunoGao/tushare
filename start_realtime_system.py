@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def print_banner():
     print("""
-🚀 领京万象股票分析系统 - 实时版本
+🚀 灵境万象股票分析系统 - 实时版本
 ====================================
 WebSocket实时推送 + Flask API + 专业前端
 支持技术指标分析、AI智能问答、实时数据监控

@@ -1,0 +1,67 @@
+{
+  "random_forest": {
+    "model_name": "random_forest",
+    "accuracy": 0.9230769230769231,
+    "precision": 0.9256410256410257,
+    "recall": 0.9230769230769231,
+    "f1_score": 0.9219201850780797,
+    "cv_mean": 0.9283870967741936,
+    "cv_std": 0.062378938134322555,
+    "training_time": 0.073739,
+    "training_samples": 153,
+    "test_samples": 39,
+    "feature_count": 15
+  },
+  "gradient_boosting": {
+    "model_name": "gradient_boosting",
+    "accuracy": 0.9230769230769231,
+    "precision": 0.9256410256410257,
+    "recall": 0.9230769230769231,
+    "f1_score": 0.9219201850780797,
+    "cv_mean": 0.9283870967741936,
+    "cv_std": 0.062378938134322555,
+    "training_time": 0.15135,
+    "training_samples": 153,
+    "test_samples": 39,
+    "feature_count": 15
+  },
+  "logistic_regression": {
+    "model_name": "logistic_regression",
+    "accuracy": 0.358974358974359,
+    "precision": 0.3385930309007232,
+    "recall": 0.358974358974359,
+    "f1_score": 0.34547908232118757,
+    "cv_mean": 0.5223655913978494,
+    "cv_std": 0.08085678327194837,
+    "training_time": 0.009423,
+    "training_samples": 153,
+    "test_samples": 39,
+    "feature_count": 15
+  },
+  "svm": {
+    "model_name": "svm",
+    "accuracy": 0.7435897435897436,
+    "precision": 0.7826086956521738,
+    "recall": 0.7435897435897436,
+    "f1_score": 0.7362935167813216,
+    "cv_mean": 0.7305376344086021,
+    "cv_std": 0.1120626156665913,
+    "training_time": 0.006301,
+    "training_samples": 153,
+    "test_samples": 39,
+    "feature_count": 15
+  },
+  "neural_network": {
+    "model_name": "neural_network",
+    "accuracy": 0.8974358974358975,
+    "precision": 0.905128205128205,
+    "recall": 0.8974358974358975,
+    "f1_score": 0.8975708502024292,
+    "cv_mean": 0.921720430107527,
+    "cv_std": 0.05965329358309099,
+    "training_time": 0.222013,
+    "training_samples": 153,
+    "test_samples": 39,
+    "feature_count": 15
+  }
+}
