@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, session
 from flask_cors import CORS
 import logging
 import pandas as pd
@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from utils.db_helper import db
 from analysis.recommender import recommender
+from utils.user_manager import user_manager, UserRole
 try:
     from analysis.technical_indicators import tech_indicator
 except ImportError:
@@ -32,9 +33,67 @@ db_manager = DatabaseManager()
 
 # 初始化Flask应用
 app = Flask(__name__, template_folder='../templates')
-CORS(app)  # 允许跨域请求
+app.secret_key = 'ljwx_stock_secret_2024'  # 用于session加密
+CORS(app, supports_credentials=True)  # 允许跨域请求，支持认证
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
+
+# 权限检查装饰器
+def require_permission(permission):
+    """需要特定权限的装饰器"""
+    def decorator(f):
+        def decorated(*args, **kwargs):
+            # 检查session token
+            session_token = request.headers.get('Authorization')
+            if session_token and session_token.startswith('Bearer '):
+                session_token = session_token.split(' ')[1]
+            else:
+                session_token = request.headers.get('X-Session-Token')
+            
+            if not session_token:
+                return jsonify({"success": False, "error": "需要登录", "code": 401}), 401
+            
+            # 验证session
+            user_info = user_manager.validate_session(session_token)
+            if not user_info:
+                return jsonify({"success": False, "error": "登录已过期", "code": 401}), 401
+            
+            # 检查权限
+            if permission not in user_info['permissions']:
+                return jsonify({"success": False, "error": "权限不足", "code": 403}), 403
+            
+            # 将用户信息传递给视图函数
+            request.current_user = user_info
+            return f(*args, **kwargs)
+        
+        decorated.__name__ = f.__name__
+        return decorated
+    return decorator
+
+def require_admin(f):
+    """需要管理员权限的装饰器"""
+    def decorated(*args, **kwargs):
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            session_token = session_token.split(' ')[1]
+        else:
+            session_token = request.headers.get('X-Session-Token')
+        
+        if not session_token:
+            return jsonify({"success": False, "error": "需要登录", "code": 401}), 401
+        
+        user_info = user_manager.validate_session(session_token)
+        if not user_info:
+            return jsonify({"success": False, "error": "登录已过期", "code": 401}), 401
+        
+        if user_info['role'] != 'admin':
+            return jsonify({"success": False, "error": "需要管理员权限", "code": 403}), 403
+        
+        request.current_user = user_info
+        return f(*args, **kwargs)
+    
+    decorated.__name__ = f.__name__
+    return decorated
 
 # 增强的前端页面模板
 HTML_TEMPLATE = '''
@@ -824,6 +883,210 @@ function displayPopularStocks(stocks, category) {
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
 }
+# ============ 用户认证API ============
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """用户登录"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        
+        if not username or not password:
+            return jsonify({"success": False, "error": "用户名和密码不能为空"}), 400
+        
+        # 用户认证
+        user_info = user_manager.authenticate(username, password)
+        if not user_info:
+            return jsonify({"success": False, "error": "用户名或密码错误"}), 401
+        
+        logger.info(f"用户登录成功: {username}, 角色: {user_info['role']}")
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "user": {
+                    "username": user_info['username'],
+                    "role": user_info['role'],
+                    "permissions": user_info['permissions']
+                },
+                "session_token": user_info['session_token'],
+                "login_time": user_info['login_time']
+            },
+            "message": f"欢迎 {user_info['role']} 用户 {username}",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"用户登录失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """用户登出"""
+    try:
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            session_token = session_token.split(' ')[1]
+        else:
+            session_token = request.headers.get('X-Session-Token')
+        
+        if not session_token:
+            return jsonify({"success": False, "error": "未找到会话令牌"}), 400
+        
+        success = user_manager.logout(session_token)
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "登出成功",
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            return jsonify({"success": False, "error": "登出失败"}), 400
+            
+    except Exception as e:
+        logger.error(f"用户登出失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/auth/user-info')
+def get_current_user():
+    """获取当前用户信息"""
+    try:
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            session_token = session_token.split(' ')[1]
+        else:
+            session_token = request.headers.get('X-Session-Token')
+        
+        if not session_token:
+            return jsonify({"success": False, "error": "需要登录"}), 401
+        
+        user_info = user_manager.validate_session(session_token)
+        if not user_info:
+            return jsonify({"success": False, "error": "登录已过期"}), 401
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "username": user_info['username'],
+                "role": user_info['role'],
+                "permissions": user_info['permissions']
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/auth/change-password', methods=['POST'])
+@require_permission('user:update')
+def change_password():
+    """修改密码"""
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password', '').strip()
+        new_password = data.get('new_password', '').strip()
+        
+        if not current_password or not new_password:
+            return jsonify({"success": False, "error": "当前密码和新密码不能为空"}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({"success": False, "error": "新密码长度不能少于6位"}), 400
+        
+        # 这里需要实现密码修改逻辑
+        # 由于当前用户管理器是内存存储，暂时返回提示
+        return jsonify({
+            "success": False,
+            "error": "密码修改功能需要数据库支持，当前为演示版本"
+        }), 501
+        
+    except Exception as e:
+        logger.error(f"修改密码失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ============ 管理员专用API ============
+
+@app.route('/api/admin/users', methods=['GET'])
+@require_admin
+def list_users():
+    """获取用户列表（管理员专用）"""
+    try:
+        users = user_manager.list_users()
+        return jsonify({
+            "success": True,
+            "data": {
+                "users": users,
+                "count": len(users)
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/admin/users', methods=['POST'])
+@require_admin
+def create_user():
+    """创建用户（管理员专用）"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        role = data.get('role', 'user').strip()
+        
+        if not username or not password:
+            return jsonify({"success": False, "error": "用户名和密码不能为空"}), 400
+        
+        if len(password) < 6:
+            return jsonify({"success": False, "error": "密码长度不能少于6位"}), 400
+        
+        if role not in ['admin', 'user']:
+            return jsonify({"success": False, "error": "角色只能是admin或user"}), 400
+        
+        user_role = UserRole.ADMIN if role == 'admin' else UserRole.USER
+        success = user_manager.create_user(username, password, user_role)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"用户 {username} 创建成功",
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            return jsonify({"success": False, "error": "用户创建失败，可能用户已存在"}), 400
+            
+    except Exception as e:
+        logger.error(f"创建用户失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/admin/system/status')
+@require_admin
+def admin_system_status():
+    """系统状态（管理员专用）"""
+    try:
+        # 获取系统统计信息
+        status_info = {
+            "active_sessions": len(user_manager.sessions),
+            "total_users": len(user_manager.users),
+            "system_uptime": "运行中",
+            "database_status": "正常",
+            "api_endpoints": len([rule for rule in app.url_map.iter_rules()]),
+            "server_time": datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            "success": True,
+            "data": status_info,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取系统状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 function selectPopularStock(tsCode, displayName) {
     const input = document.getElementById('analysis-code');
@@ -850,8 +1113,23 @@ window.addEventListener('load', () => {
 # 前端页面路由
 @app.route('/')
 def index():
-    """主页"""
-    return render_template('index.html')
+    """主页 - 重定向到登录页面"""
+    from flask import redirect
+    return redirect('/login')
+
+@app.route('/login')
+def login_page():
+    """用户登录页面"""
+    try:
+        from pathlib import Path
+        frontend_path = Path(__file__).parent.parent / "frontend" / "login.html"
+        if frontend_path.exists():
+            return send_file(str(frontend_path))
+        else:
+            return "登录页面不存在", 404
+    except Exception as e:
+        logger.error(f"加载登录页面失败: {e}")
+        return f"加载登录页面失败: {e}", 500
 
 @app.route('/analysis')
 def analysis_page():
@@ -1206,8 +1484,9 @@ def portfolio_dashboard():
 
 # 多策略推荐接口
 @app.route('/api/recommendations/generate', methods=['POST'])
+@require_permission('recommendations:generate')
 def generate_multi_strategy_recommendations():
-    """生成多策略推荐"""
+    """生成多策略推荐（需要权限）"""
     try:
         from utils.multi_strategy_recommender import multi_strategy_recommender
         
@@ -2151,8 +2430,9 @@ def ai_health_check():
 # ============ AI机器学习模型接口 ============
 
 @app.route('/api/ai/models/train', methods=['POST'])
+@require_admin
 def train_ai_models():
-    """训练AI模型"""
+    """训练AI模型（管理员专用）"""
     try:
         data = request.get_json() or {}
         days_back = int(data.get('days_back', 180))

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 - 灵境万象股票分析系统</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h2 {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-control {
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .role-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #e1e5e9;
+            background: white;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .role-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .demo-credentials {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .demo-credentials h6 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2><i class="fas fa-chart-line text-primary me-2"></i>系统登录</h2>
+                <p>灵境万象股票分析系统</p>
+            </div>
+            
+            <div id="alert-container"></div>
+            
+            <form id="loginForm">
+                <div class="role-selector">
+                    <div class="role-btn active" data-role="user">
+                        <i class="fas fa-user me-1"></i>普通用户
+                    </div>
+                    <div class="role-btn" data-role="admin">
+                        <i class="fas fa-user-shield me-1"></i>管理员
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" placeholder="请输入用户名" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                </div>
+                
+                <button type="submit" class="btn btn-login" id="loginBtn">
+                    <i class="fas fa-sign-in-alt me-2"></i>登录
+                </button>
+            </form>
+            
+            <div class="demo-credentials">
+                <h6><i class="fas fa-info-circle me-1"></i>演示账号</h6>
+                <div><strong>管理员:</strong> admin / admin123</div>
+                <div><strong>普通用户:</strong> user / user123</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedRole = 'user';
+        
+        // 角色选择
+        document.querySelectorAll('.role-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedRole = this.dataset.role;
+                
+                // 自动填充对应的用户名
+                const username = document.getElementById('username');
+                const password = document.getElementById('password');
+                
+                if (selectedRole === 'admin') {
+                    username.value = 'admin';
+                    password.value = 'admin123';
+                } else {
+                    username.value = 'user';
+                    password.value = 'user123';
+                }
+            });
+        });
+        
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            
+            if (!username || !password) {
+                showAlert('请输入用户名和密码', 'warning');
+                return;
+            }
+            
+            // 禁用登录按钮
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>登录中...';
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 保存登录信息
+                    localStorage.setItem('session_token', data.data.session_token);
+                    localStorage.setItem('user_info', JSON.stringify(data.data.user));
+                    
+                    showAlert(`登录成功！欢迎 ${data.data.user.role === 'admin' ? '管理员' : '普通用户'} ${data.data.user.username}`, 'success');
+                    
+                    // 根据用户角色跳转
+                    setTimeout(() => {
+                        if (data.data.user.role === 'admin') {
+                            window.location.href = '/frontend/recommendation_dashboard.html';
+                        } else {
+                            window.location.href = '/frontend/recommendation_dashboard.html?mode=user';
+                        }
+                    }, 1500);
+                    
+                } else {
+                    showAlert(data.error || '登录失败', 'danger');
+                }
+                
+            } catch (error) {
+                console.error('登录请求失败:', error);
+                showAlert('网络连接失败，请检查服务器状态', 'danger');
+            } finally {
+                // 恢复登录按钮
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>登录';
+            }
+        });
+        
+        // 显示提示信息
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            alertContainer.innerHTML = alertHTML;
+            
+            // 自动隐藏成功消息
+            if (type === 'success') {
+                setTimeout(() => {
+                    const alert = alertContainer.querySelector('.alert');
+                    if (alert) {
+                        alert.remove();
+                    }
+                }, 3000);
+            }
+        }
+        
+        // 检查是否已经登录
+        window.addEventListener('load', function() {
+            const sessionToken = localStorage.getItem('session_token');
+            const userInfo = localStorage.getItem('user_info');
+            
+            if (sessionToken && userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    showAlert(`检测到已登录状态，正在跳转...`, 'info');
+                    
+                    setTimeout(() => {
+                        if (user.role === 'admin') {
+                            window.location.href = '/frontend/recommendation_dashboard.html';
+                        } else {
+                            window.location.href = '/frontend/recommendation_dashboard.html?mode=user';
+                        }
+                    }, 1000);
+                } catch (error) {
+                    // 清除无效的登录信息
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_info');
+                }
+            }
+        });
+        
+        // 回车键快捷登录
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+        
+        // 默认填充普通用户信息
+        document.getElementById('username').value = 'user';
+        document.getElementById('password').value = 'user123';
+    </script>
+</body>
+</html>

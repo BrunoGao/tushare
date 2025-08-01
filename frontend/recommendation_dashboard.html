@@ -688,14 +688,276 @@
         let currentStrategy = 'multi_strategy';
         let recommendations = [];
         let isLoading = false;
+        let currentUser = null;
+        let sessionToken = null;
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             updateCurrentTime();
             setInterval(updateCurrentTime, 1000);
+            checkAuthentication();
             setupEventListeners();
             updateSystemStatus('connected');
         });
+        
+        // 检查用户认证状态
+        async function checkAuthentication() {
+            sessionToken = localStorage.getItem('session_token');
+            const userInfo = localStorage.getItem('user_info');
+            
+            if (!sessionToken || !userInfo) {
+                redirectToLogin();
+                return;
+            }
+            
+            try {
+                currentUser = JSON.parse(userInfo);
+                
+                // 验证session是否有效
+                const response = await fetch('/api/auth/user-info', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Session expired');
+                }
+                
+                const userData = await response.json();
+                if (userData.success) {
+                    currentUser = userData.data;
+                    localStorage.setItem('user_info', JSON.stringify(currentUser));
+                    setupUserInterface();
+                } else {
+                    throw new Error('Invalid session');
+                }
+                
+            } catch (error) {
+                console.error('认证失败:', error);
+                redirectToLogin();
+            }
+        }
+        
+        // 重定向到登录页面
+        function redirectToLogin() {
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('user_info');
+            window.location.href = '/frontend/login.html';
+        }
+        
+        // 根据用户角色设置界面
+        function setupUserInterface() {
+            if (!currentUser) return;
+            
+            // 更新页面标题和用户信息显示
+            updateUserDisplay();
+            
+            // 根据用户角色显示/隐藏功能
+            if (currentUser.role === 'admin') {
+                setupAdminInterface();
+            } else {
+                setupNormalUserInterface();
+            }
+        }
+        
+        // 更新用户显示信息
+        function updateUserDisplay() {
+            const header = document.querySelector('.header');
+            const userDisplay = document.createElement('div');
+            userDisplay.className = 'd-flex align-items-center gap-3';
+            userDisplay.innerHTML = `
+                <div class="dropdown">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user me-1"></i>
+                        ${currentUser.username} (${currentUser.role === 'admin' ? '管理员' : '用户'})
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                        </a></li>
+                    </ul>
+                </div>
+            `;
+            
+            // 替换原有的时间显示区域
+            const existingUserArea = header.querySelector('.d-flex.align-items-center.gap-3');
+            if (existingUserArea) {
+                existingUserArea.appendChild(userDisplay);
+            }
+        }
+        
+        // 设置管理员界面
+        function setupAdminInterface() {
+            // 管理员可以看到所有功能
+            console.log('设置管理员界面');
+            
+            // 添加管理员专用功能按钮
+            const controlPanel = document.querySelector('.filter-controls');
+            const adminControls = document.createElement('div');
+            adminControls.className = 'form-group';
+            adminControls.innerHTML = `
+                <label class="form-label">管理员功能</label>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-warning btn-sm" onclick="trainAIModels()">
+                        <i class="fas fa-robot me-1"></i>训练模型
+                    </button>
+                    <button class="btn btn-info btn-sm" onclick="viewSystemStats()">
+                        <i class="fas fa-chart-bar me-1"></i>系统统计
+                    </button>
+                </div>
+            `;
+            controlPanel.appendChild(adminControls);
+        }
+        
+        // 设置普通用户界面
+        function setupNormalUserInterface() {
+            // 普通用户只能查看推荐，不能生成
+            console.log('设置普通用户界面');
+            
+            // 隐藏生成推荐按钮，改为刷新按钮
+            const generateBtn = document.querySelector('button[onclick="generateRecommendations()"]');
+            if (generateBtn) {
+                generateBtn.innerHTML = '<i class="fas fa-sync me-2"></i>刷新推荐';
+                generateBtn.onclick = function() { loadLatestRecommendations(); };
+            }
+            
+            // 自动加载最新推荐
+            loadLatestRecommendations();
+        }
+        
+        // 用户登出
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+            } catch (error) {
+                console.error('登出请求失败:', error);
+            } finally {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_info');
+                window.location.href = '/frontend/login.html';
+            }
+        }
+        
+        // 加载最新推荐（普通用户）
+        async function loadLatestRecommendations() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            updateSystemStatus('loading');
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/recommendations/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({
+                        strategy: 'multi_strategy',
+                        limit: 20,
+                        min_score: 60
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    recommendations = data.data;
+                    displayRecommendations(recommendations);
+                    updateStats(recommendations);
+                } else {
+                    if (data.code === 401) {
+                        redirectToLogin();
+                        return;
+                    }
+                    showError(data.error || '获取推荐失败');
+                }
+                
+            } catch (error) {
+                console.error('获取推荐失败:', error);
+                showError('网络请求失败，请检查连接');
+            } finally {
+                isLoading = false;
+                updateSystemStatus('connected');
+            }
+        }
+        
+        // 训练AI模型（管理员专用）
+        async function trainAIModels() {
+            if (currentUser.role !== 'admin') {
+                alert('只有管理员可以训练模型');
+                return;
+            }
+            
+            if (!confirm('训练AI模型需要较长时间，是否继续？')) {
+                return;
+            }
+            
+            try {
+                updateSystemStatus('loading');
+                const response = await fetch('/api/ai/models/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({
+                        days_back: 180,
+                        stock_limit: 500
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`模型训练完成！\n训练样本: ${data.data.training_samples}\n特征数量: ${data.data.feature_count}\n训练模型数: ${data.data.models_trained}`);
+                } else {
+                    alert(`训练失败: ${data.error}`);
+                }
+                
+            } catch (error) {
+                console.error('训练模型失败:', error);
+                alert('训练请求失败，请检查网络连接');
+            } finally {
+                updateSystemStatus('connected');
+            }
+        }
+        
+        // 查看系统统计（管理员专用）
+        async function viewSystemStats() {
+            if (currentUser.role !== 'admin') {
+                alert('只有管理员可以查看系统统计');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/system/status', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.data;
+                    alert(`系统统计信息:\n活跃会话: ${stats.active_sessions}\n用户总数: ${stats.total_users}\nAPI端点: ${stats.api_endpoints}\n服务器时间: ${new Date(stats.server_time).toLocaleString()}`);
+                } else {
+                    alert(`获取统计失败: ${data.error}`);
+                }
+                
+            } catch (error) {
+                console.error('获取系统统计失败:', error);
+                alert('请求失败，请检查网络连接');
+            }
+        }
         
         // 更新当前时间
         function updateCurrentTime() {
