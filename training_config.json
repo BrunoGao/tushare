@@ -1,0 +1,53 @@
+{
+  "continuous_training": {
+    "base_model": "ljwx-stock",
+    "training_data_dir": "data/llm_training",
+    "models_dir": "data/models",
+    "max_training_examples_per_batch": 200,
+    "stock_batch_size": 30,
+    "days_back": 90,
+    "incremental_days": 30,
+    "max_models_to_keep": 5,
+    "min_success_rate": 0.8
+  },
+  "scheduler": {
+    "daily_training_time": "02:00",
+    "weekly_training_days": ["monday", "friday"],
+    "weekly_training_times": ["10:00", "16:00"],
+    "cleanup_frequency": "daily",
+    "monitoring_enabled": true
+  },
+  "data_sources": {
+    "tushare": {
+      "use_pro_api": true,
+      "fallback_to_free": true,
+      "stock_list_limit": 100,
+      "data_fields": [
+        "ts_code", "trade_date", "open", "high", "low", "close", "vol"
+      ]
+    }
+  },
+  "model_settings": {
+    "system_prompt_template": "stock_analysis_prompt.txt",
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "num_predict": 1024,
+    "max_message_pairs": 100
+  },
+  "performance_thresholds": {
+    "min_success_rate": 0.8,
+    "min_response_time": 10.0,
+    "max_response_time": 30.0,
+    "quality_keywords": [
+      "技术指标", "RSI", "MACD", "均线", "投资建议", "风险", "波动率"
+    ]
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file_rotation": true,
+    "max_log_files": 10,
+    "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

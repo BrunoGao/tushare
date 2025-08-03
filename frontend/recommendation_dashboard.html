@@ -819,7 +819,8 @@
             const generateBtn = document.querySelector('button[onclick="generateRecommendations()"]');
             if (generateBtn) {
                 generateBtn.innerHTML = '<i class="fas fa-sync me-2"></i>刷新推荐';
-                generateBtn.onclick = function() { loadLatestRecommendations(); };
+                generateBtn.removeAttribute('onclick');
+                generateBtn.addEventListener('click', loadLatestRecommendations);
             }
             
             // 自动加载最新推荐
@@ -1014,11 +1015,18 @@
             showLoading();
             
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // 如果有session token，添加认证头
+                if (sessionToken) {
+                    headers['Authorization'] = `Bearer ${sessionToken}`;
+                }
+                
                 const response = await fetch('/api/recommendations/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         strategy: currentStrategy,
                         limit: parseInt(limit),
@@ -1033,7 +1041,12 @@
                     displayRecommendations(recommendations);
                     updateStats(recommendations);
                 } else {
-                    showError(data.error || '推荐生成失败');
+                    if (data.error && data.error.includes('权限')) {
+                        // 如果是权限问题，尝试加载现有推荐
+                        await loadLatestRecommendations();
+                    } else {
+                        showError(data.error || '推荐生成失败');
+                    }
                 }
                 
             } catch (error) {
