@@ -162,8 +162,8 @@ class UnifiedStockApp:
         
         @self.app.route('/')
         def index():
-            """统一首页"""
-            return render_template('unified_index.html')
+            """企业级统一首页"""
+            return render_template('enterprise_index.html')
         
         @self.app.route('/api/status')
         def get_status():

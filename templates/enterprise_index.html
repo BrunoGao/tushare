@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ljwx-stock 智能投资决策平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 企业级配色方案 */
+            --primary-color: #0066cc;
+            --primary-dark: #004d99;
+            --primary-light: #e6f3ff;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --warning-color: #fd7e14;
+            --danger-color: #dc3545;
+            --info-color: #0dcaf0;
+            
+            /* 中性色调 */
+            --gray-50: #f8f9fa;
+            --gray-100: #e9ecef;
+            --gray-200: #dee2e6;
+            --gray-300: #ced4da;
+            --gray-400: #adb5bd;
+            --gray-500: #6c757d;
+            --gray-600: #495057;
+            --gray-700: #343a40;
+            --gray-800: #212529;
+            --gray-900: #0d1117;
+            
+            /* 阴影 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            /* 圆角 */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        /* 顶部导航栏 */
+        .top-navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 500;
+            padding: 0.75rem 1rem !important;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            color: white !important;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .status-badge {
+            background-color: var(--success-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-badge.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .status-badge.danger {
+            background-color: var(--danger-color);
+        }
+        
+        /* 主要内容区域 */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        /* 页面标题区域 */
+        .page-header {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .page-subtitle {
+            color: var(--gray-600);
+            font-size: 1.125rem;
+            margin: 0;
+        }
+        
+        /* 指标卡片 */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+            padding: 1.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .metric-icon.primary {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+        
+        .metric-icon.success {
+            background-color: #d1e7dd;
+            color: var(--success-color);
+        }
+        
+        .metric-icon.warning {
+            background-color: #fff3cd;
+            color: var(--warning-color);
+        }
+        
+        .metric-icon.info {
+            background-color: #cff4fc;
+            color: var(--info-color);
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        
+        .metric-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .metric-change.positive {
+            color: var(--success-color);
+        }
+        
+        .metric-change.negative {
+            color: var(--danger-color);
+        }
+        
+        .metric-change.neutral {
+            color: var(--gray-500);
+        }
+        
+        /* 功能模块网格 */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .module-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+            padding: 0;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .module-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        
+        .module-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+        
+        .module-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin: 0 0 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .module-description {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+        
+        .module-body {
+            padding: 1.5rem;
+        }
+        
+        .module-actions {
+            padding: 1rem 1.5rem;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        /* 按钮样式 */
+        .btn-enterprise {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-enterprise:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-outline-enterprise {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .btn-outline-enterprise:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-ghost {
+            background-color: transparent;
+            border: none;
+            color: var(--gray-600);
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .btn-ghost:hover {
+            background-color: var(--gray-100);
+            color: var(--gray-800);
+        }
+        
+        /* 表格样式 */
+        .enterprise-table {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+        }
+        
+        .enterprise-table .table {
+            margin-bottom: 0;
+        }
+        
+        .enterprise-table .table thead th {
+            background-color: var(--gray-50);
+            border-bottom: 2px solid var(--gray-200);
+            font-weight: 600;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+        
+        .enterprise-table .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .enterprise-table .table tbody tr:hover {
+            background-color: var(--gray-50);
+        }
+        
+        /* 状态标签 */
+        .status-badge-table {
+            padding: 0.375rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-badge-table.success {
+            background-color: #d1e7dd;
+            color: var(--success-color);
+        }
+        
+        .status-badge-table.warning {
+            background-color: #fff3cd;
+            color: var(--warning-color);
+        }
+        
+        .status-badge-table.danger {
+            background-color: #f8d7da;
+            color: var(--danger-color);
+        }
+        
+        .status-badge-table.info {
+            background-color: #cff4fc;
+            color: var(--info-color);
+        }
+        
+        /* 日志面板 */
+        .log-panel {
+            background: var(--gray-900);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--gray-800);
+            overflow: hidden;
+        }
+        
+        .log-header {
+            background: var(--gray-800);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--gray-700);
+            display: flex;
+            align-items: center;
+            justify-content: between;
+        }
+        
+        .log-title {
+            color: var(--gray-100);
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+        
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            background: var(--gray-900);
+        }
+        
+        .log-entry {
+            color: var(--gray-300);
+            margin-bottom: 0.25rem;
+        }
+        
+        .log-entry.success {
+            color: #4ade80;
+        }
+        
+        .log-entry.warning {
+            color: #fbbf24;
+        }
+        
+        .log-entry.error {
+            color: #f87171;
+        }
+        
+        .log-timestamp {
+            color: var(--gray-500);
+        }
+        
+        /* 进度条 */
+        .progress-modern {
+            height: 8px;
+            background-color: var(--gray-200);
+            border-radius: 50px;
+            overflow: hidden;
+        }
+        
+        .progress-modern .progress-bar {
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--info-color) 100%);
+            border-radius: 50px;
+            transition: width 0.3s ease;
+        }
+        
+        /* 模态框样式 */
+        .modal-enterprise .modal-content {
+            border-radius: var(--radius-xl);
+            border: none;
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .modal-enterprise .modal-header {
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            padding: 1.5rem 2rem;
+        }
+        
+        .modal-enterprise .modal-title {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+        
+        .modal-enterprise .modal-body {
+            padding: 2rem;
+        }
+        
+        .modal-enterprise .modal-footer {
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            padding: 1.5rem 2rem;
+        }
+        
+        /* 表单样式 */
+        .form-control-enterprise {
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-control-enterprise:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+            outline: none;
+        }
+        
+        .form-label-enterprise {
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .page-header {
+                padding: 1.5rem;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .modules-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .metric-card,
+            .module-card {
+                padding: 1rem;
+            }
+            
+            .module-header,
+            .module-body,
+            .module-actions {
+                padding: 1rem;
+            }
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* 加载状态 */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg top-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up-arrow me-2"></i>
+                ljwx-stock 智能投资决策平台
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard">
+                            <i class="bi bi-speedometer2 me-1"></i>控制台
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#analytics">
+                            <i class="bi bi-bar-chart-line me-1"></i>分析中心
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#models">
+                            <i class="bi bi-cpu me-1"></i>模型管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#reports">
+                            <i class="bi bi-file-earmark-text me-1"></i>报告中心
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <span class="status-badge" id="systemStatus">
+                        <i class="bi bi-circle-fill me-1"></i>系统正常
+                    </span>
+                    <button class="btn btn-ghost" onclick="refreshDashboard()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-ghost" onclick="showSettings()">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <div class="main-container">
+        <!-- 页面标题 -->
+        <div class="page-header fade-in-up">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="page-title">投资决策控制台</h1>
+                    <p class="page-subtitle">基于人工智能的量化投资分析与决策支持系统</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-enterprise" onclick="showQuickAnalysis()">
+                            <i class="bi bi-search me-1"></i>快速分析
+                        </button>
+                        <button class="btn btn-enterprise" onclick="showStockRecommendation()">
+                            <i class="bi bi-star me-1"></i>生成推荐
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 核心指标 -->
+        <div class="metrics-grid fade-in-up">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <h3 class="metric-title">可用模型</h3>
+                    <div class="metric-icon primary">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                </div>
+                <div class="metric-value" id="totalModels">-</div>
+                <div class="metric-change neutral" id="modelsChange">
+                    <i class="bi bi-dash me-1"></i>待加载
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <h3 class="metric-title">总推荐数</h3>
+                    <div class="metric-icon success">
+                        <i class="bi bi-star"></i>
+                    </div>
+                </div>
+                <div class="metric-value" id="totalRecommendations">-</div>
+                <div class="metric-change positive" id="recommendationsChange">
+                    <i class="bi bi-arrow-up me-1"></i>+0%
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <h3 class="metric-title">命中率</h3>
+                    <div class="metric-icon warning">
+                        <i class="bi bi-target"></i>
+                    </div>
+                </div>
+                <div class="metric-value" id="hitRate">-</div>
+                <div class="metric-change neutral" id="hitRateChange">
+                    <i class="bi bi-dash me-1"></i>计算中
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <h3 class="metric-title">活跃策略</h3>
+                    <div class="metric-icon info">
+                        <i class="bi bi-bar-chart-line"></i>
+                    </div>
+                </div>
+                <div class="metric-value" id="totalStrategies">-</div>
+                <div class="metric-change neutral" id="strategiesChange">
+                    <i class="bi bi-dash me-1"></i>统计中
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能模块 -->
+        <div class="modules-grid fade-in-up">
+            <!-- 推荐系统 -->
+            <div class="module-card">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        智能推荐系统
+                    </h3>
+                    <p class="module-description">
+                        基于深度学习的股票投资推荐，结合技术分析与市场情绪
+                    </p>
+                </div>
+                <div class="module-body">
+                    <div id="latestRecommendations">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-star fs-1 d-block mb-2 text-muted"></i>
+                            <p class="mb-0">暂无推荐数据</p>
+                            <small>点击生成推荐开始使用</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="module-actions">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-enterprise btn-sm" onclick="showStockRecommendation()">
+                            <i class="bi bi-plus me-1"></i>生成推荐
+                        </button>
+                        <button class="btn btn-outline-enterprise btn-sm" onclick="refreshRecommendations()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模型训练 -->
+            <div class="module-card">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="bi bi-cpu text-primary"></i>
+                        AI模型训练
+                    </h3>
+                    <p class="module-description">
+                        训练和优化专属的量化投资模型，提升预测准确性
+                    </p>
+                </div>
+                <div class="module-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-2">
+                                <small class="text-muted">训练进度</small>
+                                <div class="progress-modern">
+                                    <div class="progress-bar" id="trainingProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-end">
+                                <div class="fw-bold" id="trainingStatus">待训练</div>
+                                <small class="text-muted">当前状态</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted" id="currentTrainingTask">选择数据文件开始训练</small>
+                    </div>
+                </div>
+                <div class="module-actions">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-enterprise btn-sm" onclick="showModelTraining()">
+                            <i class="bi bi-play me-1"></i>开始训练
+                        </button>
+                        <button class="btn btn-ghost btn-sm" onclick="showDataManagement()">
+                            <i class="bi bi-database me-1"></i>数据管理
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 市场分析 -->
+            <div class="module-card">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="bi bi-graph-up text-success"></i>
+                        市场分析
+                    </h3>
+                    <p class="module-description">
+                        实时技术指标分析，支持多种分析维度和时间窗口
+                    </p>
+                </div>
+                <div class="module-body">
+                    <div class="enterprise-table">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>指标</th>
+                                    <th>数值</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marketIndicators">
+                                <tr>
+                                    <td>RSI</td>
+                                    <td>-</td>
+                                    <td><span class="status-badge-table info">待分析</span></td>
+                                </tr>
+                                <tr>
+                                    <td>MACD</td>
+                                    <td>-</td>
+                                    <td><span class="status-badge-table info">待分析</span></td>
+                                </tr>
+                                <tr>
+                                    <td>布林带</td>
+                                    <td>-</td>
+                                    <td><span class="status-badge-table info">待分析</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="module-actions">
+                    <button class="btn btn-enterprise btn-sm" onclick="showQuickAnalysis()">
+                        <i class="bi bi-search me-1"></i>分析股票
+                    </button>
+                </div>
+            </div>
+
+            <!-- 系统监控 -->
+            <div class="module-card">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="bi bi-activity text-info"></i>
+                        系统监控
+                    </h3>
+                    <p class="module-description">
+                        实时系统状态监控，任务执行日志和性能指标
+                    </p>
+                </div>
+                <div class="module-body p-0">
+                    <div class="log-panel">
+                        <div class="log-header">
+                            <h6 class="log-title">系统日志</h6>
+                            <button class="btn btn-ghost btn-sm text-light" onclick="clearLogs()">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="log-container" id="logContainer">
+                            <div class="log-entry">
+                                <span class="log-timestamp">[12:00:00]</span>
+                                系统已启动，等待操作...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="module-actions">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">最后更新: <span id="lastUpdate">刚刚</span></small>
+                        <button class="btn btn-ghost btn-sm" onclick="showSystemInfo()">
+                            <i class="bi bi-info-circle me-1"></i>详细信息
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 进度显示 -->
+        <div id="progressSection" style="display: none;" class="fade-in-up">
+            <div class="module-card">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="bi bi-hourglass-split text-warning"></i>
+                        任务执行中
+                    </h3>
+                    <p class="module-description">正在处理您的请求，请稍候...</p>
+                </div>
+                <div class="module-body">
+                    <div class="progress-modern mb-3">
+                        <div class="progress-bar" id="globalProgress" style="width: 0%"></div>
+                    </div>
+                    <p class="mb-0" id="currentTask">初始化中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 股票推荐模态框 -->
+    <div class="modal fade modal-enterprise" id="stockRecommendationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-star me-2"></i>生成股票推荐
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="recommendationForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">推荐模型</label>
+                                <select class="form-control-enterprise" id="recModelSelect" required>
+                                    <option value="">选择AI模型</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">推荐数量</label>
+                                <select class="form-control-enterprise" id="numStocks">
+                                    <option value="3">3只股票</option>
+                                    <option value="5" selected>5只股票</option>
+                                    <option value="10">10只股票</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">分析类型</label>
+                                <select class="form-control-enterprise" id="analysisType">
+                                    <option value="comprehensive_analysis" selected>综合分析</option>
+                                    <option value="technical_analysis">技术分析</option>
+                                    <option value="risk_assessment">风险评估</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">TuShare Token（可选）</label>
+                                <input type="text" class="form-control-enterprise" id="recTushareToken" 
+                                       placeholder="留空使用系统配置">
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="useDailyMode" checked>
+                            <label class="form-check-label" for="useDailyMode">
+                                启用每日推荐模式（自动选择市场活跃股票）
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-enterprise" onclick="generateRecommendations()">
+                        <i class="bi bi-star me-1"></i>生成推荐
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速分析模态框 -->
+    <div class="modal fade modal-enterprise" id="quickAnalysisModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-search me-2"></i>快速股票分析
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickAnalysisForm">
+                        <div class="mb-3">
+                            <label class="form-label-enterprise">股票代码</label>
+                            <input type="text" class="form-control-enterprise" id="quickStockCode" 
+                                   placeholder="例如：000001.SZ（平安银行）" required>
+                            <div class="form-text">支持深交所(.SZ)和上交所(.SH)股票代码</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label-enterprise">分析深度</label>
+                            <select class="form-control-enterprise" id="quickAnalysisType">
+                                <option value="quick" selected>快速分析（基础技术指标）</option>
+                                <option value="detailed">详细分析（全面技术分析）</option>
+                            </select>
+                        </div>
+                    </form>
+                    <div id="quickAnalysisResult" style="display: none;">
+                        <hr>
+                        <h6>分析结果</h6>
+                        <div id="quickAnalysisOutput"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-enterprise" onclick="runQuickAnalysis()">
+                        <i class="bi bi-play me-1"></i>开始分析
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型训练模态框 -->
+    <div class="modal fade modal-enterprise" id="modelTrainingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cpu me-2"></i>AI模型训练
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modelTrainingForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">基础模型</label>
+                                <select class="form-control-enterprise" id="baseModel">
+                                    <option value="ljwx-stock" selected>ljwx-stock</option>
+                                    <option value="deepseek-coder">deepseek-coder</option>
+                                    <option value="qwen">qwen</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">训练数据</label>
+                                <select class="form-control-enterprise" id="trainingFile" required>
+                                    <option value="">选择训练数据文件</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">模型名称</label>
+                                <input type="text" class="form-control-enterprise" id="modelName" 
+                                       placeholder="自动生成唯一名称">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label-enterprise">训练样本数</label>
+                                <input type="number" class="form-control-enterprise" id="sampleCount" 
+                                       value="200" min="50" max="1000">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-enterprise" onclick="startModelTraining()">
+                        <i class="bi bi-play me-1"></i>开始训练
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    
+    <!-- 主要JavaScript代码 -->
+    <script src="/static/js/enterprise-app.js"></script>
+</body>
+</html>
