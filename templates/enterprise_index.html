@@ -4,8 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ljwx-stock 智能投资决策平台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Critical CSS first -->
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    
+    <!-- Bootstrap CSS and Icons - loaded synchronously -->
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -520,6 +529,35 @@
             font-size: 0.875rem;
         }
         
+        /* 修复容器宽度问题 */
+        .container-fluid {
+            width: 100% !important;
+            max-width: none !important;
+        }
+        
+        .main-container {
+            width: 100% !important;
+            max-width: 1400px !important;
+            margin: 0 auto !important;
+            padding: 2rem 1rem !important;
+        }
+        
+        /* 确保页面不会被挤压 */
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+        
+        /* 防止内容溢出和改善响应式布局 */
+        .d-flex.gap-2 {
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            white-space: nowrap;
+        }
+        
         /* 响应式设计 */
         @media (max-width: 768px) {
             .main-container {
@@ -645,20 +683,18 @@
     <div class="main-container">
         <!-- 页面标题 -->
         <div class="page-header fade-in-up">
-            <div class="row align-items-center">
-                <div class="col-md-8">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                <div class="flex-grow-1">
                     <h1 class="page-title">投资决策控制台</h1>
                     <p class="page-subtitle">基于人工智能的量化投资分析与决策支持系统</p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex justify-content-end gap-2">
-                        <button class="btn btn-outline-enterprise" onclick="showQuickAnalysis()">
-                            <i class="bi bi-search me-1"></i>快速分析
-                        </button>
-                        <button class="btn btn-enterprise" onclick="showStockRecommendation()">
-                            <i class="bi bi-star me-1"></i>生成推荐
-                        </button>
-                    </div>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <button class="btn btn-outline-enterprise" onclick="showQuickAnalysis()">
+                        <i class="bi bi-search me-1"></i>快速分析
+                    </button>
+                    <button class="btn btn-enterprise" onclick="showStockRecommendation()">
+                        <i class="bi bi-star me-1"></i>生成推荐
+                    </button>
                 </div>
             </div>
         </div>

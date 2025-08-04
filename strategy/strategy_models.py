@@ -463,3 +463,40 @@ STRATEGY_TEMPLATES = {
         "tags": ["技术分析", "RSI", "超卖反弹"]
     }
 }
+
+
+class StrategyManager:
+    """策略管理器"""
+    
+    def __init__(self, db_path: str = "data/strategies.db"):
+        self.db_path = db_path
+        self.db = StrategyDatabase(db_path)
+        
+    def get_active_strategies(self) -> List[Strategy]:
+        """获取活跃策略"""
+        try:
+            return self.db.get_all_strategies()[:10]  # 返回前10个策略
+        except Exception as e:
+            print(f"Error getting active strategies: {e}")
+            return []
+            
+    def create_strategy(self, name: str, strategy_type: str = "technical") -> Strategy:
+        """创建新策略"""
+        strategy = Strategy(
+            name=name,
+            strategy_type=strategy_type,
+            buy_rules=[],
+            sell_rules=[],
+            risk_management=RiskManagement(),
+            tags=[]
+        )
+        return strategy
+        
+    def update_strategy(self, strategy: Strategy) -> bool:
+        """更新策略"""
+        try:
+            self.db.save_strategy(strategy)
+            return True
+        except Exception as e:
+            print(f"Error updating strategy: {e}")
+            return False

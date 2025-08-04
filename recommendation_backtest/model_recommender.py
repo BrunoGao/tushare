@@ -18,7 +18,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from llm.tushare_data_extractor import TuShareDataExtractor
-from recommendation_tracker import RecommendationTracker, StockRecommendation
+from .recommendation_tracker import RecommendationTracker, StockRecommendation
 
 class ModelRecommender:
     """模型推荐生成器"""

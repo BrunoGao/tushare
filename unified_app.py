@@ -14,9 +14,14 @@ import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
+import gzip
 import pandas as pd
 import numpy as np
 
@@ -65,11 +70,21 @@ class UnifiedStockApp:
     def __init__(self):
         self.app = Flask(__name__, static_folder='static', template_folder='templates')
         self.app.config['SECRET_KEY'] = 'ljwx-stock-unified-2025'
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='threading')
+        # Performance optimizations
+        self.app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # Cache static files for 1 hour
+        self.app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable template auto-reload in production
+        self.app.config['COMPRESS_MIMETYPES'] = ['text/html', 'text/css', 'text/xml', 'application/json', 'application/javascript']
+        self.socketio = SocketIO(self.app, 
+                                 cors_allowed_origins="*", 
+                                 async_mode='threading',
+                                 logger=False,
+                                 engineio_logger=False,
+                                 ping_timeout=60,
+                                 ping_interval=25)
         
-        # 配置日志
+        # 配置日志 - 减少日志级别提升性能
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.WARNING,  # 改为WARNING减少日志输出
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         self.logger = logging.getLogger(__name__)
@@ -163,6 +178,11 @@ class UnifiedStockApp:
         @self.app.route('/')
         def index():
             """企业级统一首页"""
+            return render_template('enterprise_index_minimal.html')
+        
+        @self.app.route('/full')
+        def full_index():
+            """完整版首页"""
             return render_template('enterprise_index.html')
         
         @self.app.route('/api/status')
@@ -254,15 +274,18 @@ class UnifiedStockApp:
                         self._emit_progress(10)
                         
                         # 配置训练器
-                        if config.get('tushare_token'):
+                        if config.get('tushare_token') and hasattr(self, 'trainer') and self.trainer:
                             self.trainer.data_extractor = TuShareDataExtractor(config['tushare_token'])
                         
                         # 生成数据
-                        output_file = self.trainer.generate_comprehensive_dataset(
-                            stock_count=config.get('stock_count', 100),
-                            days_back=config.get('days_back', 365),
-                            max_examples=config.get('max_examples', 1000)
-                        )
+                        if hasattr(self, 'trainer') and self.trainer:
+                            output_file = self.trainer.generate_comprehensive_dataset(
+                                stock_count=config.get('stock_count', 100),
+                                days_back=config.get('days_back', 365),
+                                max_examples=config.get('max_examples', 1000)
+                            )
+                        else:
+                            raise Exception('训练器不可用，请检查系统配置')
                         
                         self._emit_progress(100, '数据生成完成')
                         self.socketio.emit('task_completed', {
@@ -289,18 +312,55 @@ class UnifiedStockApp:
         def models_info():
             """获取模型信息"""
             try:
-                if self.trainer:
-                    models = self.trainer.get_available_models()
-                    return jsonify({'models': models})
-                else:
-                    # 返回模拟数据
-                    return jsonify({
-                        'models': [
-                            {'name': 'ljwx-stock', 'id': 'ljwx-stock', 'size': '未知', 'modified': '未知'}
-                        ]
-                    })
+                models = []
+                
+                # 检查训练器是否可用
+                if hasattr(self, 'trainer') and self.trainer:
+                    try:
+                        models = self.trainer.get_available_models()
+                    except Exception as e:
+                        self.logger.warning(f"获取训练器模型失败: {e}")
+                
+                # 检查Ollama模型
+                try:
+                    import subprocess
+                    result = subprocess.run(['ollama', 'list'], 
+                                          capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0:
+                        lines = result.stdout.strip().split('\n')[1:]  # 跳过标题行
+                        for line in lines:
+                            if line.strip():
+                                parts = line.split()
+                                if len(parts) >= 1:
+                                    model_name = parts[0].split(':')[0]  # 移除版本标签
+                                    models.append({
+                                        'name': model_name,
+                                        'id': model_name,
+                                        'size': parts[1] if len(parts) > 1 else '未知',
+                                        'modified': parts[2] if len(parts) > 2 else '未知',
+                                        'type': 'ollama'
+                                    })
+                except Exception as e:
+                    self.logger.warning(f"检查Ollama模型失败: {e}")
+                
+                # 如果没有找到任何模型，返回默认模型
+                if not models:
+                    models = [
+                        {'name': 'llama3.2', 'id': 'llama3.2', 'size': '2.0GB', 'modified': '系统默认', 'type': 'default'},
+                        {'name': 'qwen2', 'id': 'qwen2', 'size': '4.4GB', 'modified': '系统默认', 'type': 'default'},
+                        {'name': 'gemma2', 'id': 'gemma2', 'size': '5.4GB', 'modified': '系统默认', 'type': 'default'},
+                        {'name': 'phi3', 'id': 'phi3', 'size': '2.3GB', 'modified': '系统默认', 'type': 'default'}
+                    ]
+                
+                return jsonify({'models': models})
             except Exception as e:
-                return jsonify({'error': str(e)})
+                self.logger.error(f"获取模型信息失败: {e}")
+                # 返回基础模型列表
+                return jsonify({
+                    'models': [
+                        {'name': 'llama3.2', 'id': 'llama3.2', 'size': '2.0GB', 'modified': '系统默认', 'type': 'default'}
+                    ]
+                })
         
         @self.app.route('/api/train-model', methods=['POST'])
         def train_model():
@@ -315,12 +375,15 @@ class UnifiedStockApp:
                         self._emit_progress(10)
                         
                         # 执行训练
-                        result = self.trainer.fine_tune_model(
-                            base_model=config.get('base_model', 'ljwx-stock'),
-                            training_file=config['training_file'],
-                            model_name=config['model_name'],
-                            sample_count=config.get('sample_count', 200)
-                        )
+                        if hasattr(self, 'trainer') and self.trainer:
+                            result = self.trainer.fine_tune_model(
+                                base_model=config.get('base_model', 'ljwx-stock'),
+                                training_file=config['training_file'],
+                                model_name=config['model_name'],
+                                sample_count=config.get('sample_count', 200)
+                            )
+                        else:
+                            raise Exception('训练器不可用，请检查系统配置')
                         
                         self._emit_progress(100, '模型训练完成')
                         self.socketio.emit('task_completed', {
@@ -650,7 +713,7 @@ class UnifiedStockApp:
                         'last_update': datetime.now().isoformat()
                     },
                     'training_summary': {
-                        'total_models': len(self.trainer.get_available_models()),
+                        'total_models': len(self.trainer.get_available_models()) if hasattr(self, 'trainer') and self.trainer else 0,
                         'total_samples': self._get_total_training_samples(),
                         'last_training': self._get_last_training_time()
                     },
@@ -675,6 +738,23 @@ class UnifiedStockApp:
             """移动端最新推荐"""
             try:
                 limit = int(request.args.get('limit', 10))
+                
+                # 检查推荐跟踪器是否可用
+                if not self.recommendation_tracker:
+                    return jsonify({
+                        'recommendations': [],
+                        'total': 0,
+                        'message': '推荐系统暂不可用'
+                    })
+                
+                # 检查方法是否存在
+                if not hasattr(self.recommendation_tracker, 'get_latest_recommendations'):
+                    return jsonify({
+                        'recommendations': [],
+                        'total': 0,
+                        'message': '推荐功能正在初始化'
+                    })
+                
                 latest_recs = self.recommendation_tracker.get_latest_recommendations(limit)
                 
                 mobile_recs = []
@@ -799,7 +879,9 @@ class UnifiedStockApp:
     def _get_active_models_count(self) -> int:
         """获取活跃模型数量"""
         try:
-            return len(self.trainer.get_available_models())
+            if hasattr(self, 'trainer') and self.trainer:
+                return len(self.trainer.get_available_models())
+            return 0
         except:
             return 0
     
@@ -814,14 +896,34 @@ class UnifiedStockApp:
     def _quick_stock_analysis(self, stock_code: str) -> Dict:
         """快速股票分析"""
         try:
+            # 检查数据提取器是否可用
+            if not hasattr(self, 'data_extractor') or self.data_extractor is None:
+                # 尝试重新初始化数据提取器
+                try:
+                    from llm.tushare_data_extractor import TuShareDataExtractor
+                    tushare_token = os.getenv('TUSHARE_TOKEN', '58cf834df2a4b9a5404f6416248cffa0da78d10e31496385251d7aef')
+                    self.data_extractor = TuShareDataExtractor(tushare_token)
+                    self.logger.info("重新初始化数据提取器成功")
+                except Exception as e:
+                    self.logger.error(f"重新初始化数据提取器失败: {e}")
+                    return {
+                        'error': '数据服务不可用',
+                        'suggestion': '请检查TuShare连接或联系管理员',
+                        'code': stock_code
+                    }
+            
             # 获取基本数据
             end_date = datetime.now().strftime('%Y%m%d')
             start_date = (datetime.now() - timedelta(days=30)).strftime('%Y%m%d')
             
             daily_data = self.data_extractor.get_stock_daily_data(stock_code, start_date, end_date)
             
-            if daily_data.empty:
-                return {'error': '无法获取股票数据'}
+            if daily_data is None or daily_data.empty:
+                return {
+                    'error': f'无法获取股票 {stock_code} 的数据',
+                    'suggestion': '请检查股票代码是否正确（如：000001.SZ 或 600000.SH）',
+                    'code': stock_code
+                }
             
             latest = daily_data.iloc[-1]
             
@@ -839,16 +941,28 @@ class UnifiedStockApp:
                 'ma5': float(ma5),
                 'ma20': float(ma20),
                 'trend': trend,
-                'analysis_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'analysis_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'stock_code': stock_code,
+                'data_date': latest['trade_date'] if 'trade_date' in latest else 'N/A'
             }
             
         except Exception as e:
-            return {'error': f'分析失败: {str(e)}'}
+            self.logger.error(f"股票分析失败 {stock_code}: {e}")
+            return {
+                'error': f'分析失败: {str(e)}',
+                'suggestion': '请稍后重试或检查网络连接',
+                'code': stock_code
+            }
     
     def run(self, host='0.0.0.0', port=5005, debug=False):
         """启动应用"""
         self.logger.info(f"启动ljwx-stock统一应用 - http://{host}:{port}")
         self.socketio.run(self.app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+
+def app_factory():
+    """应用工厂函数，用于Gunicorn"""
+    app_instance = UnifiedStockApp()
+    return app_instance.app
 
 def main():
     """主函数"""

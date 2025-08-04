@@ -71,7 +71,7 @@ export class ConfigManager {
   private loadDefaultConfig(): void {
     this.config = {
       api: {
-        baseUrl: 'http://192.168.1.83:5005', // 默认API地址
+        baseUrl: 'http://14.127.218.229:5005', // 默认API地址
         apiKey: 'ljwx_harmonyos_client',
         timeout: 10000
       },
@@ -175,7 +175,7 @@ export class ConfigManager {
   // ============ 获取配置方法 ============
 
   public getApiBaseUrl(): string {
-    return this.config?.api.baseUrl || 'http://192.168.1.83:5005';
+    return this.config?.api.baseUrl || 'http://14.127.218.229:5005';
   }
 
   public getApiKey(): string {

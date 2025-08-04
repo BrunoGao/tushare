@@ -154,7 +154,7 @@ def main():
         verify_installation()
     
     print("\n📝 安装完成！")
-    print("现在可以访问 http://192.168.1.83:5005/ai-analysis 使用AI分析功能")
+    print("现在可以访问 http://14.127.218.229:5005/ai-analysis 使用AI分析功能")
 
 if __name__ == "__main__":
     main()

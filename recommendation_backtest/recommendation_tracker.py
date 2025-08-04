@@ -6,6 +6,11 @@
 
 import json
 import sqlite3
+import pymysql
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
 import pandas as pd
 import numpy as np
 import logging
@@ -264,17 +269,94 @@ class RecommendationParser:
 class RecommendationTracker:
     """推荐跟踪器"""
     
-    def __init__(self, db_path: str = "data/recommendation_backtest.db"):
-        self.db_path = db_path
+    def __init__(self, use_mysql: bool = True):
         self.logger = logging.getLogger(__name__)
         self.parser = RecommendationParser()
         
-        # 确保目录存在
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        # 尝试连接远程MySQL，失败则回退到SQLite
+        if use_mysql:
+            try:
+                self.connection_params = {
+                    'host': config.DB_HOST,
+                    'port': config.DB_PORT,
+                    'user': config.DB_USER,
+                    'password': config.DB_PASSWORD,
+                    'database': config.DB_NAME,
+                    'charset': 'utf8mb4'
+                }
+                # 测试连接
+                conn = pymysql.connect(**self.connection_params)
+                conn.close()
+                self.use_mysql = True
+                self.logger.info(f"✅ 使用远程MySQL数据库: {config.DB_HOST}:{config.DB_PORT}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 远程MySQL连接失败，回退到本地SQLite: {e}")
+                self.use_mysql = False
+                self.db_path = "data/recommendation_backtest.db"
+                os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        else:
+            self.use_mysql = False
+            self.db_path = "data/recommendation_backtest.db"
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
         self.init_database()
     
     def init_database(self):
         """初始化数据库"""
+        if self.use_mysql:
+            self._init_mysql_database()
+        else:
+            self._init_sqlite_database()
+    
+    def _init_mysql_database(self):
+        """初始化MySQL数据库"""
+        try:
+            conn = pymysql.connect(**self.connection_params)
+                # 推荐记录表
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS recommendations (
+                        id VARCHAR(255) PRIMARY KEY,
+                        model_name VARCHAR(100),
+                        stock_code VARCHAR(20),
+                        stock_name VARCHAR(100),
+                        recommendation_type VARCHAR(20),
+                        recommendation_text TEXT,
+                        confidence_score DECIMAL(5,4),
+                        target_price DECIMAL(10,2),
+                        stop_loss DECIMAL(10,2),
+                        time_horizon INT,
+                        recommend_date DATE,
+                        recommend_price DECIMAL(10,2),
+                        recommend_volume BIGINT,
+                        validation_date DATE,
+                        validation_price DECIMAL(10,2),
+                        actual_return DECIMAL(8,4),
+                        result VARCHAR(20),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ''')
+                
+                # 回测指标表
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS backtest_metrics (
+                        id VARCHAR(255) PRIMARY KEY,
+                        model_name VARCHAR(100),
+                        period_start DATE,
+                        period_end DATE,
+                        metrics_data TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ''')
+                
+            conn.commit()
+            conn.close()
+            self.logger.info("✅ MySQL数据库初始化成功")
+        except Exception as e:
+            self.logger.error(f"❌ MySQL数据库初始化失败: {e}")
+    
+    def _init_sqlite_database(self):
+        """初始化SQLite数据库"""
         with sqlite3.connect(self.db_path) as conn:
             # 推荐记录表
             conn.execute('''
@@ -308,7 +390,7 @@ class RecommendationTracker:
                     model_name TEXT,
                     period_start TEXT,
                     period_end TEXT,
-                    metrics_data TEXT,  -- JSON格式存储
+                    metrics_data TEXT,
                     created_at TEXT
                 )
             ''')
@@ -725,6 +807,55 @@ class RecommendationTracker:
             created_at=row['created_at'],
             updated_at=row['updated_at']
         )
+    
+    def get_latest_recommendations(self, limit: int = 10) -> List[StockRecommendation]:
+        """获取最新的推荐"""
+        try:
+            if self.use_mysql:
+                return self._get_latest_recommendations_mysql(limit)
+            else:
+                return self._get_latest_recommendations_sqlite(limit)
+        except Exception as e:
+            self.logger.error(f"获取最新推荐失败: {e}")
+            return []
+    
+    def _get_latest_recommendations_mysql(self, limit: int) -> List[StockRecommendation]:
+        """从MySQL获取最新推荐"""
+        conn = pymysql.connect(**self.connection_params)
+        try:
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                cursor.execute('''
+                    SELECT * FROM recommendations 
+                    ORDER BY created_at DESC 
+                    LIMIT %s
+                ''', (limit,))
+                
+                recommendations = []
+                for row in cursor.fetchall():
+                    rec = self._row_to_recommendation(row)
+                    recommendations.append(rec)
+                
+                return recommendations
+        finally:
+            conn.close()
+    
+    def _get_latest_recommendations_sqlite(self, limit: int) -> List[StockRecommendation]:
+        """从SQLite获取最新推荐"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM recommendations 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ''', (limit,))
+            
+            recommendations = []
+            for row in cursor.fetchall():
+                rec = self._row_to_recommendation(row)
+                recommendations.append(rec)
+            
+            return recommendations
+
 
 if __name__ == "__main__":
     # 示例用法

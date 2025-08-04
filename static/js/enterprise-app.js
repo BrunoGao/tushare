@@ -112,44 +112,103 @@ class EnterpriseStockApp {
         try {
             // 显示加载骨架
             this.showLoadingSkeleton();
-
-            // 并行加载多个数据源
-            const [systemStatus, dashboardData, modelsInfo, trainingDataInfo] = await Promise.all([
-                this.fetchAPI('/api/status'),
-                this.fetchAPI('/api/mobile/dashboard'),
-                this.fetchAPI('/api/models-info'),
-                this.fetchAPI('/api/training-data-info')
-            ]);
-
-            // 更新各个组件
-            this.updateSystemStatusFromAPI(systemStatus);
-            this.updateDashboardMetrics(dashboardData);
-            this.updateModelSelects(modelsInfo.models || []);
-            this.updateTrainingFileSelect(trainingDataInfo.files || []);
             
-            // 加载推荐数据
-            await this.refreshRecommendations();
-
-            // 隐藏加载骨架
+            // 分步加载，防止某个API阻塞整个页面
+            await this.loadSystemStatus();
+            await this.loadDashboardMetrics();
+            
+            // 隐藏加载骨架 - 主要内容已加载
             this.hideLoadingSkeleton();
-
+            
+            // 后台加载其他数据
+            this.loadModelsInfo();
+            
         } catch (error) {
             console.error('加载仪表板数据失败:', error);
             this.addLog('数据加载失败: ' + error.message, 'error');
             this.hideLoadingSkeleton();
+            // 即使出错也要继续显示页面
+            this.showFallbackContent();
         }
+    }
+    
+    // 分步加载系统状态
+    async loadSystemStatus() {
+        try {
+            const systemStatus = await this.fetchAPI('/api/status');
+            this.updateSystemStatusFromAPI(systemStatus);
+        } catch (error) {
+            console.warn('系统状态加载失败:', error);
+            this.updateSystemStatus('warning', '连接异常');
+        }
+    }
+    
+    // 分步加载仪表板指标
+    async loadDashboardMetrics() {
+        try {
+            const dashboardData = await this.fetchAPI('/api/mobile/dashboard');
+            this.updateDashboardMetrics(dashboardData);
+        } catch (error) {
+            console.warn('仪表板指标加载失败:', error);
+            this.showDefaultMetrics();
+        }
+    }
+    
+    // 后台加载模型信息
+    async loadModelsInfo() {
+        try {
+            const [modelsInfo, trainingDataInfo] = await Promise.allSettled([
+                this.fetchAPI('/api/models-info'),
+                this.fetchAPI('/api/training-data-info')
+            ]);
+            
+            if (modelsInfo.status === 'fulfilled') {
+                this.updateModelSelects(modelsInfo.value.models || []);
+            }
+            
+            if (trainingDataInfo.status === 'fulfilled') {
+                this.updateTrainingFileSelect(trainingDataInfo.value.files || []);
+            }
+            
+            // 后台加载推荐数据
+            this.refreshRecommendations();
+            
+        } catch (error) {
+            console.warn('模型信息加载失败:', error);
+        }
+    }
+    
+    // 显示默认指标
+    showDefaultMetrics() {
+        document.getElementById('totalModels').textContent = '0';
+        document.getElementById('totalRecommendations').textContent = '0';
+        document.getElementById('hitRate').textContent = '0%';
+        document.getElementById('totalStrategies').textContent = '0';
+    }
+    
+    // 显示降级内容
+    showFallbackContent() {
+        this.showDefaultMetrics();
+        this.addLog('使用离线模式显示页面', 'warning');
     }
 
     // API请求封装
     async fetchAPI(url, options = {}) {
         try {
+            // 添加超时控制
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000); // 10秒超时
+            
             const response = await fetch(url, {
                 headers: {
                     'Content-Type': 'application/json',
                     ...options.headers
                 },
+                signal: controller.signal,
                 ...options
             });
+            
+            clearTimeout(timeout);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -157,8 +216,13 @@ class EnterpriseStockApp {
 
             return await response.json();
         } catch (error) {
-            console.error(`API请求失败 ${url}:`, error);
-            throw error;
+            if (error.name === 'AbortError') {
+                console.warn(`API请求超时 ${url}`);
+                throw new Error('请求超时，请稍后重试');
+            } else {
+                console.error(`API请求失败 ${url}:`, error);
+                throw error;
+            }
         }
     }
 
@@ -683,14 +747,14 @@ class EnterpriseStockApp {
         });
     }
 
-    // 自动刷新
+    // 自动刷新 - 优化刷新频率
     startAutoRefresh() {
-        // 每30秒自动刷新仪表板数据
+        // 每60秒自动刷新仪表板数据，减少服务器负载
         this.refreshInterval = setInterval(() => {
             if (!document.hidden && !this.systemStatus.is_running) {
                 this.refreshDashboard();
             }
-        }, 30000);
+        }, 60000); // 改为60秒
     }
 
     stopAutoRefresh() {

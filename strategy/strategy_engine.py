@@ -17,7 +17,7 @@ except ImportError:
     print("Warning: TA-Lib not available, using basic implementations")
 import logging
 
-from strategy_models import (
+from .strategy_models import (
     Strategy, StrategyRule, TradingCondition, BacktestResult,
     IndicatorType, ConditionOperator, SignalType
 )
@@ -538,3 +538,65 @@ class BacktestEngine:
             'avg_loss': avg_loss,
             'profit_factor': profit_factor
         }
+
+
+class StrategyEngine:
+    """策略执行引擎"""
+    
+    def __init__(self):
+        self.backtest_engine = BacktestEngine()
+        self.active_strategies = []
+        
+    def add_strategy(self, strategy):
+        """添加策略"""
+        self.active_strategies.append(strategy)
+        
+    def get_signals(self, symbol: str, data: pd.DataFrame) -> Dict:
+        """获取交易信号"""
+        signals = []
+        for strategy in self.active_strategies:
+            try:
+                signal = self._evaluate_strategy(strategy, symbol, data)
+                if signal:
+                    signals.append(signal)
+            except Exception as e:
+                logging.warning(f"策略 {strategy.name} 评估失败: {e}")
+        
+        return {
+            'symbol': symbol,
+            'signals': signals,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+    def _evaluate_strategy(self, strategy, symbol: str, data: pd.DataFrame) -> Optional[Dict]:
+        """评估单个策略"""
+        if data.empty:
+            return None
+            
+        latest_data = data.iloc[-1]
+        
+        # 简单的示例信号生成逻辑
+        if len(data) >= 20:
+            ma5 = data['close'].rolling(5).mean().iloc[-1]
+            ma20 = data['close'].rolling(20).mean().iloc[-1]
+            
+            if ma5 > ma20 and data['close'].iloc[-1] > ma5:
+                return {
+                    'strategy': strategy.name,
+                    'signal': 'buy',
+                    'confidence': 0.7,
+                    'reason': 'MA金叉且价格突破'
+                }
+            elif ma5 < ma20 and data['close'].iloc[-1] < ma5:
+                return {
+                    'strategy': strategy.name,
+                    'signal': 'sell',
+                    'confidence': 0.6,
+                    'reason': 'MA死叉且价格跌破'
+                }
+        
+        return None
+        
+    def run_backtest(self, strategy, symbol: str, data: pd.DataFrame, initial_capital: float = 100000) -> Dict:
+        """运行回测"""
+        return self.backtest_engine.run_backtest(strategy, symbol, data, initial_capital)

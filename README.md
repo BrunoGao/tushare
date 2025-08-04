@@ -99,7 +99,7 @@ nano config.py
 # - TS_TOKEN: TuShare Pro Token
 # - DB_PASSWORD: MySQL密码  
 # - OPENAI_API_KEY: OpenAI API密钥 (或兼容接口)
-# - OPENAI_BASE_URL: AI模型API地址 (如http://192.168.1.83:11434/v1)
+# - OPENAI_BASE_URL: AI模型API地址 (如http://14.127.218.229:11434/v1)
 ```
 
 ### 3. 数据库初始化

@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # TuShare配置
-TS_TOKEN = os.getenv('TS_TOKEN', '05b8d2c8cc89bf19206a152b0898200cf08827e7e6a93d2a59267863')  # TuShare Token
+TS_TOKEN = os.getenv('TS_TOKEN', 'e43b6eab95ac0d2d9de22f6ca3b1b4ef3483650893794569337dc973')  # TuShare Token
 TS_RATE_LIMIT = 500  # 每分钟请求限制
 TS_BATCH_SIZE = 100  # 批处理大小
 TS_THREAD_COUNT = 5  # 并发线程数
@@ -43,9 +43,9 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # LLM配置 - 优化OpenAI兼容配置
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-fake-key')
-OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'http://192.168.1.83:11434/v1')
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'http://14.127.218.229:11434/v1')
 LLM_MODEL = os.getenv('LLM_MODEL', 'lingjingwanxiang:70b')
-LLM_API_URL = os.getenv('LLM_API_URL', 'http://192.168.1.83:11434')
+LLM_API_URL = os.getenv('LLM_API_URL', 'http://14.127.218.229:11434')
 LLM_TIMEOUT = 30
 
 # WebSocket配置
