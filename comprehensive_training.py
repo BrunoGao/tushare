@@ -37,20 +37,73 @@ class ComprehensiveTrainer:
             'base_model': 'ljwx-stock',
             'training_data_dir': 'data/llm_training',
             'models_dir': 'data/models',
-            'max_training_examples': 2000,  # 增加到2000条训练样本
-            'batch_size': 100,  # 每批处理100只股票
-            'days_back': 365,   # 过去一年数据
-            'request_delay': 0.5,  # API请求延迟
-            'max_retries': 3,   # 最大重试次数
+            'cache_dir': 'data/cache',  # 数据缓存目录
+            'max_training_examples': 50000,  # 大幅增加到50000条训练样本
+            'batch_size': 100,   # 每批处理100只股票（提高效率）
+            'days_back': 1825,   # 过去5年数据（5*365=1825天）
+            'request_delay': 0.3,  # 减少API请求延迟
+            'max_retries': 5,   # 增加最大重试次数
+            'test_mode': False,  # 关闭测试模式：处理所有股票
+            'use_cache': True,   # 启用缓存
+            'cache_expire_days': 7,  # 缓存过期天数
         }
         
         # 确保目录存在
         os.makedirs(self.config['training_data_dir'], exist_ok=True)
         os.makedirs(self.config['models_dir'], exist_ok=True)
+        os.makedirs(self.config['cache_dir'], exist_ok=True)
+    
+    def get_cache_path(self, cache_type: str, identifier: str = "") -> str:
+        """获取缓存文件路径"""
+        if identifier:
+            filename = f"{cache_type}_{identifier}.pkl"
+        else:
+            filename = f"{cache_type}.pkl"
+        return os.path.join(self.config['cache_dir'], filename)
+    
+    def is_cache_valid(self, cache_path: str) -> bool:
+        """检查缓存是否有效"""
+        if not os.path.exists(cache_path):
+            return False
+        
+        # 检查文件修改时间
+        file_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
+        expire_time = datetime.now() - timedelta(days=self.config['cache_expire_days'])
+        
+        return file_time > expire_time
+    
+    def load_from_cache(self, cache_path: str):
+        """从缓存加载数据"""
+        try:
+            with open(cache_path, 'rb') as f:
+                import pickle
+                return pickle.load(f)
+        except Exception as e:
+            self.logger.warning(f"加载缓存失败: {e}")
+            return None
+    
+    def save_to_cache(self, data, cache_path: str):
+        """保存数据到缓存"""
+        try:
+            with open(cache_path, 'wb') as f:
+                import pickle
+                pickle.dump(data, f)
+            self.logger.info(f"数据已缓存: {cache_path}")
+        except Exception as e:
+            self.logger.warning(f"保存缓存失败: {e}")
         
     def get_all_stock_codes(self) -> List[str]:
         """获取所有股票代码"""
         self.logger.info("📊 获取所有股票代码")
+        
+        # 检查缓存
+        if self.config['use_cache']:
+            cache_path = self.get_cache_path("stock_codes")
+            if self.is_cache_valid(cache_path):
+                cached_stocks = self.load_from_cache(cache_path)
+                if cached_stocks:
+                    self.logger.info(f"✅ 从缓存加载股票代码: {len(cached_stocks)}只")
+                    return cached_stocks
         
         all_stocks = []
         
@@ -75,7 +128,20 @@ class ComprehensiveTrainer:
             # 过滤有效的股票代码
             valid_stocks = [stock for stock in all_stocks if self.is_valid_stock_code(stock)]
             
+            # 全量模式：使用所有有效股票
+            if self.config.get('test_mode', False):
+                valid_stocks = valid_stocks[:200]
+                self.logger.info(f"测试模式：使用前200只股票")
+            else:
+                self.logger.info(f"全量模式：使用所有{len(valid_stocks)}只股票")
+            
             self.logger.info(f"获取到股票代码: {len(valid_stocks)}只")
+            
+            # 保存到缓存
+            if self.config['use_cache']:
+                cache_path = self.get_cache_path("stock_codes")
+                self.save_to_cache(valid_stocks, cache_path)
+            
             return valid_stocks
             
         except Exception as e:
@@ -121,7 +187,7 @@ class ComprehensiveTrainer:
                 backup_stocks.append(f"300{i:03d}.SZ")
                 backup_stocks.append(f"688{i:03d}.SH")
         
-        return backup_stocks[:1000]  # 返回前1000只
+        return backup_stocks[:5000]  # 增加到前5000只备用股票
     
     def is_valid_stock_code(self, stock_code: str) -> bool:
         """验证股票代码格式"""
@@ -143,21 +209,38 @@ class ComprehensiveTrainer:
         """分批获取历史数据"""
         self.logger.info(f"📈 分批获取 {len(stock_codes)} 只股票的历史数据")
         
-        all_data = []
-        batch_size = self.config['batch_size']
-        
-        # 设置日期范围（过去一年）
+        # 设置日期范围
         end_date = datetime.now().strftime('%Y%m%d')
         start_date = (datetime.now() - timedelta(days=self.config['days_back'])).strftime('%Y%m%d')
         
         self.logger.info(f"数据时间范围: {start_date} ~ {end_date}")
+        
+        # 检查缓存
+        cache_key = f"{start_date}_{end_date}_{len(stock_codes)}"
+        if self.config['use_cache']:
+            cache_path = self.get_cache_path("historical_data", cache_key)
+            if self.is_cache_valid(cache_path):
+                cached_data = self.load_from_cache(cache_path)
+                if cached_data is not None and not cached_data.empty:
+                    self.logger.info(f"✅ 从缓存加载历史数据: {len(cached_data)}条")
+                    return cached_data
+        
+        all_data = []
+        batch_size = self.config['batch_size']
+        
+        # 增加处理进度显示
+        processed_stocks = 0
+        total_stocks = len(stock_codes)
         
         for i in range(0, len(stock_codes), batch_size):
             batch_stocks = stock_codes[i:i + batch_size]
             batch_num = i // batch_size + 1
             total_batches = (len(stock_codes) + batch_size - 1) // batch_size
             
-            self.logger.info(f"处理第 {batch_num}/{total_batches} 批: {len(batch_stocks)} 只股票")
+            processed_stocks += len(batch_stocks)
+            progress_pct = (processed_stocks / total_stocks) * 100
+            
+            self.logger.info(f"处理第 {batch_num}/{total_batches} 批: {len(batch_stocks)} 只股票 ({progress_pct:.1f}%)")
             
             retry_count = 0
             while retry_count < self.config['max_retries']:
@@ -196,6 +279,12 @@ class ComprehensiveTrainer:
         if all_data:
             combined_data = pd.concat(all_data, ignore_index=True)
             self.logger.info(f"✅ 总计获取 {len(combined_data)} 条历史数据")
+            
+            # 保存到缓存
+            if self.config['use_cache']:
+                cache_path = self.get_cache_path("historical_data", cache_key)
+                self.save_to_cache(combined_data, cache_path)
+            
             return combined_data
         else:
             self.logger.error("❌ 未获取到任何历史数据")
@@ -208,6 +297,16 @@ class ComprehensiveTrainer:
         if stock_data.empty:
             return []
         
+        # 检查训练数据缓存
+        data_hash = str(hash(str(stock_data.shape) + str(stock_data.columns.tolist())))
+        if self.config['use_cache']:
+            cache_path = self.get_cache_path("training_data", data_hash)
+            if self.is_cache_valid(cache_path):
+                cached_training_data = self.load_from_cache(cache_path)
+                if cached_training_data:
+                    self.logger.info(f"✅ 从缓存加载训练数据: {len(cached_training_data)}条")
+                    return cached_training_data
+        
         try:
             # 使用训练数据生成器
             training_examples = self.data_generator.create_training_examples(
@@ -215,10 +314,32 @@ class ComprehensiveTrainer:
                 max_examples=self.config['max_training_examples']
             )
             
+            # 转换TrainingExample对象为字典
+            training_examples_dict = []
+            for example in training_examples:
+                if hasattr(example, '__dict__'):  # 如果是dataclass对象
+                    example_dict = {
+                        'instruction': example.instruction,
+                        'input': example.input,
+                        'output': example.output,
+                        'metadata': example.metadata
+                    }
+                else:  # 如果已经是字典
+                    example_dict = example
+                training_examples_dict.append(example_dict)
+            
+            training_examples = training_examples_dict
+            
             # 数据增强 - 生成更多样化的训练样本
             enhanced_examples = self.enhance_training_data(training_examples, stock_data)
             
             self.logger.info(f"✅ 生成训练样本: {len(enhanced_examples)} 条")
+            
+            # 保存训练数据到缓存
+            if self.config['use_cache']:
+                cache_path = self.get_cache_path("training_data", data_hash)
+                self.save_to_cache(enhanced_examples, cache_path)
+            
             return enhanced_examples
             
         except Exception as e:
@@ -256,20 +377,21 @@ class ComprehensiveTrainer:
         ]
         
         added_count = 0
+        max_enhanced_samples = min(10000, len(base_examples))  # 增加增强数据上限
         for stock_code, group_data in stock_groups:
-            if added_count >= 500:  # 限制增强数据数量
+            if added_count >= max_enhanced_samples:
                 break
                 
             if len(group_data) < 5:  # 数据太少跳过
                 continue
             
-            # 随机选择一些记录进行增强
-            sample_size = min(3, len(group_data))
+            # 增加采样数量以生成更多训练数据
+            sample_size = min(10, len(group_data))  # 增加到最多10条记录
             sample_data = group_data.sample(n=sample_size)
             
             for _, row in sample_data.iterrows():
                 for template in enhancement_templates:
-                    if added_count >= 500:
+                    if added_count >= max_enhanced_samples:
                         break
                     
                     enhanced_example = self.create_enhanced_example(row, template)
@@ -370,8 +492,9 @@ MACD: {row.get('macd', 0):.4f}
             system_prompt = """你是ljwx-stock，一个专业的股票投资分析助手。基于大量A股市场历史数据训练，具备以下专业能力：
 
 🎯 **核心优势**
-- 基于过去一年全市场数据的深度学习
-- 覆盖所有主要A股股票的分析经验
+- 基于过去5年全市场数据的深度学习
+- 覆盖5000+只A股股票的分析经验
+- 50000+条训练样本的专业分析能力
 - 多维度技术分析和风险评估能力
 
 📊 **分析能力**
@@ -405,8 +528,8 @@ PARAMETER num_predict 1024
 
 """
             
-            # 添加训练样本（分批添加，避免模型过大）
-            sample_count = min(len(training_data), 200)  # 限制样本数量
+            # 添加训练样本（增加样本数量以提升模型质量）
+            sample_count = min(len(training_data), 1000)  # 增加样本数量到1000
             selected_samples = random.sample(training_data, sample_count)
             
             for i, example in enumerate(selected_samples):
@@ -662,20 +785,26 @@ def main():
     
     print("🚀 ljwx-stock 全面训练系统")
     print("=" * 60)
-    print("📊 训练范围: 过去一年 + 所有股票")
-    print("🎯 目标样本: 2000+ 条训练数据")
-    print("⏱️  预计用时: 30-60分钟")
+    print("📊 训练范围: 过去5年 + 全市场股票")
+    print("🎯 目标样本: 50000+ 条训练数据")
+    print("⏱️  预计用时: 2-4小时")
     print("=" * 60)
     
     try:
-        # 获取TuShare token
+        # 检查TuShare token（这里只是检查，实际初始化在后面）
         tushare_token = os.getenv('TUSHARE_TOKEN')
         if not tushare_token:
             print("⚠️  未设置TUSHARE_TOKEN环境变量，将使用免费API")
             print("💡 建议设置Pro token以获得更好的数据质量和速度")
         
-        # 初始化全面训练器
-        trainer = ComprehensiveTrainer(tushare_token)
+        # 设置TuShare Token
+        tushare_token = os.getenv('TUSHARE_TOKEN')
+        if tushare_token:
+            print(f"✅ 使用TuShare Pro Token: {tushare_token[:20]}...")
+            trainer = ComprehensiveTrainer(tushare_token)
+        else:
+            print("⚠️  未设置TUSHARE_TOKEN，使用免费API")
+            trainer = ComprehensiveTrainer()
         
         print("\n📋 训练配置:")
         print(f"   最大训练样本: {trainer.config['max_training_examples']}条")
@@ -685,7 +814,46 @@ def main():
         print()
         
         # 自动开始（非交互模式）
-        print("🤔 自动开始全面训练...")
+        # 检查是否有缓存数据
+        cache_dir = "data/cache"
+        if os.path.exists(cache_dir) and os.listdir(cache_dir):
+            print("💾 发现缓存数据，将优先使用缓存加速训练过程")
+        
+        # 用户选择
+        print("\n📋 选项:")
+        print("1. 🚀 开始全面训练 (使用缓存)")
+        print("2. 🗑️  清空缓存重新训练")
+        print("3. 📊 查看缓存状态")
+        print("4. ❌ 退出")
+        
+        choice = input("\n请选择 (1-4): ").strip()
+        
+        if choice == "2":
+            # 清空缓存
+            if os.path.exists(cache_dir):
+                import shutil
+                shutil.rmtree(cache_dir)
+                os.makedirs(cache_dir, exist_ok=True)
+                print("✅ 缓存已清空")
+        elif choice == "3":
+            # 查看缓存状态
+            if os.path.exists(cache_dir):
+                cache_files = os.listdir(cache_dir)
+                print(f"\n📊 缓存状态:")
+                print(f"   缓存文件数量: {len(cache_files)}")
+                for file in cache_files:
+                    file_path = os.path.join(cache_dir, file)
+                    file_size = os.path.getsize(file_path) / 1024 / 1024  # MB
+                    file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    print(f"   {file}: {file_size:.1f}MB, {file_time.strftime('%Y-%m-%d %H:%M')}")
+            return
+        elif choice == "4":
+            print("👋 退出程序")
+            return
+        elif choice != "1":
+            print("⚠️ 无效选择，使用默认选项1")
+        
+        print("🤔 开始全面训练...")
         print("✅ 开始执行")
         
         # 运行全面训练

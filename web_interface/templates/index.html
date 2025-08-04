@@ -1,0 +1,3270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ljwx-stock 训练管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #28a745; }
+        .status-idle { background-color: #6c757d; }
+        .status-error { background-color: #dc3545; }
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .progress-container {
+            margin: 15px 0;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            color: white;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        .tab-content {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 8px 8px;
+        }
+        .nav-tabs .nav-link {
+            border-radius: 8px 8px 0 0;
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-3 col-lg-2 sidebar p-3">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="bi bi-cpu-fill me-2 fs-4"></i>
+                    <h5 class="mb-0">ljwx-stock</h5>
+                </div>
+                
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item mb-2">
+                        <a class="nav-link active" href="#dashboard" data-bs-toggle="tab">
+                            <i class="bi bi-speedometer2 me-2"></i>总览
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#data-management" data-bs-toggle="tab">
+                            <i class="bi bi-database me-2"></i>数据管理
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#model-training" data-bs-toggle="tab">
+                            <i class="bi bi-gear me-2"></i>模型训练
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#strategy-management" data-bs-toggle="tab">
+                            <i class="bi bi-bar-chart-line me-2"></i>策略管理
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#model-monitoring" data-bs-toggle="tab">
+                            <i class="bi bi-graph-up me-2"></i>效果监控
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#recommendation-backtest" data-bs-toggle="tab">
+                            <i class="bi bi-star me-2"></i>推荐回测
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- 状态指示器 -->
+                <div class="mt-auto pt-4">
+                    <div class="border-top pt-3">
+                        <div class="d-flex align-items-center">
+                            <span class="status-indicator" id="statusIndicator"></span>
+                            <span id="statusText">空闲</span>
+                        </div>
+                        <div class="progress mt-2" style="height: 6px;">
+                            <div class="progress-bar" id="globalProgress" style="width: 0%"></div>
+                        </div>
+                        <small id="currentTask" class="text-muted"></small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="col-md-9 col-lg-10 main-content p-4">
+                <div class="tab-content">
+                    <!-- 总览标签页 -->
+                    <div class="tab-pane fade show active" id="dashboard">
+                        <h2 class="mb-4">
+                            <i class="bi bi-speedometer2 me-2"></i>训练系统总览
+                        </h2>
+                        
+                        <!-- 系统指标卡片 -->
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-database fs-1 mb-2"></i>
+                                        <h5 class="card-title">训练数据</h5>
+                                        <h3 id="totalSamples">-</h3>
+                                        <small>个样本</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-cpu fs-1 mb-2"></i>
+                                        <h5 class="card-title">可用模型</h5>
+                                        <h3 id="totalModels">-</h3>
+                                        <small>个模型</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-graph-up fs-1 mb-2"></i>
+                                        <h5 class="card-title">训练进度</h5>
+                                        <h3 id="trainingProgress">0%</h3>
+                                        <small>完成度</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-activity fs-1 mb-2"></i>
+                                        <h5 class="card-title">系统状态</h5>
+                                        <h3 id="systemStatus">空闲</h3>
+                                        <small>运行状态</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 实时日志 -->
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-terminal me-2"></i>实时日志
+                                </h5>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                                    <i class="bi bi-trash me-1"></i>清除
+                                </button>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="log-container" id="logContainer">
+                                    <div>系统已启动，等待操作...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据管理标签页 -->
+                    <div class="tab-pane fade" id="data-management">
+                        <h2 class="mb-4">
+                            <i class="bi bi-database me-2"></i>训练数据管理
+                        </h2>
+
+                        <!-- TuShare配置 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-gear me-2"></i>TuShare数据源配置
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label class="form-label">TuShare Token (可选)</label>
+                                            <input type="text" class="form-control" id="tushareToken" 
+                                                   placeholder="输入TuShare Pro Token获得更好的数据质量">
+                                            <div class="form-text">不填写将使用免费API，功能有限</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button class="btn btn-gradient w-100" onclick="testTuShareConnection()">
+                                            <i class="bi bi-wifi me-1"></i>测试连接
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="tushareStatus" class="alert" style="display: none;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 数据生成配置 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-plus-circle me-2"></i>生成新的训练数据
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="dataGenerationForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">股票数量</label>
+                                                <input type="number" class="form-control" id="stockCount" 
+                                                       value="100" min="10" max="1000">
+                                                <div class="form-text">选择要分析的股票数量</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">历史天数</label>
+                                                <select class="form-select" id="daysBack">
+                                                    <option value="30">30天</option>
+                                                    <option value="90">90天</option>
+                                                    <option value="180">180天</option>
+                                                    <option value="365" selected>365天</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">最大样本数</label>
+                                                <input type="number" class="form-control" id="maxExamples" 
+                                                       value="1000" min="100" max="5000">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button type="submit" class="btn btn-gradient w-100">
+                                                    <i class="bi bi-play-fill me-1"></i>开始生成
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 现有训练数据 -->
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-file-earmark-text me-2"></i>现有训练数据
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshTrainingData()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>文件名</th>
+                                                <th>样本数量</th>
+                                                <th>文件大小</th>
+                                                <th>创建时间</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="trainingDataTable">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">加载中...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模型训练标签页 -->
+                    <div class="tab-pane fade" id="model-training">
+                        <h2 class="mb-4">
+                            <i class="bi bi-gear me-2"></i>模型训练
+                        </h2>
+
+                        <!-- 训练配置 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-sliders me-2"></i>训练参数配置
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="modelTrainingForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">基础模型</label>
+                                                <select class="form-select" id="baseModel">
+                                                    <option value="ljwx-stock">ljwx-stock</option>
+                                                    <option value="deepseek-coder">deepseek-coder</option>
+                                                    <option value="qwen">qwen</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">训练数据文件</label>
+                                                <select class="form-select" id="trainingFile">
+                                                    <option value="">选择训练数据文件</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">新模型名称</label>
+                                                <input type="text" class="form-control" id="modelName" 
+                                                       placeholder="自动生成">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">训练样本数量</label>
+                                                <input type="number" class="form-control" id="sampleCount" 
+                                                       value="200" min="50" max="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 高级参数 -->
+                                    <div class="card border-0 bg-light mb-3">
+                                        <div class="card-header bg-transparent border-0">
+                                            <h6 class="mb-0">
+                                                <i class="bi bi-gear-fill me-2"></i>高级参数
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Temperature</label>
+                                                        <input type="number" class="form-control" id="temperature" 
+                                                               value="0.7" min="0" max="2" step="0.1">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Top P</label>
+                                                        <input type="number" class="form-control" id="topP" 
+                                                               value="0.9" min="0" max="1" step="0.1">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Top K</label>
+                                                        <input type="number" class="form-control" id="topK" 
+                                                               value="40" min="1" max="100">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Repeat Penalty</label>
+                                                        <input type="number" class="form-control" id="repeatPenalty" 
+                                                               value="1.1" min="1" max="2" step="0.1">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-gradient w-100">
+                                        <i class="bi bi-play-fill me-1"></i>开始训练
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 训练进度 -->
+                        <div class="card" id="trainingProgressCard" style="display: none;">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-activity me-2"></i>训练进度
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="progress mb-3" style="height: 20px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         id="trainingProgressBar" style="width: 0%">0%</div>
+                                </div>
+                                <p id="trainingCurrentTask" class="text-muted mb-0">等待开始...</p>
+                                <div class="d-flex justify-content-end mt-3">
+                                    <button class="btn btn-danger" onclick="stopTraining()">
+                                        <i class="bi bi-stop-fill me-1"></i>停止训练
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 策略管理标签页 -->
+                    <div class="tab-pane fade" id="strategy-management">
+                        <h2 class="mb-4">
+                            <i class="bi bi-bar-chart-line me-2"></i>量化策略管理
+                        </h2>
+
+                        <!-- 策略操作栏 -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-gradient" onclick="showCreateStrategyModal()">
+                                    <i class="bi bi-plus-lg me-1"></i>新建策略
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="showTemplateModal()">
+                                    <i class="bi bi-collection me-1"></i>策略模板
+                                </button>
+                                <button class="btn btn-outline-success" onclick="importStrategy()">
+                                    <i class="bi bi-upload me-1"></i>导入策略
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select form-select-sm" id="strategyTypeFilter" onchange="filterStrategies()">
+                                    <option value="">所有类型</option>
+                                    <option value="technical">技术分析</option>
+                                    <option value="fundamental">基本面</option>
+                                    <option value="quantitative">量化</option>
+                                    <option value="hybrid">混合</option>
+                                </select>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="refreshStrategies()">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 策略列表 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-list-ul me-2"></i>我的策略
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>策略名称</th>
+                                                <th>类型</th>
+                                                <th>规则数量</th>
+                                                <th>创建时间</th>
+                                                <th>标签</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="strategyTableBody">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted py-4">
+                                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                                    暂无策略，点击上方"新建策略"开始创建
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 策略详情卡片 -->
+                        <div class="row mt-4" id="strategyDetailsRow" style="display: none;">
+                            <div class="col-md-8">
+                                <!-- 策略规则 -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-gear me-2"></i>策略规则
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6 class="text-success">
+                                                    <i class="bi bi-arrow-up-circle me-1"></i>买入条件
+                                                </h6>
+                                                <div id="buyRulesList" class="mb-3">
+                                                    <!-- 买入规则动态加载 -->
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="text-danger">
+                                                    <i class="bi bi-arrow-down-circle me-1"></i>卖出条件
+                                                </h6>
+                                                <div id="sellRulesList">
+                                                    <!-- 卖出规则动态加载 -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 回测结果 -->
+                                <div class="card mt-4">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-graph-up me-2"></i>回测结果
+                                        </h5>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showBacktestModal()">
+                                            <i class="bi bi-play me-1"></i>运行回测
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="backtestResults">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+                                                暂无回测结果，点击"运行回测"开始测试策略
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- 策略信息 -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-info-circle me-2"></i>策略信息
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="strategyInfo">
+                                            <!-- 策略基本信息 -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 风险管理 -->
+                                <div class="card mt-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-shield-check me-2"></i>风险管理
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="riskManagement">
+                                            <!-- 风险管理参数 -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 快速操作 -->
+                                <div class="card mt-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-lightning me-2"></i>快速操作
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="editStrategy()">
+                                                <i class="bi bi-pencil me-1"></i>编辑策略
+                                            </button>
+                                            <button class="btn btn-outline-success btn-sm" onclick="cloneStrategy()">
+                                                <i class="bi bi-files me-1"></i>克隆策略
+                                            </button>
+                                            <button class="btn btn-outline-info btn-sm" onclick="exportStrategy()">
+                                                <i class="bi bi-download me-1"></i>导出策略
+                                            </button>
+                                            <button class="btn btn-outline-warning btn-sm" onclick="shareStrategy()">
+                                                <i class="bi bi-share me-1"></i>分享策略
+                                            </button>
+                                            <hr>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="deleteStrategy()">
+                                                <i class="bi bi-trash me-1"></i>删除策略
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 效果监控标签页 -->
+                    <div class="tab-pane fade" id="model-monitoring">
+                        <h2 class="mb-4">
+                            <i class="bi bi-graph-up me-2"></i>模型效果监控
+                        </h2>
+
+                        <!-- 评估控制面板 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-speedometer2 me-2"></i>模型评估
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="evaluationForm">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">选择模型</label>
+                                                <select class="form-select" id="evalModelSelect" required>
+                                                    <option value="">选择要评估的模型</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">测试类别</label>
+                                                <select class="form-select" id="evalCategorySelect">
+                                                    <option value="">全部类别</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">难度等级</label>
+                                                <select class="form-select" id="evalDifficultySelect">
+                                                    <option value="">全部难度</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">超时时间(秒)</label>
+                                                <input type="number" class="form-control" id="evalTimeout" value="30" min="10" max="120">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-gradient">
+                                            <i class="bi bi-play-fill me-1"></i>开始评估
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" onclick="loadTestCases()">
+                                            <i class="bi bi-list-check me-1"></i>查看测试用例
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="showCompareModal()">
+                                            <i class="bi bi-bar-chart me-1"></i>模型对比
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 评估结果概览 -->
+                        <div class="row mb-4" id="evaluationOverview" style="display: none;">
+                            <div class="col-md-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-trophy fs-1 mb-2"></i>
+                                        <h5 class="card-title">总体分数</h5>
+                                        <h3 id="overallScore">-</h3>
+                                        <small>满分 1.0</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-check-circle fs-1 mb-2"></i>
+                                        <h5 class="card-title">成功率</h5>
+                                        <h3 id="successRate">-</h3>
+                                        <small>通过测试比例</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-clock fs-1 mb-2"></i>
+                                        <h5 class="card-title">响应时间</h5>
+                                        <h3 id="avgResponseTime">-</h3>
+                                        <small>平均秒数</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card metric-card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-list-task fs-1 mb-2"></i>
+                                        <h5 class="card-title">测试用例</h5>
+                                        <h3 id="totalTests">-</h3>
+                                        <small>已完成测试</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 详细结果 -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- 分类性能 -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-bar-chart-line me-2"></i>分类性能分析
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="categoryPerformance">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-bar-chart fs-1 d-block mb-2"></i>
+                                                运行评估后查看分类性能
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 历史趋势 -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-graph-up me-2"></i>性能趋势
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="performanceTrend">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+                                                选择模型后查看历史趋势
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- 可用模型 -->
+                                <div class="card mb-4">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-cpu me-2"></i>可用模型
+                                        </h5>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="refreshModels()">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="modelsList">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-cpu fs-1 d-block mb-2"></i>
+                                                加载模型列表...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 快速测试 -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-chat-dots me-2"></i>快速测试
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="quickTestForm">
+                                            <div class="mb-3">
+                                                <label class="form-label">选择模型</label>
+                                                <select class="form-select" id="quickTestModel" required>
+                                                    <option value="">选择模型</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">测试问题</label>
+                                                <textarea class="form-control" id="quickTestInput" rows="3" 
+                                                    placeholder="输入测试问题，例如：平安银行RSI为65，MACD为0.08，如何操作？"></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-outline-primary w-100">
+                                                <i class="bi bi-send me-1"></i>测试
+                                            </button>
+                                        </form>
+                                        <div id="quickTestResult" class="mt-3" style="display: none;">
+                                            <div class="border rounded p-3 bg-light">
+                                                <h6>模型回答：</h6>
+                                                <div id="quickTestOutput"></div>
+                                                <hr>
+                                                <small class="text-muted">
+                                                    响应时间: <span id="quickTestTime"></span>秒
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 推荐回测标签页 -->
+                    <div class="tab-pane fade" id="recommendation-backtest">
+                        <h2 class="mb-4">
+                            <i class="bi bi-star me-2"></i>股票推荐回测验证
+                        </h2>
+
+                        <!-- 推荐生成面板 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-plus-circle me-2"></i>生成股票推荐
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="recommendationForm">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">选择模型</label>
+                                                <select class="form-select" id="recModelSelect" required>
+                                                    <option value="">选择推荐模型</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">推荐数量</label>
+                                                <select class="form-select" id="numStocks">
+                                                    <option value="3">3只股票</option>
+                                                    <option value="5" selected>5只股票</option>
+                                                    <option value="10">10只股票</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">分析类型</label>
+                                                <select class="form-select" id="analysisType">
+                                                    <option value="comprehensive_analysis" selected>综合分析</option>
+                                                    <option value="technical_analysis">技术分析</option>
+                                                    <option value="risk_assessment">风险评估</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button type="submit" class="btn btn-gradient w-100">
+                                                    <i class="bi bi-star-fill me-1"></i>生成推荐
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="useDailyMode" checked>
+                                                <label class="form-check-label" for="useDailyMode">
+                                                    使用每日推荐模式（自动选择活跃股票）
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">TuShare Token（可选）</label>
+                                                <input type="text" class="form-control" id="recTushareToken" 
+                                                       placeholder="留空使用默认配置">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 推荐管理面板 -->
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <!-- 推荐列表 -->
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-list-ul me-2"></i>最新推荐
+                                        </h5>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="validateRecommendations()">
+                                                <i class="bi bi-check-circle me-1"></i>验证推荐
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="refreshRecommendations()">
+                                                <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>股票</th>
+                                                        <th>推荐类型</th>
+                                                        <th>推荐价格</th>
+                                                        <th>目标价格</th>
+                                                        <th>置信度</th>
+                                                        <th>状态</th>
+                                                        <th>收益率</th>
+                                                        <th>操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="recommendationsTableBody">
+                                                    <tr>
+                                                        <td colspan="8" class="text-center text-muted py-4">
+                                                            <i class="bi bi-star fs-1 d-block mb-2"></i>
+                                                            暂无推荐，点击"生成推荐"开始
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- 推荐统计 -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-pie-chart me-2"></i>推荐统计
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="recommendationStats">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-pie-chart fs-1 d-block mb-2"></i>
+                                                暂无统计数据
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 模型性能 -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-trophy me-2"></i>模型性能
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="modelPerformance">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="bi bi-trophy fs-1 d-block mb-2"></i>
+                                                选择模型查看性能
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 回测报告 -->
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-graph-up me-2"></i>回测报告
+                                </h5>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <label class="form-label mb-0 me-2">时间范围:</label>
+                                    <select class="form-select form-select-sm" id="backtestPeriod" onchange="loadBacktestReport()">
+                                        <option value="7">近7天</option>
+                                        <option value="30" selected>近30天</option>
+                                        <option value="90">近90天</option>
+                                        <option value="365">近1年</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="backtestReport">
+                                    <div class="text-center text-muted py-4">
+                                        <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+                                        选择模型和时间范围查看回测报告
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测试用例查看模态框 -->
+    <div class="modal fade" id="testCasesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-check me-2"></i>测试用例
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <select class="form-select" id="testCaseCategoryFilter" onchange="filterTestCases()">
+                                    <option value="">全部类别</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-select" id="testCaseDifficultyFilter" onchange="filterTestCases()">
+                                    <option value="">全部难度</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>类别</th>
+                                    <th>难度</th>
+                                    <th>问题</th>
+                                    <th>期望关键词</th>
+                                </tr>
+                            </thead>
+                            <tbody id="testCasesTableBody">
+                                <!-- 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型对比模态框 -->
+    <div class="modal fade" id="compareModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bar-chart me-2"></i>模型对比
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="compareForm">
+                        <div class="mb-3">
+                            <label class="form-label">选择要对比的模型 (至少两个)</label>
+                            <div id="compareModelsList">
+                                <!-- 动态生成复选框 -->
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="bi bi-bar-chart me-1"></i>开始对比
+                        </button>
+                    </form>
+                    <div id="comparisonResults" class="mt-4" style="display: none;">
+                        <!-- 对比结果 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略创建模态框 -->
+                                            <select class="form-select" id="testModel">
+                                                <option value="">选择要测试的模型</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">测试问题</label>
+                                            <textarea class="form-control" id="testQuestion" rows="3" 
+                                                      placeholder="输入测试问题，例如：分析平安银行(000001.SZ)的投资价值">分析平安银行(000001.SZ)的投资价值，当前价格12.50元，RSI=65，MACD=0.08</textarea>
+                                        </div>
+                                        <button class="btn btn-gradient" onclick="testModel()">
+                                            <i class="bi bi-play-fill me-1"></i>运行测试
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">模型回答</label>
+                                        <div class="border rounded p-3" style="min-height: 200px; background-color: #f8f9fa;">
+                                            <div id="testResult" class="text-muted">等待测试结果...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略创建模态框 -->
+    <div class="modal fade" id="createStrategyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-lg me-2"></i>创建新策略
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createStrategyForm">
+                        <!-- 基本信息 -->
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0">基本信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label class="form-label">策略名称 *</label>
+                                            <input type="text" class="form-control" name="name" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">策略类型</label>
+                                            <select class="form-select" name="strategy_type">
+                                                <option value="technical">技术分析</option>
+                                                <option value="fundamental">基本面</option>
+                                                <option value="quantitative">量化</option>
+                                                <option value="hybrid">混合</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">策略描述</label>
+                                    <textarea class="form-control" name="description" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">标签</label>
+                                    <input type="text" class="form-control" name="tags" placeholder="用逗号分隔多个标签">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 买入条件 -->
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-transparent d-flex justify-content-between">
+                                <h6 class="mb-0 text-success">
+                                    <i class="bi bi-arrow-up-circle me-1"></i>买入条件
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="addBuyRule()">
+                                    <i class="bi bi-plus"></i>添加规则
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="buyRulesContainer">
+                                    <div class="text-muted text-center py-3">
+                                        <i class="bi bi-plus-circle fs-1 d-block mb-2"></i>
+                                        点击"添加规则"开始创建买入条件
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 卖出条件 -->
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-transparent d-flex justify-content-between">
+                                <h6 class="mb-0 text-danger">
+                                    <i class="bi bi-arrow-down-circle me-1"></i>卖出条件
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="addSellRule()">
+                                    <i class="bi bi-plus"></i>添加规则
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="sellRulesContainer">
+                                    <div class="text-muted text-center py-3">
+                                        <i class="bi bi-plus-circle fs-1 d-block mb-2"></i>
+                                        点击"添加规则"开始创建卖出条件
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 风险管理 -->
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-shield-check me-1"></i>风险管理
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">止损比例 (%)</label>
+                                            <input type="number" class="form-control" name="stop_loss" value="5" min="0" max="50" step="0.1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">止盈比例 (%)</label>
+                                            <input type="number" class="form-control" name="take_profit" value="10" min="0" max="100" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">最大仓位 (%)</label>
+                                            <input type="number" class="form-control" name="max_position_size" value="20" min="1" max="100" step="1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">最大回撤 (%)</label>
+                                            <input type="number" class="form-control" name="max_drawdown" value="15" min="1" max="50" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 回测参数 -->
+                        <div class="card border-0 bg-light">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-gear me-1"></i>回测参数
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">初始资金</label>
+                                            <input type="number" class="form-control" name="initial_capital" value="100000" min="1000" step="1000">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">手续费 (%)</label>
+                                            <input type="number" class="form-control" name="commission" value="0.03" min="0" max="1" step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">滑点 (%)</label>
+                                            <input type="number" class="form-control" name="slippage" value="0.01" min="0" max="1" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-gradient" onclick="saveStrategy()">保存策略</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略模板模态框 -->
+    <div class="modal fade" id="templateModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-collection me-2"></i>策略模板
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row" id="templateList">
+                        <!-- 模板列表动态加载 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回测配置模态框 -->
+    <div class="modal fade" id="backtestModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-play me-2"></i>运行回测
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="backtestForm">
+                        <div class="mb-3">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" name="stock_code" value="000001.SZ" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">开始日期</label>
+                                    <input type="date" class="form-control" name="start_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">结束日期</label>
+                                    <input type="date" class="form-control" name="end_date" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">TuShare Token (可选)</label>
+                            <input type="text" class="form-control" name="tushare_token" placeholder="留空使用免费API">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-gradient" onclick="runBacktest()">开始回测</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    
+    <script>
+        // WebSocket连接
+        const socket = io();
+        
+        // 全局状态
+        let currentStatus = {
+            is_running: false,
+            progress: 0,
+            current_task: '',
+            logs: []
+        };
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeInterface();
+            loadInitialData();
+            setupEventListeners();
+        });
+
+        // 初始化界面
+        function initializeInterface() {
+            console.log('ljwx-stock 训练管理界面已启动');
+            updateStatusIndicator();
+        }
+
+        // 加载初始数据
+        function loadInitialData() {
+            refreshTrainingData();
+            refreshModels();
+            loadStatus();
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 数据生成表单
+            document.getElementById('dataGenerationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                startDataGeneration();
+            });
+
+            // 模型训练表单
+            document.getElementById('modelTrainingForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                startModelTraining();
+            });
+
+            // Socket.IO事件监听
+            socket.on('connected', function(data) {
+                addLog('WebSocket连接成功', 'info');
+            });
+
+            socket.on('log_update', function(data) {
+                addLog(data.message, data.level);
+            });
+
+            socket.on('progress_update', function(data) {
+                updateProgress(data.progress, data.task);
+            });
+
+            socket.on('task_completed', function(data) {
+                handleTaskCompleted(data);
+            });
+
+            socket.on('task_failed', function(data) {
+                handleTaskFailed(data);
+            });
+        }
+
+        // 状态管理
+        function loadStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    currentStatus = data;
+                    updateStatusIndicator();
+                    updateProgress(data.progress, data.current_task);
+                    
+                    // 加载历史日志
+                    if (data.logs && data.logs.length > 0) {
+                        data.logs.forEach(log => {
+                            addLog(log.message, log.level, false);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('加载状态失败:', error);
+                });
+        }
+
+        function updateStatusIndicator() {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const systemStatus = document.getElementById('systemStatus');
+            
+            if (currentStatus.is_running) {
+                indicator.className = 'status-indicator status-running';
+                statusText.textContent = '运行中';
+                systemStatus.textContent = '训练中';
+            } else {
+                indicator.className = 'status-indicator status-idle';
+                statusText.textContent = '空闲';
+                systemStatus.textContent = '空闲';
+            }
+        }
+
+        function updateProgress(progress, task) {
+            currentStatus.progress = progress;
+            currentStatus.current_task = task;
+            
+            // 更新所有进度条
+            const progressBars = ['globalProgress', 'trainingProgressBar'];
+            progressBars.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.style.width = progress + '%';
+                    element.textContent = progress + '%';
+                }
+            });
+
+            // 更新任务文本
+            const taskElements = ['currentTask', 'trainingCurrentTask'];
+            taskElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = task || '';
+                }
+            });
+
+            // 更新仪表盘数字
+            document.getElementById('trainingProgress').textContent = progress + '%';
+
+            // 显示/隐藏训练进度卡片
+            const progressCard = document.getElementById('trainingProgressCard');
+            if (progressCard) {
+                progressCard.style.display = currentStatus.is_running ? 'block' : 'none';
+            }
+        }
+
+        // 日志管理
+        function addLog(message, level = 'info', scroll = true) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #888;">[${timestamp}]</span> ${message}`;
+            
+            if (level === 'error') {
+                logEntry.style.color = '#ff6b6b';
+            } else if (level === 'warning') {
+                logEntry.style.color = '#feca57';
+            } else if (level === 'success') {
+                logEntry.style.color = '#48dbfb';
+            }
+
+            logContainer.appendChild(logEntry);
+            
+            if (scroll) {
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            // 限制日志条数
+            while (logContainer.children.length > 1000) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        function clearLogs() {
+            fetch('/api/clear-logs', { method: 'POST' })
+                .then(() => {
+                    document.getElementById('logContainer').innerHTML = '';
+                    addLog('日志已清除');
+                })
+                .catch(error => {
+                    console.error('清除日志失败:', error);
+                });
+        }
+
+        // TuShare连接测试
+        function testTuShareConnection() {
+            const token = document.getElementById('tushareToken').value;
+            const statusDiv = document.getElementById('tushareStatus');
+            
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'alert alert-info';
+            statusDiv.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>正在测试连接...';
+
+            fetch(`/api/tushare-info?token=${encodeURIComponent(token)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        statusDiv.className = 'alert alert-success';
+                        statusDiv.innerHTML = `
+                            <i class="bi bi-check-circle me-2"></i>连接成功！
+                            <br>• 可访问股票数量: ${data.stock_count}
+                            <br>• Pro权限: ${data.has_pro_access ? '是' : '否'}
+                        `;
+                    } else {
+                        statusDiv.className = 'alert alert-danger';
+                        statusDiv.innerHTML = `<i class="bi bi-x-circle me-2"></i>连接失败: ${data.error}`;
+                    }
+                })
+                .catch(error => {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.innerHTML = `<i class="bi bi-x-circle me-2"></i>测试失败: ${error.message}`;
+                });
+        }
+
+        // 数据生成
+        function startDataGeneration() {
+            if (currentStatus.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const config = {
+                tushare_token: document.getElementById('tushareToken').value,
+                stock_count: parseInt(document.getElementById('stockCount').value),
+                days_back: parseInt(document.getElementById('daysBack').value),
+                max_examples: parseInt(document.getElementById('maxExamples').value)
+            };
+
+            fetch('/api/generate-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    currentStatus.is_running = true;
+                    updateStatusIndicator();
+                    addLog('数据生成任务已启动');
+                } else {
+                    alert('启动失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('启动数据生成失败:', error);
+                alert('启动失败: ' + error.message);
+            });
+        }
+
+        // 模型训练
+        function startModelTraining() {
+            if (currentStatus.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const config = {
+                base_model: document.getElementById('baseModel').value,
+                training_file: document.getElementById('trainingFile').value,
+                model_name: document.getElementById('modelName').value || 
+                           `ljwx-stock-web-${new Date().toISOString().slice(0,16).replace(/[-:]/g, '')}`,
+                sample_count: parseInt(document.getElementById('sampleCount').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                top_p: parseFloat(document.getElementById('topP').value),
+                top_k: parseInt(document.getElementById('topK').value),
+                repeat_penalty: parseFloat(document.getElementById('repeatPenalty').value)
+            };
+
+            if (!config.training_file) {
+                alert('请选择训练数据文件');
+                return;
+            }
+
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    currentStatus.is_running = true;
+                    updateStatusIndicator();
+                    addLog('模型训练任务已启动');
+                } else {
+                    alert('启动失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('启动模型训练失败:', error);
+                alert('启动失败: ' + error.message);
+            });
+        }
+
+        // 停止训练
+        function stopTraining() {
+            fetch('/api/stop-training', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    currentStatus.is_running = false;
+                    updateStatusIndicator();
+                    addLog('训练任务已停止');
+                })
+                .catch(error => {
+                    console.error('停止训练失败:', error);
+                });
+        }
+
+        // 刷新数据
+        function refreshTrainingData() {
+            fetch('/api/training-data-info')
+                .then(response => response.json())
+                .then(data => {
+                    updateTrainingDataTable(data.files || []);
+                    updateTrainingFileSelect(data.files || []);
+                    updateTotalSamples(data.files || []);
+                })
+                .catch(error => {
+                    console.error('加载训练数据失败:', error);
+                });
+        }
+
+        function refreshModels() {
+            fetch('/api/models-info')
+                .then(response => response.json())
+                .then(data => {
+                    updateModelsTable(data.models || []);
+                    updateTestModelSelect(data.models || []);
+                    document.getElementById('totalModels').textContent = (data.models || []).length;
+                })
+                .catch(error => {
+                    console.error('加载模型信息失败:', error);
+                });
+        }
+
+        // 更新表格
+        function updateTrainingDataTable(files) {
+            const tbody = document.getElementById('trainingDataTable');
+            
+            if (files.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无训练数据文件</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = files.map(file => `
+                <tr>
+                    <td>${file.filename}</td>
+                    <td><span class="badge bg-primary">${file.sample_count}</span></td>
+                    <td>${formatFileSize(file.size)}</td>
+                    <td>${new Date(file.created).toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="selectTrainingFile('${file.filename}')">
+                            选择
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateModelsTable(models) {
+            const tbody = document.getElementById('modelsTable');
+            
+            if (models.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无可用模型</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = models.map(model => `
+                <tr>
+                    <td>${model.name}</td>
+                    <td><code>${model.id}</code></td>
+                    <td>${model.size}</td>
+                    <td>${model.modified}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-success" onclick="selectTestModel('${model.name}')">
+                            测试
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 更新选择框
+        function updateTrainingFileSelect(files) {
+            const select = document.getElementById('trainingFile');
+            select.innerHTML = '<option value="">选择训练数据文件</option>' +
+                files.map(file => `<option value="${file.filename}">${file.filename} (${file.sample_count}样本)</option>`).join('');
+        }
+
+        function updateTestModelSelect(models) {
+            const select = document.getElementById('testModel');
+            select.innerHTML = '<option value="">选择要测试的模型</option>' +
+                models.map(model => `<option value="${model.name}">${model.name}</option>`).join('');
+        }
+
+        // 辅助函数
+        function updateTotalSamples(files) {
+            const total = files.reduce((sum, file) => sum + file.sample_count, 0);
+            document.getElementById('totalSamples').textContent = total;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function selectTrainingFile(filename) {
+            document.getElementById('trainingFile').value = filename;
+            // 切换到模型训练标签页
+            const trainingTab = new bootstrap.Tab(document.querySelector('a[href="#model-training"]'));
+            trainingTab.show();
+        }
+
+        function selectTestModel(modelName) {
+            document.getElementById('testModel').value = modelName;
+        }
+
+        // 模型测试
+        function testModel() {
+            const modelName = document.getElementById('testModel').value;
+            const question = document.getElementById('testQuestion').value;
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!modelName) {
+                alert('请选择要测试的模型');
+                return;
+            }
+            
+            if (!question.trim()) {
+                alert('请输入测试问题');
+                return;
+            }
+
+            resultDiv.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>模型思考中...';
+            
+            // 这里应该调用后端API来测试模型
+            // 由于当前后端没有实现，我们模拟一个响应
+            setTimeout(() => {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-info mb-2">
+                        <strong>模型:</strong> ${modelName}
+                    </div>
+                    <div class="border-start border-primary ps-3">
+                        <p>基于您提供的技术指标分析：</p>
+                        <ul>
+                            <li><strong>RSI=65</strong>：相对强弱指数显示股票可能处于超买区域</li>
+                            <li><strong>MACD=0.08</strong>：MACD为正值，表明短期上涨趋势</li>
+                            <li><strong>当前价格12.50元</strong>：需要结合历史价格分析支撑阻力位</li>
+                        </ul>
+                        <p><strong>投资建议：</strong>谨慎操作，关注RSI回调至正常区间，建议分批建仓，设置止损位。</p>
+                        <p class="text-muted"><small>⚠️ 投资有风险，决策需谨慎。本分析仅供参考。</small></p>
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        // 任务完成处理
+        function handleTaskCompleted(data) {
+            currentStatus.is_running = false;
+            updateStatusIndicator();
+            updateProgress(100, '任务完成');
+            
+            if (data.type === 'data_generation') {
+                addLog(`✅ 数据生成完成：${data.sample_count} 个样本`, 'success');
+                refreshTrainingData();
+            } else if (data.type === 'model_training') {
+                addLog(`✅ 模型训练完成：${data.model_name}`, 'success');
+                refreshModels();
+            }
+        }
+
+        function handleTaskFailed(data) {
+            currentStatus.is_running = false;
+            updateStatusIndicator();
+            addLog(`❌ 任务失败：${data.error}`, 'error');
+        }
+
+        // ================== 模型评估功能 ==================
+        
+        let currentEvaluation = null;
+        let evaluationResults = {};
+
+        // 初始化模型评估
+        function initializeModelEvaluation() {
+            loadEvaluationCategories();
+            refreshModelsForEvaluation();
+            
+            // 设置评估表单事件监听
+            document.getElementById('evaluationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                startModelEvaluation();
+            });
+            
+            // 快速测试表单事件监听
+            document.getElementById('quickTestForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                runQuickTest();
+            });
+        }
+
+        // 加载评估类别和难度
+        function loadEvaluationCategories() {
+            fetch('/api/evaluation/categories')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.categories) {
+                        updateCategorySelect(data.categories);
+                    }
+                    if (data.difficulties) {
+                        updateDifficultySelect(data.difficulties);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载评估类别失败:', error);
+                });
+        }
+
+        // 更新类别选择框
+        function updateCategorySelect(categories) {
+            const selects = ['evalCategorySelect', 'testCaseCategoryFilter'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = categories.map(cat => 
+                        `<option value="${cat.value}">${cat.label}</option>`
+                    ).join('');
+                }
+            });
+        }
+
+        // 更新难度选择框
+        function updateDifficultySelect(difficulties) {
+            const selects = ['evalDifficultySelect', 'testCaseDifficultyFilter'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = difficulties.map(diff => 
+                        `<option value="${diff.value}">${diff.label}</option>`
+                    ).join('');
+                }
+            });
+        }
+
+        // 刷新模型列表（用于评估）
+        function refreshModelsForEvaluation() {
+            fetch('/api/models-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.models) {
+                        updateEvaluationModelSelects(data.models);
+                        displayModelsForEvaluation(data.models);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载模型信息失败:', error);
+                });
+        }
+
+        // 更新评估模型选择框
+        function updateEvaluationModelSelects(models) {
+            const selects = ['evalModelSelect', 'quickTestModel'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">选择模型</option>' +
+                        models.map(model => `<option value="${model.name}">${model.name}</option>`).join('');
+                }
+            });
+        }
+
+        // 显示可用模型
+        function displayModelsForEvaluation(models) {
+            const container = document.getElementById('modelsList');
+            
+            if (models.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-cpu fs-1 d-block mb-2"></i>
+                        暂无可用模型
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = models.map(model => `
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">${model.name}</h6>
+                        <small class="text-muted">${model.size}</small>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary w-100" 
+                                onclick="selectModelForEvaluation('${model.name}')">
+                                选择评估
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 选择模型进行评估
+        function selectModelForEvaluation(modelName) {
+            document.getElementById('evalModelSelect').value = modelName;
+            document.getElementById('quickTestModel').value = modelName;
+        }
+
+        // 开始模型评估
+        function startModelEvaluation() {
+            if (training_status.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const formData = new FormData(document.getElementById('evaluationForm'));
+            const config = {
+                model_name: formData.get('model_name') || document.getElementById('evalModelSelect').value,
+                category: document.getElementById('evalCategorySelect').value,
+                difficulty: document.getElementById('evalDifficultySelect').value,
+                timeout: parseInt(document.getElementById('evalTimeout').value)
+            };
+
+            if (!config.model_name) {
+                alert('请选择要评估的模型');
+                return;
+            }
+
+            fetch('/api/evaluation/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    currentEvaluation = config;
+                    addLog(`🚀 开始评估模型: ${config.model_name}`, 'info');
+                    document.getElementById('evaluationOverview').style.display = 'none';
+                } else {
+                    alert('评估启动失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('启动模型评估失败:', error);
+                alert('启动失败: ' + error.message);
+            });
+        }
+
+        // 运行快速测试
+        function runQuickTest() {
+            const modelName = document.getElementById('quickTestModel').value;
+            const inputText = document.getElementById('quickTestInput').value;
+            const resultDiv = document.getElementById('quickTestResult');
+            const outputDiv = document.getElementById('quickTestOutput');
+            const timeDiv = document.getElementById('quickTestTime');
+            
+            if (!modelName) {
+                alert('请选择要测试的模型');
+                return;
+            }
+            
+            if (!inputText.trim()) {
+                alert('请输入测试问题');
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            outputDiv.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>模型思考中...';
+            
+            const startTime = Date.now();
+            
+            // 模拟API调用（实际应该调用后端接口）
+            setTimeout(() => {
+                const responseTime = (Date.now() - startTime) / 1000;
+                timeDiv.textContent = responseTime.toFixed(2);
+                
+                // 模拟回答
+                outputDiv.innerHTML = `
+                    <div class="mb-2">
+                        <strong>模型回答:</strong>
+                    </div>
+                    <div class="border-start border-primary ps-3">
+                        <p>基于您提供的问题分析：</p>
+                        <ul>
+                            <li>这是一个关于股票投资的专业问题</li>
+                            <li>需要综合考虑技术指标和基本面因素</li>
+                            <li>建议关注风险控制和资金管理</li>
+                        </ul>
+                        <p><strong>投资建议：</strong>建议谨慎分析，控制风险，适量配置。</p>
+                        <p class="text-muted"><small>⚠️ 投资有风险，决策需谨慎。本分析仅供参考。</small></p>
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        // 查看测试用例
+        function loadTestCases() {
+            fetch('/api/evaluation/test-cases')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.test_cases) {
+                        displayTestCases(data.test_cases);
+                        const modal = new bootstrap.Modal(document.getElementById('testCasesModal'));
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('加载测试用例失败:', error);
+                    addLog('❌ 加载测试用例失败', 'error');
+                });
+        }
+
+        // 显示测试用例
+        function displayTestCases(testCases) {
+            const tbody = document.getElementById('testCasesTableBody');
+            
+            tbody.innerHTML = testCases.map(testCase => `
+                <tr>
+                    <td><code>${testCase.id}</code></td>
+                    <td><span class="badge bg-info">${testCase.category}</span></td>
+                    <td><span class="badge bg-${getDifficultyColor(testCase.difficulty)}">${getDifficultyLabel(testCase.difficulty)}</span></td>
+                    <td class="text-truncate" style="max-width: 300px;" title="${testCase.input_text}">
+                        ${testCase.input_text}
+                    </td>
+                    <td>
+                        ${testCase.expected_keywords.map(keyword => 
+                            `<span class="badge bg-light text-dark me-1">${keyword}</span>`
+                        ).join('')}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 筛选测试用例
+        function filterTestCases() {
+            const category = document.getElementById('testCaseCategoryFilter').value;
+            const difficulty = document.getElementById('testCaseDifficultyFilter').value;
+            
+            let url = '/api/evaluation/test-cases?';
+            if (category) url += `category=${encodeURIComponent(category)}&`;
+            if (difficulty) url += `difficulty=${encodeURIComponent(difficulty)}&`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.test_cases) {
+                        displayTestCases(data.test_cases);
+                    }
+                })
+                .catch(error => {
+                    console.error('筛选测试用例失败:', error);
+                });
+        }
+
+        // 显示模型对比模态框
+        function showCompareModal() {
+            fetch('/api/models-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.models) {
+                        displayModelsForComparison(data.models);
+                        const modal = new bootstrap.Modal(document.getElementById('compareModal'));
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('加载模型列表失败:', error);
+                });
+        }
+
+        // 显示可比较的模型
+        function displayModelsForComparison(models) {
+            const container = document.getElementById('compareModelsList');
+            
+            container.innerHTML = models.map(model => `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${model.name}" 
+                           id="compare_${model.name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                    <label class="form-check-label" for="compare_${model.name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                        ${model.name} <small class="text-muted">(${model.size})</small>
+                    </label>
+                </div>
+            `).join('');
+            
+            // 设置对比表单事件
+            document.getElementById('compareForm').onsubmit = function(e) {
+                e.preventDefault();
+                startModelComparison();
+            };
+        }
+
+        // 开始模型对比
+        function startModelComparison() {
+            const checkboxes = document.querySelectorAll('#compareModelsList input[type="checkbox"]:checked');
+            const selectedModels = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedModels.length < 2) {
+                alert('请至少选择两个模型进行对比');
+                return;
+            }
+            
+            fetch('/api/evaluation/compare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model_names: selectedModels })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.comparison) {
+                    displayComparisonResults(data.comparison);
+                } else {
+                    alert('对比失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('模型对比失败:', error);
+                alert('对比失败: ' + error.message);
+            });
+        }
+
+        // 显示对比结果
+        function displayComparisonResults(comparison) {
+            const container = document.getElementById('comparisonResults');
+            
+            const tableHtml = `
+                <h6>模型对比结果</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>模型名称</th>
+                                <th>成功率</th>
+                                <th>总体分数</th>
+                                <th>响应时间(秒)</th>
+                                <th>评估时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(comparison).map(([modelName, metrics]) => `
+                                <tr>
+                                    <td><strong>${modelName}</strong></td>
+                                    <td>
+                                        <span class="badge bg-${metrics.success_rate >= 0.8 ? 'success' : metrics.success_rate >= 0.6 ? 'warning' : 'danger'}">
+                                            ${(metrics.success_rate * 100).toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-${metrics.avg_overall_score >= 0.8 ? 'success' : metrics.avg_overall_score >= 0.6 ? 'warning' : 'danger'}">
+                                            ${metrics.avg_overall_score.toFixed(2)}
+                                        </span>
+                                    </td>
+                                    <td>${metrics.avg_response_time.toFixed(2)}</td>
+                                    <td><small>${metrics.evaluation_date !== 'N/A' ? new Date(metrics.evaluation_date).toLocaleDateString() : 'N/A'}</small></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            container.innerHTML = tableHtml;
+            container.style.display = 'block';
+        }
+
+        // 工具函数
+        function getDifficultyColor(difficulty) {
+            const colors = {
+                'easy': 'success',
+                'medium': 'warning', 
+                'hard': 'danger'
+            };
+            return colors[difficulty] || 'secondary';
+        }
+
+        function getDifficultyLabel(difficulty) {
+            const labels = {
+                'easy': '简单',
+                'medium': '中等',
+                'hard': '困难'
+            };
+            return labels[difficulty] || difficulty;
+        }
+
+        // 处理评估完成事件
+        socket.on('evaluation_completed', function(data) {
+            addLog(`✅ 模型评估完成: ${data.model_name}`, 'success');
+            addLog(`📊 总体分数: ${data.summary.avg_overall_score.toFixed(2)}`, 'info');
+            addLog(`📈 成功率: ${(data.summary.success_rate * 100).toFixed(1)}%`, 'info');
+            
+            // 更新评估结果显示
+            updateEvaluationOverview(data.summary);
+            updateCategoryPerformance(data.summary.category_scores);
+            
+            currentEvaluation = null;
+        });
+
+        // 更新评估概览
+        function updateEvaluationOverview(summary) {
+            document.getElementById('overallScore').textContent = summary.avg_overall_score.toFixed(2);
+            document.getElementById('successRate').textContent = (summary.success_rate * 100).toFixed(1) + '%';
+            document.getElementById('avgResponseTime').textContent = summary.avg_response_time.toFixed(2);
+            document.getElementById('totalTests').textContent = summary.total_tests;
+            
+            document.getElementById('evaluationOverview').style.display = 'flex';
+        }
+
+        // 更新分类性能
+        function updateCategoryPerformance(categoryScores) {
+            const container = document.getElementById('categoryPerformance');
+            
+            if (!categoryScores || Object.keys(categoryScores).length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-bar-chart fs-1 d-block mb-2"></i>
+                        暂无分类性能数据
+                    </div>
+                `;
+                return;
+            }
+
+            const chartHtml = Object.entries(categoryScores).map(([category, score]) => `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>${category}</span>
+                        <span class="badge bg-${score >= 0.8 ? 'success' : score >= 0.6 ? 'warning' : 'danger'}">
+                            ${(score * 100).toFixed(1)}%
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-${score >= 0.8 ? 'success' : score >= 0.6 ? 'warning' : 'danger'}" 
+                             style="width: ${score * 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = chartHtml;
+        }
+
+        // ================== 策略管理功能 ==================
+        
+        let currentStrategy = null;
+        let strategyRuleCounter = 0;
+
+        // 初始化策略管理
+        function initializeStrategyManagement() {
+            refreshStrategies();
+            loadStrategyTemplates();
+            
+            // 设置默认日期
+            const today = new Date();
+            const oneYearAgo = new Date(today);
+            oneYearAgo.setFullYear(today.getFullYear() - 1);
+            
+            document.querySelector('#backtestForm input[name="start_date"]').value = oneYearAgo.toISOString().split('T')[0];
+            document.querySelector('#backtestForm input[name="end_date"]').value = today.toISOString().split('T')[0];
+        }
+
+        // 刷新策略列表
+        function refreshStrategies() {
+            fetch('/api/strategies?user_id=default')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.strategies) {
+                        displayStrategies(data.strategies);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载策略失败:', error);
+                    addLog('❌ 加载策略列表失败', 'error');
+                });
+        }
+
+        // 显示策略列表
+        function displayStrategies(strategies) {
+            const tbody = document.getElementById('strategyTableBody');
+            
+            if (strategies.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            暂无策略，点击上方"新建策略"开始创建
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = strategies.map(strategy => `
+                <tr onclick="selectStrategy('${strategy.id}')" style="cursor: pointer;">
+                    <td>
+                        <strong>${strategy.name}</strong>
+                        <br><small class="text-muted">${strategy.description || '无描述'}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getTypeColor(strategy.strategy_type)}">
+                            ${getTypeLabel(strategy.strategy_type)}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="text-success">${strategy.buy_rules_count}</span> / 
+                        <span class="text-danger">${strategy.sell_rules_count}</span>
+                    </td>
+                    <td>
+                        <small>${new Date(strategy.created_at).toLocaleDateString()}</small>
+                    </td>
+                    <td>
+                        ${strategy.tags.map(tag => `<span class="badge bg-light text-dark me-1">${tag}</span>`).join('')}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="event.stopPropagation(); editStrategy('${strategy.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-success" onclick="event.stopPropagation(); showBacktestModal('${strategy.id}')">
+                                <i class="bi bi-play"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="event.stopPropagation(); deleteStrategy('${strategy.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 选择策略
+        function selectStrategy(strategyId) {
+            fetch(`/api/strategies/${strategyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.strategy) {
+                        currentStrategy = data.strategy;
+                        displayStrategyDetails(data.strategy);
+                        document.getElementById('strategyDetailsRow').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('加载策略详情失败:', error);
+                    addLog('❌ 加载策略详情失败', 'error');
+                });
+        }
+
+        // 显示策略详情
+        function displayStrategyDetails(strategy) {
+            // 显示策略信息
+            document.getElementById('strategyInfo').innerHTML = `
+                <div class="mb-3">
+                    <h6>策略名称</h6>
+                    <p class="text-muted">${strategy.name}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>策略类型</h6>
+                    <span class="badge bg-${getTypeColor(strategy.strategy_type)}">
+                        ${getTypeLabel(strategy.strategy_type)}
+                    </span>
+                </div>
+                <div class="mb-3">
+                    <h6>描述</h6>
+                    <p class="text-muted">${strategy.description || '暂无描述'}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>创建时间</h6>
+                    <p class="text-muted">${new Date(strategy.created_at).toLocaleString()}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>标签</h6>
+                    <div>
+                        ${strategy.tags.map(tag => `<span class="badge bg-light text-dark me-1">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            // 显示买入规则
+            document.getElementById('buyRulesList').innerHTML = displayRules(strategy.buy_rules || []);
+
+            // 显示卖出规则
+            document.getElementById('sellRulesList').innerHTML = displayRules(strategy.sell_rules || []);
+
+            // 显示风险管理
+            const risk = strategy.risk_management || {};
+            document.getElementById('riskManagement').innerHTML = `
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">止损比例</small>
+                        <div>${(risk.stop_loss * 100 || 5).toFixed(1)}%</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">止盈比例</small>
+                        <div>${(risk.take_profit * 100 || 10).toFixed(1)}%</div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <small class="text-muted">最大仓位</small>
+                        <div>${(risk.max_position_size * 100 || 20).toFixed(0)}%</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">最大回撤</small>
+                        <div>${(risk.max_drawdown * 100 || 15).toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
+
+            // 加载回测结果
+            loadBacktestResults(strategy.id);
+        }
+
+        // 显示规则列表
+        function displayRules(rules) {
+            if (!rules || rules.length === 0) {
+                return '<div class="text-muted">暂无规则</div>';
+            }
+
+            return rules.map(rule => `
+                <div class="card border-light mb-2">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">${rule.name}</h6>
+                        <small class="text-muted">
+                            ${rule.conditions.map(condition => 
+                                `${getIndicatorLabel(condition.indicator_type)} ${getOperatorLabel(condition.operator)} ${condition.threshold}`
+                            ).join(` ${rule.logic_operator} `)}
+                        </small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示创建策略模态框
+        function showCreateStrategyModal() {
+            document.getElementById('createStrategyForm').reset();
+            document.getElementById('buyRulesContainer').innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-plus-circle fs-1 d-block mb-2"></i>
+                    点击"添加规则"开始创建买入条件
+                </div>
+            `;
+            document.getElementById('sellRulesContainer').innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-plus-circle fs-1 d-block mb-2"></i>
+                    点击"添加规则"开始创建卖出条件
+                </div>
+            `;
+            strategyRuleCounter = 0;
+            
+            const modal = new bootstrap.Modal(document.getElementById('createStrategyModal'));
+            modal.show();
+        }
+
+        // 显示模板模态框
+        function showTemplateModal() {
+            loadStrategyTemplates();
+            const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+            modal.show();
+        }
+
+        // 加载策略模板
+        function loadStrategyTemplates() {
+            fetch('/api/strategy-templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.templates) {
+                        displayTemplates(data.templates);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载模板失败:', error);
+                });
+        }
+
+        // 显示模板列表
+        function displayTemplates(templates) {
+            const container = document.getElementById('templateList');
+            container.innerHTML = Object.entries(templates).map(([key, template]) => `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">${template.name}</h6>
+                            <p class="card-text text-muted small">${template.description}</p>
+                            <div class="mb-2">
+                                ${template.tags.map(tag => `<span class="badge bg-light text-dark me-1">${tag}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-sm btn-outline-primary w-100" onclick="useTemplate('${key}')">
+                                使用此模板
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 使用模板
+        function useTemplate(templateKey) {
+            fetch('/api/strategy-templates')
+                .then(response => response.json())
+                .then(data => {
+                    const template = data.templates[templateKey];
+                    if (template) {
+                        // 关闭模板模态框
+                        bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+                        
+                        // 填充策略表单
+                        const form = document.getElementById('createStrategyForm');
+                        form.name.value = template.name;
+                        form.description.value = template.description;
+                        form.strategy_type.value = template.strategy_type;
+                        form.tags.value = template.tags.join(', ');
+                        
+                        // 显示创建模态框
+                        showCreateStrategyModal();
+                        
+                        // TODO: 填充规则数据
+                    }
+                })
+                .catch(error => {
+                    console.error('使用模板失败:', error);
+                });
+        }
+
+        // 保存策略
+        function saveStrategy() {
+            const form = document.getElementById('createStrategyForm');
+            const formData = new FormData(form);
+            
+            const strategyData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                strategy_type: formData.get('strategy_type'),
+                tags: formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag),
+                initial_capital: parseFloat(formData.get('initial_capital')),
+                commission: parseFloat(formData.get('commission')) / 100,
+                slippage: parseFloat(formData.get('slippage')) / 100,
+                risk_management: {
+                    stop_loss: parseFloat(formData.get('stop_loss')) / 100,
+                    take_profit: parseFloat(formData.get('take_profit')) / 100,
+                    max_position_size: parseFloat(formData.get('max_position_size')) / 100,
+                    max_drawdown: parseFloat(formData.get('max_drawdown')) / 100
+                },
+                buy_rules: [], // TODO: 收集买入规则
+                sell_rules: [] // TODO: 收集卖出规则
+            };
+
+            fetch('/api/strategies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(strategyData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.strategy_id) {
+                    bootstrap.Modal.getInstance(document.getElementById('createStrategyModal')).hide();
+                    addLog(`✅ 策略创建成功: ${strategyData.name}`, 'success');
+                    refreshStrategies();
+                } else {
+                    addLog(`❌ 策略创建失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('保存策略失败:', error);
+                addLog('❌ 保存策略失败', 'error');
+            });
+        }
+
+        // 显示回测模态框
+        function showBacktestModal(strategyId = null) {
+            if (strategyId) {
+                currentStrategy = { id: strategyId };
+            }
+            
+            if (!currentStrategy) {
+                addLog('❌ 请先选择一个策略', 'error');
+                return;
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('backtestModal'));
+            modal.show();
+        }
+
+        // 运行回测
+        function runBacktest() {
+            if (!currentStrategy) {
+                addLog('❌ 请先选择一个策略', 'error');
+                return;
+            }
+
+            const form = document.getElementById('backtestForm');
+            const formData = new FormData(form);
+            
+            const backtestConfig = {
+                stock_code: formData.get('stock_code'),
+                start_date: formData.get('start_date').replace(/-/g, ''),
+                end_date: formData.get('end_date').replace(/-/g, ''),
+                tushare_token: formData.get('tushare_token')
+            };
+
+            fetch(`/api/strategies/${currentStrategy.id}/backtest`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(backtestConfig)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    bootstrap.Modal.getInstance(document.getElementById('backtestModal')).hide();
+                    addLog('🚀 开始运行回测...', 'info');
+                } else {
+                    addLog(`❌ 回测启动失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('运行回测失败:', error);
+                addLog('❌ 运行回测失败', 'error');
+            });
+        }
+
+        // 加载回测结果
+        function loadBacktestResults(strategyId) {
+            fetch(`/api/strategies/${strategyId}/backtest-results`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        displayBacktestResults(data.results);
+                    } else {
+                        document.getElementById('backtestResults').innerHTML = `
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+                                暂无回测结果，点击"运行回测"开始测试策略
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载回测结果失败:', error);
+                });
+        }
+
+        // 显示回测结果
+        function displayBacktestResults(results) {
+            const latest = results[0]; // 最新的回测结果
+            
+            document.getElementById('backtestResults').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card border-light">
+                            <div class="card-body p-3">
+                                <h6 class="card-title text-success">总收益率</h6>
+                                <h4 class="mb-0">${(latest.total_return * 100).toFixed(2)}%</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-light">
+                            <div class="card-body p-3">
+                                <h6 class="card-title text-info">夏普比率</h6>
+                                <h4 class="mb-0">${latest.sharpe_ratio.toFixed(2)}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <small class="text-muted">最大回撤</small>
+                        <div class="fw-bold text-danger">${(latest.max_drawdown * 100).toFixed(2)}%</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">胜率</small>
+                        <div class="fw-bold">${(latest.win_rate * 100).toFixed(1)}%</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">交易次数</small>
+                        <div class="fw-bold">${latest.total_trades}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">回测时间: ${latest.start_date} ~ ${latest.end_date}</small>
+                </div>
+            `;
+        }
+
+        // 工具函数
+        function getTypeColor(type) {
+            const colors = {
+                'technical': 'primary',
+                'fundamental': 'success',
+                'quantitative': 'warning',
+                'hybrid': 'info'
+            };
+            return colors[type] || 'secondary';
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'technical': '技术分析',
+                'fundamental': '基本面',
+                'quantitative': '量化',
+                'hybrid': '混合'
+            };
+            return labels[type] || type;
+        }
+
+        function getIndicatorLabel(type) {
+            const labels = {
+                'ma': '移动平均',
+                'rsi': 'RSI',
+                'macd': 'MACD',
+                'bollinger': '布林带',
+                'kdj': 'KDJ',
+                'volume': '成交量'
+            };
+            return labels[type] || type;
+        }
+
+        function getOperatorLabel(operator) {
+            const labels = {
+                '>': '大于',
+                '<': '小于',
+                '>=': '大于等于',
+                '<=': '小于等于',
+                '==': '等于',
+                'cross_up': '上穿',
+                'cross_down': '下穿'
+            };
+            return labels[operator] || operator;
+        }
+
+        // 其他策略管理功能
+        function filterStrategies() {
+            // TODO: 实现策略筛选
+            refreshStrategies();
+        }
+
+        function editStrategy(strategyId) {
+            // TODO: 实现策略编辑
+            addLog('策略编辑功能开发中...', 'info');
+        }
+
+        function cloneStrategy() {
+            // TODO: 实现策略克隆
+            addLog('策略克隆功能开发中...', 'info');
+        }
+
+        function exportStrategy() {
+            // TODO: 实现策略导出
+            addLog('策略导出功能开发中...', 'info');
+        }
+
+        function shareStrategy() {
+            // TODO: 实现策略分享
+            addLog('策略分享功能开发中...', 'info');
+        }
+
+        function importStrategy() {
+            // TODO: 实现策略导入
+            addLog('策略导入功能开发中...', 'info');
+        }
+
+        function deleteStrategy(strategyId) {
+            if (!confirm('确定要删除这个策略吗？此操作不可撤销。')) {
+                return;
+            }
+
+            fetch(`/api/strategies/${strategyId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'deleted') {
+                    addLog('✅ 策略删除成功', 'success');
+                    refreshStrategies();
+                    document.getElementById('strategyDetailsRow').style.display = 'none';
+                } else {
+                    addLog(`❌ 策略删除失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('删除策略失败:', error);
+                addLog('❌ 删除策略失败', 'error');
+            });
+        }
+
+        // ================== 推荐回测功能 ==================
+        
+        let currentRecommendationModel = null;
+
+        // 初始化推荐回测
+        function initializeRecommendationBacktest() {
+            refreshRecommendationModels();
+            loadRecommendationStatistics();
+            
+            // 设置推荐表单事件监听
+            document.getElementById('recommendationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                generateRecommendations();
+            });
+        }
+
+        // 刷新推荐模型列表
+        function refreshRecommendationModels() {
+            fetch('/api/models-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.models) {
+                        updateRecommendationModelSelect(data.models);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载推荐模型失败:', error);
+                });
+        }
+
+        // 更新推荐模型选择框
+        function updateRecommendationModelSelect(models) {
+            const select = document.getElementById('recModelSelect');
+            select.innerHTML = '<option value="">选择推荐模型</option>' +
+                models.map(model => `<option value="${model.name}">${model.name}</option>`).join('');
+        }
+
+        // 生成推荐
+        function generateRecommendations() {
+            if (training_status.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const modelName = document.getElementById('recModelSelect').value;
+            if (!modelName) {
+                alert('请选择推荐模型');
+                return;
+            }
+
+            const config = {
+                model_name: modelName,
+                num_stocks: parseInt(document.getElementById('numStocks').value),
+                analysis_type: document.getElementById('analysisType').value,
+                use_daily_mode: document.getElementById('useDailyMode').checked,
+                tushare_token: document.getElementById('recTushareToken').value
+            };
+
+            currentRecommendationModel = modelName;
+
+            fetch('/api/recommendations/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    addLog(`🚀 开始生成推荐: ${modelName}`, 'info');
+                } else {
+                    alert('推荐生成失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('生成推荐失败:', error);
+                alert('生成失败: ' + error.message);
+            });
+        }
+
+        // 验证推荐
+        function validateRecommendations() {
+            if (training_status.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const config = {
+                model_name: currentRecommendationModel
+            };
+
+            fetch('/api/recommendations/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    addLog('🔍 开始验证推荐结果', 'info');
+                } else {
+                    alert('推荐验证失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('验证推荐失败:', error);
+                alert('验证失败: ' + error.message);
+            });
+        }
+
+        // 刷新推荐列表
+        function refreshRecommendations() {
+            if (!currentRecommendationModel) {
+                return;
+            }
+
+            fetch(`/api/recommendations/${currentRecommendationModel}?limit=20`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.recommendations) {
+                        displayRecommendations(data.recommendations);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载推荐列表失败:', error);
+                });
+        }
+
+        // 显示推荐列表
+        function displayRecommendations(recommendations) {
+            const tbody = document.getElementById('recommendationsTableBody');
+            
+            if (recommendations.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-star fs-1 d-block mb-2"></i>
+                            暂无推荐数据
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = recommendations.map(rec => `
+                <tr>
+                    <td>
+                        <strong>${rec.stock_name}</strong><br>
+                        <small class="text-muted">${rec.stock_code}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getRecommendationTypeColor(rec.recommendation_type)}">
+                            ${getRecommendationTypeLabel(rec.recommendation_type)}
+                        </span>
+                    </td>
+                    <td>¥${rec.recommend_price.toFixed(2)}</td>
+                    <td>${rec.target_price ? '¥' + rec.target_price.toFixed(2) : '-'}</td>
+                    <td>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" style="width: ${rec.confidence_score * 100}%"></div>
+                        </div>
+                        <small>${(rec.confidence_score * 100).toFixed(0)}%</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getResultColor(rec.result)}">
+                            ${getResultLabel(rec.result)}
+                        </span>
+                    </td>
+                    <td>
+                        ${rec.actual_return ? 
+                            `<span class="text-${rec.actual_return >= 0 ? 'success' : 'danger'}">
+                                ${(rec.actual_return * 100).toFixed(2)}%
+                            </span>` : '-'}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewRecommendationDetail('${rec.id}')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 加载推荐统计
+        function loadRecommendationStatistics() {
+            fetch('/api/recommendations/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    displayRecommendationStatistics(data);
+                })
+                .catch(error => {
+                    console.error('加载推荐统计失败:', error);
+                });
+        }
+
+        // 显示推荐统计
+        function displayRecommendationStatistics(data) {
+            const container = document.getElementById('recommendationStats');
+            
+            if (!data.total_statistics || data.total_statistics.total_recommendations === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-pie-chart fs-1 d-block mb-2"></i>
+                        暂无统计数据
+                    </div>
+                `;
+                return;
+            }
+
+            const stats = data.total_statistics;
+            
+            container.innerHTML = `
+                <div class="row mb-3">
+                    <div class="col-6 text-center">
+                        <h4 class="text-primary">${stats.total_recommendations}</h4>
+                        <small class="text-muted">总推荐数</small>
+                    </div>
+                    <div class="col-6 text-center">
+                        <h4 class="text-success">${(stats.overall_hit_rate * 100).toFixed(1)}%</h4>
+                        <small class="text-muted">命中率</small>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6 text-center">
+                        <h4 class="text-info">${stats.total_hits}</h4>
+                        <small class="text-muted">命中数</small>
+                    </div>
+                    <div class="col-6 text-center">
+                        <h4 class="text-warning">${stats.pending_recommendations}</h4>
+                        <small class="text-muted">待验证</small>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <small class="text-muted">平均收益率</small>
+                    <div class="text-${stats.avg_return >= 0 ? 'success' : 'danger'}">
+                        <strong>${(stats.avg_return * 100).toFixed(2)}%</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 加载回测报告
+        function loadBacktestReport() {
+            if (!currentRecommendationModel) {
+                return;
+            }
+
+            const days = document.getElementById('backtestPeriod').value;
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            fetch(`/api/recommendations/backtest/${currentRecommendationModel}?start_date=${startDate}&end_date=${endDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.metrics) {
+                        displayBacktestReport(data.metrics);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载回测报告失败:', error);
+                });
+        }
+
+        // 显示回测报告
+        function displayBacktestReport(metrics) {
+            const container = document.getElementById('backtestReport');
+            
+            container.innerHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h4 class="text-primary">${(metrics.hit_rate * 100).toFixed(1)}%</h4>
+                                <small class="text-muted">总体命中率</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h4 class="text-success">${(metrics.avg_return * 100).toFixed(2)}%</h4>
+                                <small class="text-muted">平均收益率</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h4 class="text-info">${metrics.sharpe_ratio.toFixed(2)}</h4>
+                                <small class="text-muted">夏普比率</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h4 class="text-warning">${(metrics.max_drawdown * 100).toFixed(2)}%</h4>
+                                <small class="text-muted">最大回撤</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>分类命中率</h6>
+                        <div class="mb-2">
+                            <span class="text-success">买入推荐: ${(metrics.buy_hit_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-danger">卖出推荐: ${(metrics.sell_hit_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-info">持有推荐: ${(metrics.hold_hit_rate * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>基础统计</h6>
+                        <div class="mb-2">总推荐数: <strong>${metrics.total_recommendations}</strong></div>
+                        <div class="mb-2">已验证: <strong>${metrics.validated_recommendations}</strong></div>
+                        <div class="mb-2">待验证: <strong>${metrics.pending_recommendations}</strong></div>
+                        <div class="mb-2">平均验证天数: <strong>${metrics.avg_validation_days.toFixed(1)}天</strong></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 查看推荐详情
+        function viewRecommendationDetail(recId) {
+            fetch(`/api/recommendations/${recId}/detail`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.recommendation) {
+                        alert(`推荐详情:\n股票: ${data.recommendation.stock_name}\n推荐内容: ${data.recommendation.recommendation_text.substring(0, 200)}...`);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载推荐详情失败:', error);
+                });
+        }
+
+        // 工具函数
+        function getRecommendationTypeColor(type) {
+            const colors = {
+                'buy': 'success',
+                'sell': 'danger',
+                'hold': 'warning',
+                'neutral': 'secondary'
+            };
+            return colors[type] || 'secondary';
+        }
+
+        function getRecommendationTypeLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出',
+                'hold': '持有',
+                'neutral': '中性'
+            };
+            return labels[type] || type;
+        }
+
+        function getResultColor(result) {
+            const colors = {
+                'hit': 'success',
+                'miss': 'danger',
+                'pending': 'warning'
+            };
+            return colors[result] || 'secondary';
+        }
+
+        function getResultLabel(result) {
+            const labels = {
+                'hit': '命中',
+                'miss': '未命中',
+                'pending': '待验证'
+            };
+            return labels[result] || result;
+        }
+
+        // 处理推荐生成完成事件
+        socket.on('recommendation_generated', function(data) {
+            addLog(`✅ 推荐生成完成: ${data.total_recommendations} 个`, 'success');
+            refreshRecommendations();
+            loadRecommendationStatistics();
+        });
+
+        // 处理验证完成事件
+        socket.on('validation_completed', function(data) {
+            addLog(`✅ 推荐验证完成: ${data.validated_count} 条`, 'success');
+            refreshRecommendations();
+            loadRecommendationStatistics();
+            loadBacktestReport();
+        });
+
+        // 初始化策略管理、模型评估和推荐回测（在页面加载完成后调用）
+        document.addEventListener('DOMContentLoaded', function() {
+            // 延迟初始化各个模块，确保其他组件先加载
+            setTimeout(() => {
+                initializeStrategyManagement();
+                initializeModelEvaluation();
+                initializeRecommendationBacktest();
+            }, 1000);
+        });
+
+        // 监听回测完成事件
+        socket.on('backtest_completed', function(data) {
+            addLog(`✅ 策略回测完成，总收益率: ${(data.summary.total_return * 100).toFixed(2)}%`, 'success');
+            if (currentStrategy && currentStrategy.id === data.strategy_id) {
+                loadBacktestResults(data.strategy_id);
+            }
+        });
+    </script>
+</body>
+</html>

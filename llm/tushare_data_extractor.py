@@ -80,29 +80,39 @@ class TuShareDataExtractor:
         Returns:
             日线数据DataFrame
         """
-        try:
-            if self.pro:
-                # 使用Pro API
-                df = self.pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-            else:
-                # 使用免费API
-                code = ts_code.split('.')[0]  # 提取股票代码
-                df = ts.get_hist_data(code, start=start_date, end=end_date)
-                if not df.empty:
-                    df.reset_index(inplace=True)
-                    df['ts_code'] = ts_code
-                    df.rename(columns={'date': 'trade_date'}, inplace=True)
-            
-            if not df.empty:
-                df['trade_date'] = pd.to_datetime(df['trade_date'])
-                df = df.sort_values('trade_date')
+        max_retries = 3
+        retry_delay = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                if self.pro:
+                    # 使用Pro API
+                    df = self.pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+                else:
+                    # 使用免费API - 格式化日期
+                    formatted_start = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+                    formatted_end = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+                    code = ts_code.split('.')[0]  # 提取股票代码
+                    df = ts.get_hist_data(code, start=formatted_start, end=formatted_end)
+                    if not df.empty:
+                        df.reset_index(inplace=True)
+                        df['ts_code'] = ts_code
+                        df.rename(columns={'date': 'trade_date'}, inplace=True)
                 
-            time.sleep(0.1)  # 避免频率限制
-            return df
-            
-        except Exception as e:
-            self.logger.error(f"❌ 获取{ts_code}日线数据失败: {e}")
-            return pd.DataFrame()
+                if not df.empty:
+                    df['trade_date'] = pd.to_datetime(df['trade_date'])
+                    df = df.sort_values('trade_date')
+                    
+                time.sleep(0.2)  # 增加延迟避免频率限制
+                return df
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"获取{ts_code}数据失败 (尝试{attempt+1}/{max_retries}): {e}, 重试中...")
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    self.logger.error(f"❌ 获取{ts_code}日线数据失败: {e}")
+                    return pd.DataFrame()
     
     def get_stock_financial_data(self, ts_code: str, periods: List[str] = None) -> pd.DataFrame:
         """

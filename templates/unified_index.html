@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ljwx-stock 智能投资系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --warning-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .main-header h1 {
+            font-weight: 300;
+            margin: 0;
+        }
+        
+        .main-header .subtitle {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #28a745;
+        }
+        
+        .status-indicator.running {
+            border-left-color: #ffc107;
+        }
+        
+        .status-indicator.error {
+            border-left-color: #dc3545;
+        }
+        
+        .function-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .function-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.15);
+        }
+        
+        .function-card .card-header {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .function-card.success .card-header {
+            background: var(--success-gradient);
+        }
+        
+        .function-card.warning .card-header {
+            background: var(--warning-gradient);
+        }
+        
+        .function-card.danger .card-header {
+            background: var(--danger-gradient);
+        }
+        
+        .metric-display {
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .metric-display .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .metric-display .metric-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        
+        .progress-custom {
+            height: 8px;
+            border-radius: 10px;
+            background-color: #e9ecef;
+        }
+        
+        .progress-custom .progress-bar {
+            border-radius: 10px;
+            background: var(--primary-gradient);
+        }
+        
+        .log-container {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 1rem;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .quick-action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .quick-action-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .quick-action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.15);
+        }
+        
+        .quick-action-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .modal-custom .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .modal-custom .modal-header {
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            border: none;
+        }
+        
+        .form-control-custom {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control-custom:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .recommendation-item {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+        }
+        
+        .recommendation-item.buy {
+            border-left-color: #28a745;
+        }
+        
+        .recommendation-item.sell {
+            border-left-color: #dc3545;
+        }
+        
+        .recommendation-item.hold {
+            border-left-color: #ffc107;
+        }
+        
+        @media (max-width: 768px) {
+            .main-header {
+                padding: 1rem 0;
+            }
+            
+            .main-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .status-indicator {
+                position: static;
+                margin-bottom: 1rem;
+            }
+            
+            .quick-action-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 状态指示器 -->
+    <div class="status-indicator" id="statusIndicator">
+        <i class="bi bi-circle-fill me-2"></i>
+        <span id="statusText">系统正常</span>
+    </div>
+
+    <!-- 主标题 -->
+    <div class="main-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-graph-up me-3"></i>ljwx-stock 智能投资系统</h1>
+                    <p class="subtitle mb-0">人工智能驱动的股票分析与投资决策平台</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-light btn-sm" onclick="refreshDashboard()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                        </button>
+                        <button class="btn btn-outline-light btn-sm" onclick="showSettings()">
+                            <i class="bi bi-gear me-1"></i>设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- 系统概览 -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="metric-display function-card">
+                    <div class="metric-value" id="totalModels">-</div>
+                    <div class="metric-label">可用模型</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-display function-card success">
+                    <div class="metric-value" id="totalRecommendations">-</div>
+                    <div class="metric-label">总推荐数</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-display function-card warning">
+                    <div class="metric-value" id="hitRate">-</div>
+                    <div class="metric-label">命中率</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-display function-card danger">
+                    <div class="metric-value" id="totalStrategies">-</div>
+                    <div class="metric-label">投资策略</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="quick-action-grid">
+            <div class="quick-action-card" onclick="showStockRecommendation()">
+                <div class="icon">
+                    <i class="bi bi-star-fill"></i>
+                </div>
+                <h5>股票推荐</h5>
+                <p class="text-muted">AI智能分析生成投资推荐</p>
+            </div>
+            
+            <div class="quick-action-card" onclick="showQuickAnalysis()">
+                <div class="icon">
+                    <i class="bi bi-search"></i>
+                </div>
+                <h5>快速分析</h5>
+                <p class="text-muted">输入股票代码获取即时分析</p>
+            </div>
+            
+            <div class="quick-action-card" onclick="showModelTraining()">
+                <div class="icon">
+                    <i class="bi bi-cpu-fill"></i>
+                </div>
+                <h5>模型训练</h5>
+                <p class="text-muted">训练专属AI投资模型</p>
+            </div>
+            
+            <div class="quick-action-card" onclick="showStrategyManagement()">
+                <div class="icon">
+                    <i class="bi bi-bar-chart-line-fill"></i>
+                </div>
+                <h5>策略管理</h5>
+                <p class="text-muted">创建和回测投资策略</p>
+            </div>
+            
+            <div class="quick-action-card" onclick="showDataManagement()">
+                <div class="icon">
+                    <i class="bi bi-database-fill"></i>
+                </div>
+                <h5>数据管理</h5>
+                <p class="text-muted">管理训练数据和市场数据</p>
+            </div>
+            
+            <div class="quick-action-card" onclick="showModelEvaluation()">
+                <div class="icon">
+                    <i class="bi bi-clipboard-check-fill"></i>
+                </div>
+                <h5>模型评估</h5>
+                <p class="text-muted">评估模型性能和准确性</p>
+            </div>
+        </div>
+
+        <!-- 主要功能区域 -->
+        <div class="row">
+            <!-- 最新推荐 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-star me-2"></i>最新推荐</h5>
+                        <button class="btn btn-sm btn-outline-light" onclick="refreshRecommendations()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="latestRecommendations">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-star fs-1 d-block mb-2"></i>
+                                暂无推荐数据，点击"股票推荐"开始生成
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统日志 -->
+            <div class="col-lg-6 mb-4">
+                <div class="function-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>系统日志</h5>
+                        <button class="btn btn-sm btn-outline-light" onclick="clearLogs()">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="log-container" id="logContainer">
+                            <div>系统已启动，等待操作...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 进度显示 -->
+        <div class="row" id="progressSection" style="display: none;">
+            <div class="col-12">
+                <div class="function-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-activity me-2"></i>任务进度</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-custom progress mb-3">
+                            <div class="progress-bar" id="globalProgress" style="width: 0%"></div>
+                        </div>
+                        <p class="mb-0" id="currentTask">等待任务...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 股票推荐模态框 -->
+    <div class="modal fade modal-custom" id="stockRecommendationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-star me-2"></i>生成股票推荐</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="recommendationForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">选择模型</label>
+                                <select class="form-select form-control-custom" id="recModelSelect" required>
+                                    <option value="">选择推荐模型</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">推荐数量</label>
+                                <select class="form-select form-control-custom" id="numStocks">
+                                    <option value="3">3只股票</option>
+                                    <option value="5" selected>5只股票</option>
+                                    <option value="10">10只股票</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">分析类型</label>
+                                <select class="form-select form-control-custom" id="analysisType">
+                                    <option value="comprehensive_analysis" selected>综合分析</option>
+                                    <option value="technical_analysis">技术分析</option>
+                                    <option value="risk_assessment">风险评估</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">TuShare Token（可选）</label>
+                                <input type="text" class="form-control form-control-custom" id="recTushareToken" 
+                                       placeholder="留空使用默认配置">
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="useDailyMode" checked>
+                            <label class="form-check-label" for="useDailyMode">
+                                使用每日推荐模式（自动选择活跃股票）
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-gradient" onclick="generateRecommendations()">
+                        <i class="bi bi-star-fill me-1"></i>生成推荐
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速分析模态框 -->
+    <div class="modal fade modal-custom" id="quickAnalysisModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-search me-2"></i>快速股票分析</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickAnalysisForm">
+                        <div class="mb-3">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control form-control-custom" id="quickStockCode" 
+                                   placeholder="例如：000001.SZ" required>
+                            <div class="form-text">支持深交所(.SZ)和上交所(.SH)代码</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">分析类型</label>
+                            <select class="form-select form-control-custom" id="quickAnalysisType">
+                                <option value="quick" selected>快速分析</option>
+                                <option value="detailed">详细分析</option>
+                            </select>
+                        </div>
+                    </form>
+                    <div id="quickAnalysisResult" style="display: none;">
+                        <hr>
+                        <h6>分析结果</h6>
+                        <div id="quickAnalysisOutput"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-gradient" onclick="runQuickAnalysis()">
+                        <i class="bi bi-search me-1"></i>开始分析
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型训练模态框 -->
+    <div class="modal fade modal-custom" id="modelTrainingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cpu me-2"></i>模型训练</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modelTrainingForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">基础模型</label>
+                                <select class="form-select form-control-custom" id="baseModel">
+                                    <option value="ljwx-stock" selected>ljwx-stock</option>
+                                    <option value="deepseek-coder">deepseek-coder</option>
+                                    <option value="qwen">qwen</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">训练数据文件</label>
+                                <select class="form-select form-control-custom" id="trainingFile" required>
+                                    <option value="">选择训练数据文件</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">新模型名称</label>
+                                <input type="text" class="form-control form-control-custom" id="modelName" 
+                                       placeholder="自动生成">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">训练样本数量</label>
+                                <input type="number" class="form-control form-control-custom" id="sampleCount" 
+                                       value="200" min="50" max="1000">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-gradient" onclick="startModelTraining()">
+                        <i class="bi bi-play-fill me-1"></i>开始训练
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    
+    <script>
+        // WebSocket连接
+        const socket = io();
+        
+        // 全局状态
+        let systemStatus = {
+            is_running: false,
+            progress: 0,
+            current_task: '',
+            logs: []
+        };
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            loadDashboardData();
+            setupEventListeners();
+        });
+
+        // 初始化应用
+        function initializeApp() {
+            console.log('ljwx-stock 统一应用已启动');
+            updateStatusIndicator();
+            
+            // Socket.IO事件监听
+            socket.on('connected', function(data) {
+                addLog('WebSocket连接成功', 'success');
+            });
+
+            socket.on('log_update', function(data) {
+                addLog(data.message, data.level);
+            });
+
+            socket.on('progress_update', function(data) {
+                updateProgress(data.progress, data.task);
+            });
+
+            socket.on('task_completed', function(data) {
+                handleTaskCompleted(data);
+            });
+
+            socket.on('task_failed', function(data) {
+                handleTaskFailed(data);
+            });
+
+            socket.on('recommendation_generated', function(data) {
+                addLog(`✅ 推荐生成完成: ${data.total_recommendations} 个`, 'success');
+                refreshRecommendations();
+                refreshDashboard();
+            });
+
+            socket.on('validation_completed', function(data) {
+                addLog(`✅ 推荐验证完成: ${data.validated_count} 条`, 'success');
+                refreshRecommendations();
+                refreshDashboard();
+            });
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 推荐表单
+            document.getElementById('recommendationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                generateRecommendations();
+            });
+
+            // 快速分析表单
+            document.getElementById('quickAnalysisForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                runQuickAnalysis();
+            });
+
+            // 模型训练表单
+            document.getElementById('modelTrainingForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                startModelTraining();
+            });
+        }
+
+        // 加载仪表板数据
+        function loadDashboardData() {
+            // 加载系统状态
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    systemStatus = data;
+                    updateStatusIndicator();
+                });
+
+            // 加载移动端仪表板数据
+            fetch('/api/mobile/dashboard')
+                .then(response => response.json())
+                .then(data => {
+                    updateDashboardMetrics(data);
+                })
+                .catch(error => {
+                    console.error('加载仪表板数据失败:', error);
+                });
+
+            // 加载模型信息
+            fetch('/api/models-info')
+                .then(response => response.json())
+                .then(data => {
+                    updateModelSelects(data.models || []);
+                });
+
+            // 加载训练数据信息
+            fetch('/api/training-data-info')
+                .then(response => response.json())
+                .then(data => {
+                    updateTrainingFileSelect(data.files || []);
+                });
+
+            // 加载最新推荐
+            refreshRecommendations();
+        }
+
+        // 更新仪表板指标
+        function updateDashboardMetrics(data) {
+            if (data.training_summary) {
+                document.getElementById('totalModels').textContent = data.training_summary.total_models || '-';
+            }
+            
+            if (data.recommendation_summary) {
+                document.getElementById('totalRecommendations').textContent = data.recommendation_summary.total_recommendations || '-';
+                const hitRate = data.recommendation_summary.hit_rate || 0;
+                document.getElementById('hitRate').textContent = (hitRate * 100).toFixed(1) + '%';
+            }
+            
+            if (data.strategy_summary) {
+                document.getElementById('totalStrategies').textContent = data.strategy_summary.total_strategies || '-';
+            }
+        }
+
+        // 更新状态指示器
+        function updateStatusIndicator() {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (systemStatus.is_running) {
+                indicator.className = 'status-indicator running';
+                statusText.textContent = '处理中...';
+            } else {
+                indicator.className = 'status-indicator';
+                statusText.textContent = '系统正常';
+            }
+        }
+
+        // 更新进度
+        function updateProgress(progress, task) {
+            systemStatus.progress = progress;
+            systemStatus.current_task = task;
+            
+            const progressBar = document.getElementById('globalProgress');
+            const taskText = document.getElementById('currentTask');
+            const progressSection = document.getElementById('progressSection');
+            
+            if (progress > 0 && progress < 100) {
+                progressSection.style.display = 'block';
+            } else if (progress >= 100) {
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                }, 3000);
+            }
+            
+            progressBar.style.width = progress + '%';
+            taskText.textContent = task || '';
+        }
+
+        // 添加日志
+        function addLog(message, level = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #888;">[${timestamp}]</span> ${message}`;
+            
+            if (level === 'error') {
+                logEntry.style.color = '#ff6b6b';
+            } else if (level === 'warning') {
+                logEntry.style.color = '#feca57';
+            } else if (level === 'success') {
+                logEntry.style.color = '#48dbfb';
+            }
+
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // 限制日志条数
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // 清除日志
+        function clearLogs() {
+            fetch('/api/clear-logs', { method: 'POST' })
+                .then(() => {
+                    document.getElementById('logContainer').innerHTML = '';
+                    addLog('日志已清除');
+                });
+        }
+
+        // 刷新仪表板
+        function refreshDashboard() {
+            loadDashboardData();
+            addLog('仪表板数据已刷新');
+        }
+
+        // 刷新推荐
+        function refreshRecommendations() {
+            fetch('/api/mobile/recommendations/latest?limit=5')
+                .then(response => response.json())
+                .then(data => {
+                    displayLatestRecommendations(data.recommendations || []);
+                })
+                .catch(error => {
+                    console.error('加载推荐失败:', error);
+                });
+        }
+
+        // 显示最新推荐
+        function displayLatestRecommendations(recommendations) {
+            const container = document.getElementById('latestRecommendations');
+            
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-star fs-1 d-block mb-2"></i>
+                        暂无推荐数据，点击"股票推荐"开始生成
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item ${rec.recommendation_type}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${rec.stock_name} (${rec.stock_code})</h6>
+                            <span class="badge bg-${getRecommendationTypeColor(rec.recommendation_type)} me-2">
+                                ${getRecommendationTypeLabel(rec.recommendation_type)}
+                            </span>
+                            <small class="text-muted">置信度: ${(rec.confidence_score * 100).toFixed(0)}%</small>
+                        </div>
+                        <div class="text-end">
+                            ${rec.actual_return ? 
+                                `<span class="text-${rec.actual_return >= 0 ? 'success' : 'danger'}">
+                                    ${(rec.actual_return * 100).toFixed(2)}%
+                                </span>` : 
+                                '<span class="text-muted">待验证</span>'
+                            }
+                            <br>
+                            <small class="text-muted">${formatTime(rec.created_time)}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示股票推荐模态框
+        function showStockRecommendation() {
+            const modal = new bootstrap.Modal(document.getElementById('stockRecommendationModal'));
+            modal.show();
+        }
+
+        // 生成推荐
+        function generateRecommendations() {
+            if (systemStatus.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const config = {
+                model_name: document.getElementById('recModelSelect').value,
+                num_stocks: parseInt(document.getElementById('numStocks').value),
+                analysis_type: document.getElementById('analysisType').value,
+                use_daily_mode: document.getElementById('useDailyMode').checked,
+                tushare_token: document.getElementById('recTushareToken').value
+            };
+
+            if (!config.model_name) {
+                alert('请选择推荐模型');
+                return;
+            }
+
+            fetch('/api/recommendations/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    bootstrap.Modal.getInstance(document.getElementById('stockRecommendationModal')).hide();
+                    addLog(`🚀 开始生成推荐: ${config.model_name}`, 'info');
+                    systemStatus.is_running = true;
+                    updateStatusIndicator();
+                } else {
+                    alert('推荐生成失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('生成推荐失败:', error);
+                alert('生成失败: ' + error.message);
+            });
+        }
+
+        // 显示快速分析模态框
+        function showQuickAnalysis() {
+            const modal = new bootstrap.Modal(document.getElementById('quickAnalysisModal'));
+            modal.show();
+        }
+
+        // 运行快速分析
+        function runQuickAnalysis() {
+            const stockCode = document.getElementById('quickStockCode').value;
+            const analysisType = document.getElementById('quickAnalysisType').value;
+            
+            if (!stockCode.trim()) {
+                alert('请输入股票代码');
+                return;
+            }
+
+            const resultDiv = document.getElementById('quickAnalysisResult');
+            const outputDiv = document.getElementById('quickAnalysisOutput');
+            
+            resultDiv.style.display = 'block';
+            outputDiv.innerHTML = '<div class="text-center"><i class="bi bi-hourglass-split me-2"></i>分析中...</div>';
+
+            fetch('/api/mobile/quick-analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stock_code: stockCode,
+                    analysis_type: analysisType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    outputDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else {
+                    displayQuickAnalysisResult(data.analysis);
+                }
+            })
+            .catch(error => {
+                outputDiv.innerHTML = `<div class="alert alert-danger">分析失败: ${error.message}</div>`;
+            });
+        }
+
+        // 显示快速分析结果
+        function displayQuickAnalysisResult(analysis) {
+            const outputDiv = document.getElementById('quickAnalysisOutput');
+            
+            if (analysis.error) {
+                outputDiv.innerHTML = `<div class="alert alert-danger">${analysis.error}</div>`;
+                return;
+            }
+
+            outputDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>价格信息</h6>
+                        <p>当前价格: ¥${analysis.current_price}</p>
+                        <p>涨跌幅: <span class="text-${analysis.price_change >= 0 ? 'success' : 'danger'}">${analysis.price_change.toFixed(2)}%</span></p>
+                        <p>成交量: ${(analysis.volume / 10000).toFixed(2)}万手</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>技术指标</h6>
+                        <p>5日均线: ¥${analysis.ma5.toFixed(2)}</p>
+                        <p>20日均线: ¥${analysis.ma20.toFixed(2)}</p>
+                        <p>趋势: <span class="badge bg-${analysis.trend === '上涨' ? 'success' : 'danger'}">${analysis.trend}</span></p>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3">
+                    <small>分析时间: ${analysis.analysis_time}</small>
+                </div>
+            `;
+        }
+
+        // 显示模型训练模态框
+        function showModelTraining() {
+            const modal = new bootstrap.Modal(document.getElementById('modelTrainingModal'));
+            modal.show();
+        }
+
+        // 开始模型训练
+        function startModelTraining() {
+            if (systemStatus.is_running) {
+                alert('当前有任务正在运行，请等待完成');
+                return;
+            }
+
+            const config = {
+                base_model: document.getElementById('baseModel').value,
+                training_file: document.getElementById('trainingFile').value,
+                model_name: document.getElementById('modelName').value || 
+                           `ljwx-stock-unified-${new Date().toISOString().slice(0,16).replace(/[-:]/g, '')}`,
+                sample_count: parseInt(document.getElementById('sampleCount').value)
+            };
+
+            if (!config.training_file) {
+                alert('请选择训练数据文件');
+                return;
+            }
+
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    bootstrap.Modal.getInstance(document.getElementById('modelTrainingModal')).hide();
+                    addLog('🚀 开始训练模型: ' + config.model_name, 'info');
+                    systemStatus.is_running = true;
+                    updateStatusIndicator();
+                } else {
+                    alert('训练启动失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('启动训练失败:', error);
+                alert('启动失败: ' + error.message);
+            });
+        }
+
+        // 其他功能的占位函数
+        function showStrategyManagement() {
+            addLog('策略管理功能开发中...', 'info');
+        }
+
+        function showDataManagement() {
+            addLog('数据管理功能开发中...', 'info');
+        }
+
+        function showModelEvaluation() {
+            addLog('模型评估功能开发中...', 'info');
+        }
+
+        function showSettings() {
+            addLog('设置功能开发中...', 'info');
+        }
+
+        // 更新模型选择框
+        function updateModelSelects(models) {
+            const select = document.getElementById('recModelSelect');
+            select.innerHTML = '<option value="">选择推荐模型</option>' +
+                models.map(model => `<option value="${model.name}">${model.name}</option>`).join('');
+        }
+
+        // 更新训练文件选择框
+        function updateTrainingFileSelect(files) {
+            const select = document.getElementById('trainingFile');
+            select.innerHTML = '<option value="">选择训练数据文件</option>' +
+                files.map(file => `<option value="${file.filename}">${file.filename} (${file.sample_count}样本)</option>`).join('');
+        }
+
+        // 任务完成处理
+        function handleTaskCompleted(data) {
+            systemStatus.is_running = false;
+            updateStatusIndicator();
+            updateProgress(100, '任务完成');
+            
+            if (data.type === 'data_generation') {
+                addLog(`✅ 数据生成完成：${data.sample_count} 个样本`, 'success');
+                loadDashboardData();
+            } else if (data.type === 'model_training') {
+                addLog(`✅ 模型训练完成：${data.model_name}`, 'success');
+                loadDashboardData();
+            }
+        }
+
+        function handleTaskFailed(data) {
+            systemStatus.is_running = false;
+            updateStatusIndicator();
+            addLog(`❌ 任务失败：${data.error}`, 'error');
+        }
+
+        // 工具函数
+        function getRecommendationTypeColor(type) {
+            const colors = {
+                'buy': 'success',
+                'sell': 'danger',
+                'hold': 'warning',
+                'neutral': 'secondary'
+            };
+            return colors[type] || 'secondary';
+        }
+
+        function getRecommendationTypeLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出',
+                'hold': '持有',
+                'neutral': '中性'
+            };
+            return labels[type] || type;
+        }
+
+        function formatTime(timeStr) {
+            try {
+                const date = new Date(timeStr);
+                return date.toLocaleString('zh-CN');
+            } catch {
+                return timeStr;
+            }
+        }
+    </script>
+</body>
+</html>
