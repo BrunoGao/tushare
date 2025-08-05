@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-股票策略执行引擎
-实现策略信号计算、回测和评估功能
+股票策略执行引擎 - 统一大模型架构
+基于ljwx-stock-advanced模型，通过策略参数化处理所有投资策略
+支持价值投资、技术分析、量化交易、动量策略等
 """
 
 import pandas as pd
@@ -21,6 +22,174 @@ from .strategy_models import (
     Strategy, StrategyRule, TradingCondition, BacktestResult,
     IndicatorType, ConditionOperator, SignalType
 )
+
+class UnifiedModelInterface:
+    """统一大模型接口 - 一个模型处理所有策略"""
+    
+    def __init__(self, model_name: str = "ljwx-stock-advanced"):
+        self.model_name = model_name
+        self.strategy_prompts = self._initialize_strategy_prompts()
+    
+    def _initialize_strategy_prompts(self) -> Dict[str, Dict]:
+        """初始化不同策略的提示词模板"""
+        return {
+            "value_investment": {
+                "name": "价值投资策略",
+                "prompt_template": """
+                作为专业的价值投资分析师，基于以下财务数据分析股票投资价值：
+                - PE比率: {pe_ratio}
+                - PB比率: {pb_ratio}  
+                - ROE: {roe}
+                - 负债率: {debt_ratio}
+                - 现金流: {cash_flow}
+                
+                请分析该股票的内在价值并给出投资建议。
+                """,
+                "focus_metrics": ["pe_ratio", "pb_ratio", "roe", "debt_ratio", "dividend_yield"]
+            },
+            
+            "technical_analysis": {
+                "name": "技术分析策略", 
+                "prompt_template": """
+                作为专业的技术分析师，基于以下技术指标分析股票走势：
+                - RSI: {rsi}
+                - MACD: {macd_line}, {signal_line}
+                - 布林带: 上轨{bb_upper}, 中轨{bb_middle}, 下轨{bb_lower}
+                - 成交量: {volume}
+                - K线形态: {candlestick_pattern}
+                
+                请分析技术面信号并给出交易建议。
+                """,
+                "focus_metrics": ["rsi", "macd", "bollinger_bands", "volume", "support_resistance"]
+            },
+            
+            "quantitative_trading": {
+                "name": "量化交易策略",
+                "prompt_template": """
+                作为量化交易专家，基于以下量化指标制定交易策略：
+                - 夏普比率: {sharpe_ratio}
+                - 最大回撤: {max_drawdown}
+                - 波动率: {volatility}
+                - 贝塔系数: {beta}
+                - 阿尔法: {alpha}
+                - 相关性: {correlation}
+                
+                请基于量化模型给出精确的交易信号。
+                """,
+                "focus_metrics": ["sharpe_ratio", "volatility", "beta", "alpha", "correlation"]
+            },
+            
+            "momentum_strategy": {
+                "name": "动量策略",
+                "prompt_template": """
+                作为动量交易专家，基于以下动量指标分析趋势：
+                - 价格动量: {price_momentum}
+                - 成交量动量: {volume_momentum}
+                - 相对强度: {relative_strength}
+                - 趋势强度: {trend_strength}
+                - 突破信号: {breakout_signal}
+                
+                请分析动量信号并给出趋势跟踪建议。
+                """,
+                "focus_metrics": ["momentum", "relative_strength", "trend_strength", "breakout"]
+            },
+            
+            "arbitrage_strategy": {
+                "name": "套利策略",
+                "prompt_template": """
+                作为套利交易专家，基于以下市场数据寻找套利机会：
+                - 价差: {price_spread}
+                - 相关性: {correlation}
+                - 基差: {basis}
+                - 流动性: {liquidity}
+                - 交易成本: {transaction_cost}
+                
+                请识别套利机会并评估风险收益比。
+                """,
+                "focus_metrics": ["spread", "correlation", "liquidity", "transaction_cost"]
+            }
+        }
+    
+    def generate_strategy_analysis(self, strategy_type: str, market_data: Dict) -> Dict:
+        """使用统一模型生成策略分析"""
+        if strategy_type not in self.strategy_prompts:
+            raise ValueError(f"不支持的策略类型: {strategy_type}")
+        
+        strategy_config = self.strategy_prompts[strategy_type]
+        
+        # 构建上下文相关的提示词
+        prompt = strategy_config["prompt_template"].format(**market_data)
+        
+        # 这里会调用实际的大模型 (ljwx-stock-advanced)
+        analysis_result = self._call_unified_model(prompt, strategy_type)
+        
+        return {
+            "strategy_type": strategy_type,
+            "strategy_name": strategy_config["name"],
+            "model_used": self.model_name,
+            "analysis": analysis_result,
+            "confidence": analysis_result.get("confidence", 0.85),
+            "recommendation": analysis_result.get("recommendation", "hold"),
+            "risk_level": analysis_result.get("risk_level", "medium")
+        }
+    
+    def _call_unified_model(self, prompt: str, strategy_type: str) -> Dict:
+        """调用统一大模型进行分析"""
+        # 这里是实际调用大模型的接口
+        # 可以是 Ollama API、OpenAI API 或本地模型推理
+        
+        try:
+            # 模拟模型调用结果
+            # 实际实现中会调用 ljwx-stock-advanced 模型
+            return {
+                "recommendation": self._simulate_model_response(strategy_type),
+                "confidence": np.random.uniform(0.7, 0.95),
+                "risk_level": self._assess_risk_level(strategy_type),
+                "reasoning": f"基于{strategy_type}策略的专业分析结果",
+                "target_price": None,
+                "stop_loss": None,
+                "time_horizon": self._get_time_horizon(strategy_type)
+            }
+        except Exception as e:
+            return {
+                "error": str(e),
+                "recommendation": "hold",
+                "confidence": 0.5,
+                "risk_level": "medium"
+            }
+    
+    def _simulate_model_response(self, strategy_type: str) -> str:
+        """模拟不同策略的模型响应"""
+        responses = {
+            "value_investment": np.random.choice(["buy", "hold", "sell"], p=[0.3, 0.5, 0.2]),
+            "technical_analysis": np.random.choice(["buy", "hold", "sell"], p=[0.4, 0.3, 0.3]),
+            "quantitative_trading": np.random.choice(["buy", "hold", "sell"], p=[0.35, 0.35, 0.3]),
+            "momentum_strategy": np.random.choice(["buy", "hold", "sell"], p=[0.45, 0.25, 0.3]),
+            "arbitrage_strategy": np.random.choice(["buy", "hold", "sell"], p=[0.4, 0.4, 0.2])
+        }
+        return responses.get(strategy_type, "hold")
+    
+    def _assess_risk_level(self, strategy_type: str) -> str:
+        """评估不同策略的风险级别"""
+        risk_levels = {
+            "value_investment": "low",
+            "technical_analysis": "medium", 
+            "quantitative_trading": "medium",
+            "momentum_strategy": "high",
+            "arbitrage_strategy": "low"
+        }
+        return risk_levels.get(strategy_type, "medium")
+    
+    def _get_time_horizon(self, strategy_type: str) -> str:
+        """获取不同策略的时间周期"""
+        horizons = {
+            "value_investment": "long_term",  # 长期持有
+            "technical_analysis": "short_term",  # 短期交易
+            "quantitative_trading": "medium_term",  # 中期交易
+            "momentum_strategy": "short_term",  # 短期趋势
+            "arbitrage_strategy": "very_short_term"  # 极短期
+        }
+        return horizons.get(strategy_type, "medium_term")
 
 class TechnicalIndicators:
     """技术指标计算器"""

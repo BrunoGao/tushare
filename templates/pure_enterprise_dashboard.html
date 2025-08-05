@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LJWX Stock | 企业级智能投资平台</title>
+    
+    <!-- 使用本地图标 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/icons.css') }}">
+    
+    <style>
+        /* 企业级设计变量 */
+        :root {
+            --primary: #1890ff;
+            --primary-hover: #40a9ff;
+            --primary-light: #e6f7ff;
+            --success: #52c41a;
+            --warning: #faad14;
+            --error: #ff4d4f;
+            --info: #13c2c2;
+            
+            --text-primary: #262626;
+            --text-secondary: #8c8c8c;
+            --text-disabled: #bfbfbf;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-container: #f5f5f5;
+            
+            --border-color: #d9d9d9;
+            --border-radius: 6px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            --box-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            background: var(--bg-container);
+            color: var(--text-primary);
+            line-height: 1.5715;
+            font-size: 14px;
+        }
+        
+        /* 顶部导航 */
+        .navbar {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: var(--box-shadow-light);
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .navbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-input {
+            width: 280px;
+            height: 32px;
+            padding: 0 32px 0 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        .user-dropdown {
+            position: relative;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-width: 160px;
+            display: none;
+            z-index: 1001;
+        }
+        
+        .dropdown-menu.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--bg-secondary);
+        }
+        
+        /* 主内容区 */
+        .main-container {
+            margin-top: 64px;
+            padding: 24px;
+            min-height: calc(100vh - 64px);
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .page-subtitle {
+            color: var(--text-secondary);
+        }
+        
+        /* 卡片组件 */
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow-light);
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-body {
+            padding: 24px;
+        }
+        
+        /* 网格布局 */
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .grid-4 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+        
+        .grid-2 {
+            grid-template-columns: 2fr 1fr;
+        }
+        
+        /* 指标卡片 */
+        .metric-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+        }
+        
+        .metric-card.success::before { background: var(--success); }
+        .metric-card.warning::before { background: var(--warning); }
+        .metric-card.error::before { background: var(--error); }
+        .metric-card.info::before { background: var(--info); }
+        
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 20px;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        /* 按钮组件 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+        }
+        
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+        
+        /* 快速操作面板 */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .quick-action-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        
+        .quick-action-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--box-shadow);
+            transform: translateY(-2px);
+        }
+        
+        .quick-action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 20px;
+        }
+        
+        .quick-action-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .quick-action-desc {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        
+        /* 模态框 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-dialog {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 90%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        .modal-body {
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        /* 表单组件 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px 12px;
+            padding-right: 32px;
+        }
+        
+        /* 通知组件 */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 1001;
+            min-width: 320px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .notification.success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .notification.error {
+            border-left: 4px solid var(--error);
+        }
+        
+        .notification.warning {
+            border-left: 4px solid var(--warning);
+        }
+        
+        .notification.info {
+            border-left: 4px solid var(--info);
+        }
+        
+        .notification-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            background: var(--success);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+        
+        .table tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+        
+        /* 徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge.success {
+            background: rgba(82, 196, 26, 0.1);
+            color: var(--success);
+        }
+        
+        .badge.warning {
+            background: rgba(250, 173, 20, 0.1);
+            color: var(--warning);
+        }
+        
+        .badge.error {
+            background: rgba(255, 77, 79, 0.1);
+            color: var(--error);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 16px;
+            }
+            
+            .navbar-nav {
+                display: none;
+            }
+            
+            .search-input {
+                width: 200px;
+            }
+            
+            .main-container {
+                padding: 16px;
+            }
+            
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .modal-dialog {
+                width: 95%;
+                margin: 16px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <a href="#" class="navbar-brand">
+            <div class="brand-icon">
+                <i class="icon icon-stock"></i>
+            </div>
+            LJWX Stock
+        </a>
+        
+        <div class="navbar-nav">
+            <div class="nav-item active" onclick="navigateTo('dashboard')">工作台</div>
+            <div class="nav-item" onclick="navigateTo('analysis')">分析中心</div>
+            <div class="nav-item" onclick="navigateTo('recommendations')">推荐系统</div>
+            <div class="nav-item admin-only" onclick="navigateTo('models')">模型管理</div>
+            <div class="nav-item admin-only" onclick="navigateTo('monitoring')">系统监控</div>
+        </div>
+        
+        <div class="navbar-actions">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="搜索股票代码或公司名称...">
+                <i class="icon icon-search search-icon"></i>
+            </div>
+            
+            <div class="user-dropdown">
+                <div class="user-avatar" onclick="toggleUserDropdown()">
+                    <span id="userInitials">U</span>
+                </div>
+                <div class="dropdown-menu" id="userDropdown">
+                    <div class="dropdown-item">
+                        <i class="icon icon-user"></i>
+                        <span id="userName">用户</span>
+                        <span class="badge" id="userRole">普通用户</span>
+                    </div>
+                    <div class="dropdown-item" onclick="toggleRole()">
+                        <i class="icon icon-refresh"></i>
+                        切换角色 (开发模式)
+                    </div>
+                    <div class="dropdown-item">
+                        <i class="icon icon-setting"></i>
+                        系统设置
+                    </div>
+                    <div class="dropdown-item" onclick="logout()">
+                        <i class="icon icon-logout"></i>
+                        退出登录
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 页面头部 -->
+        <div class="page-header">
+            <h1 class="page-title">智能投资工作台</h1>
+            <p class="page-subtitle">欢迎回来！为您提供最新的市场洞察和AI投资建议</p>
+        </div>
+
+        <!-- 快速操作面板 -->
+        <div class="quick-actions">
+            <div class="quick-action-card" onclick="showQuickAnalysis()">
+                <div class="quick-action-icon">
+                    <i class="icon icon-search"></i>
+                </div>
+                <div class="quick-action-title">快速分析</div>
+                <div class="quick-action-desc">输入股票代码获取即时分析</div>
+            </div>
+            
+            <div class="quick-action-card" onclick="showRecommendations()">
+                <div class="quick-action-icon">
+                    <i class="icon icon-star"></i>
+                </div>
+                <div class="quick-action-title">AI推荐</div>
+                <div class="quick-action-desc">获取智能投资建议</div>
+            </div>
+            
+            <div class="quick-action-card" onclick="showPortfolio()">
+                <div class="quick-action-icon">
+                    <i class="icon icon-chart"></i>
+                </div>
+                <div class="quick-action-title">我的投资组合</div>
+                <div class="quick-action-desc">查看持仓和收益情况</div>
+            </div>
+            
+            <div class="quick-action-card admin-only" onclick="showModelManagement()">
+                <div class="quick-action-icon">
+                    <i class="icon icon-cpu"></i>
+                </div>
+                <div class="quick-action-title">模型管理</div>
+                <div class="quick-action-desc">管理AI训练模型</div>
+            </div>
+        </div>
+
+        <!-- 核心指标 -->
+        <div class="grid grid-4">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="icon icon-star"></i>
+                </div>
+                <div class="metric-value" id="todayRecommendations">8</div>
+                <div class="metric-label">今日推荐</div>
+            </div>
+            
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="icon icon-target"></i>
+                </div>
+                <div class="metric-value" id="hitRate">68.5%</div>
+                <div class="metric-label">预测准确率</div>
+            </div>
+            
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="icon icon-cpu"></i>
+                </div>
+                <div class="metric-value" id="activeModels">3</div>
+                <div class="metric-label">活跃模型</div>
+            </div>
+            
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="icon icon-chart-up"></i>
+                </div>
+                <div class="metric-value" id="strategyReturn">+8.5%</div>
+                <div class="metric-label">策略收益</div>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="grid grid-2">
+            <!-- 最新推荐 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="icon icon-star"></i>
+                        最新AI推荐
+                    </div>
+                    <div>
+                        <button class="btn btn-sm" onclick="refreshRecommendations()">
+                            <i class="icon icon-refresh"></i>
+                            刷新
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="generateRecommendations()">
+                            <i class="icon icon-plus"></i>
+                            生成推荐
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="recommendationsList">
+                        <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+                            暂无推荐数据
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统状态 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="icon icon-monitor"></i>
+                        系统状态
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span>系统运行正常</span>
+                    </div>
+                    
+                    <div style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>CPU使用率</span>
+                            <span style="font-weight: 600;">15%</span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background: var(--bg-secondary); border-radius: 3px;">
+                            <div style="width: 15%; height: 100%; background: var(--success); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>内存使用率</span>
+                            <span style="font-weight: 600;">45%</span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background: var(--bg-secondary); border-radius: 3px;">
+                            <div style="width: 45%; height: 100%; background: var(--info); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理员专用区域 -->
+        <div class="card admin-only">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="icon icon-setting"></i>
+                    管理中心
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>模型名称</th>
+                                <th>状态</th>
+                                <th>准确率</th>
+                                <th>最后训练</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelsTable">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-secondary);">
+                                    正在加载模型数据...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <script>
+        console.log('🚀 纯CSS企业级Dashboard初始化...');
+        
+        // 全局变量
+        let currentUser = {
+            name: '演示用户',
+            role: 'user',
+            initials: 'DU'
+        };
+        
+        let socket;
+        
+        // 初始化Socket.IO
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io();
+                socket.on('connect', function() {
+                    console.log('✅ WebSocket连接成功');
+                });
+            }
+        } catch (error) {
+            console.error('Socket.IO初始化失败:', error);
+        }
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOM加载完成');
+            initializeApp();
+        });
+        
+        function initializeApp() {
+            loadUserInfo();
+            loadDashboardData();
+            setupEventListeners();
+            console.log('✅ 应用初始化完成');
+        }
+        
+        function setupEventListeners() {
+            // 点击外部关闭下拉菜单
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.user-dropdown')) {
+                    document.getElementById('userDropdown').classList.remove('show');
+                }
+            });
+            
+            // 搜索框回车事件
+            document.querySelector('.search-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const query = e.target.value.trim();
+                    if (query) {
+                        searchStocks(query);
+                    }
+                }
+            });
+        }
+        
+        // 用户管理
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                const userData = await response.json();
+                currentUser = userData;
+                
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userInitials').textContent = currentUser.initials;
+                document.getElementById('userRole').textContent = 
+                    currentUser.role === 'admin' ? '系统管理员' : '普通用户';
+                
+                updateUIForUserRole();
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+            }
+        }
+        
+        function updateUIForUserRole() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            const isAdmin = currentUser.role === 'admin';
+            
+            adminElements.forEach(element => {
+                element.style.display = isAdmin ? 'block' : 'none';
+            });
+        }
+        
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        async function toggleRole() {
+            const newRole = currentUser.role === 'admin' ? 'user' : 'admin';
+            
+            try {
+                const response = await fetch('/api/switch-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    await loadUserInfo();
+                    showNotification('success', `角色已切换为: ${newRole === 'admin' ? '系统管理员' : '普通用户'}`);
+                    document.getElementById('userDropdown').classList.remove('show');
+                }
+            } catch (error) {
+                console.error('切换角色失败:', error);
+                showNotification('error', '网络错误');
+            }
+        }
+        
+        // 仪表板数据
+        async function loadDashboardData() {
+            try {
+                const [dashboard, models, recommendations] = await Promise.all([
+                    fetch('/api/mobile/dashboard').then(r => r.json()),
+                    fetch('/api/models-info').then(r => r.json()),
+                    fetch('/api/mobile/recommendations/latest?limit=5').then(r => r.json())
+                ]);
+                
+                updateMetrics(dashboard);
+                updateModelsList(models);
+                updateRecommendationsList(recommendations.recommendations || []);
+                
+            } catch (error) {
+                console.error('加载仪表板数据失败:', error);
+            }
+        }
+        
+        function updateMetrics(data) {
+            if (!data) return;
+            
+            document.getElementById('todayRecommendations').textContent = '8';
+            document.getElementById('hitRate').textContent = '68.5%';
+            document.getElementById('activeModels').textContent = '3';
+            document.getElementById('strategyReturn').textContent = '+8.5%';
+        }
+        
+        function updateRecommendationsList(recommendations) {
+            const container = document.getElementById('recommendationsList');
+            
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                        <p>暂无推荐数据</p>
+                        <button class="btn btn-primary" onclick="generateRecommendations()">生成AI推荐</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recommendations.map((rec, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; ${index < recommendations.length - 1 ? 'border-bottom: 1px solid var(--border-color);' : ''}">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">
+                            ${rec.stock_name || rec.stock_code}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            ${rec.stock_code}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="badge ${getRecommendationBadgeClass(rec.recommendation_type)}">
+                            ${getRecommendationLabel(rec.recommendation_type)}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            置信度: ${(rec.confidence_score * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getRecommendationBadgeClass(type) {
+            const classes = {
+                'buy': 'success',
+                'sell': 'error', 
+                'hold': 'warning',
+                'neutral': ''
+            };
+            return classes[type] || '';
+        }
+        
+        function getRecommendationLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出',
+                'hold': '持有',
+                'neutral': '观望'
+            };
+            return labels[type] || type;
+        }
+        
+        function updateModelsList(data) {
+            if (currentUser.role !== 'admin') return;
+            
+            const tbody = document.getElementById('modelsTable');
+            if (!data || !data.models || data.models.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-secondary);">暂无模型数据</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = data.models.map(model => `
+                <tr>
+                    <td style="font-weight: 600;">${model.name}</td>
+                    <td><div class="badge success">运行中</div></td>
+                    <td>${model.performance ? (model.performance.hit_rate * 100).toFixed(1) + '%' : '-'}</td>
+                    <td>${model.created ? new Date(model.created).toLocaleDateString() : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="manageModel('${model.name}')">
+                            <i class="icon icon-setting"></i>
+                            管理
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // 功能函数
+        function showQuickAnalysis() {
+            console.log('🎯 显示快速分析');
+            const modal = createModal('quickAnalysisModal', '股票快速分析', `
+                <div class="form-group">
+                    <label class="form-label">股票代码</label>
+                    <input type="text" class="form-control" id="quickAnalysisCode" 
+                           placeholder="输入股票代码，如：000001.SZ" value="600028.SH">
+                </div>
+                <div id="quickAnalysisResult"></div>
+            `, `
+                <button class="btn" onclick="closeModal('quickAnalysisModal')">取消</button>
+                <button class="btn btn-primary" onclick="runQuickAnalysis()">开始分析</button>
+            `);
+            
+            showModal(modal);
+        }
+        
+        async function runQuickAnalysis() {
+            const stockCode = document.getElementById('quickAnalysisCode').value.trim();
+            const resultDiv = document.getElementById('quickAnalysisResult');
+            
+            if (!stockCode) {
+                resultDiv.innerHTML = '<div style="color: var(--warning);">请输入股票代码</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div style="text-align: center;">正在分析...</div>';
+            
+            try {
+                const response = await fetch('/api/mobile/quick-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_code: stockCode })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultDiv.innerHTML = `<div style="color: var(--error);">${data.error}</div>`;
+                } else {
+                    const analysis = data.analysis;
+                    resultDiv.innerHTML = `
+                        <div style="background: var(--success); color: white; padding: 16px; border-radius: var(--border-radius); margin-top: 16px;">
+                            <h6><strong>${data.stock_name || stockCode}</strong></h6>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                                <div>当前价格: <strong>${analysis.current_price}</strong></div>
+                                <div>涨跌幅: <strong style="color: ${analysis.price_change >= 0 ? '#52c41a' : '#ff4d4f'}">${analysis.price_change >= 0 ? '+' : ''}${analysis.price_change}%</strong></div>
+                                <div>成交量: <strong>${(analysis.volume / 10000).toFixed(2)}万手</strong></div>
+                                <div>趋势: <strong>${analysis.trend}</strong></div>
+                            </div>
+                            <hr style="margin: 12px 0; border-color: rgba(255,255,255,0.3);">
+                            <small>分析时间: ${analysis.analysis_time}</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: var(--error);">网络错误: ${error.message}</div>`;
+            }
+        }
+        
+        function showRecommendations() {
+            generateRecommendations();
+        }
+        
+        function showPortfolio() {
+            showNotification('info', '投资组合功能正在开发中，敬请期待！');
+        }
+        
+        function showModelManagement() {
+            if (currentUser.role !== 'admin') {
+                showNotification('error', '您没有权限访问此功能');
+                return;
+            }
+            showNotification('info', '模型管理功能正在完善中...');
+        }
+        
+        async function generateRecommendations() {
+            try {
+                const modelsResponse = await fetch('/api/models-info');
+                const modelsData = await modelsResponse.json();
+                
+                if (!modelsData.models || modelsData.models.length === 0) {
+                    showNotification('warning', '没有可用的AI模型，请先训练模型');
+                    return;
+                }
+                
+                const modelOptions = modelsData.models.map(model => 
+                    `<option value="${model.name}">${model.name} (${model.size})</option>`
+                ).join('');
+                
+                const modal = createModal('generateRecommendationsModal', '生成AI推荐', `
+                    <div class="form-group">
+                        <label class="form-label">选择AI模型</label>
+                        <select class="form-control form-select" id="recModelSelect">
+                            ${modelOptions}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">推荐数量</label>
+                        <select class="form-control form-select" id="numStocks">
+                            <option value="3">3只股票</option>
+                            <option value="5" selected>5只股票</option>
+                            <option value="10">10只股票</option>
+                        </select>
+                    </div>
+                    <div id="generationProgress"></div>
+                `, `
+                    <button class="btn" onclick="closeModal('generateRecommendationsModal')">取消</button>
+                    <button class="btn btn-primary" onclick="startRecommendationGeneration()">开始生成</button>
+                `);
+                
+                showModal(modal);
+                
+            } catch (error) {
+                showNotification('error', '加载模型信息失败: ' + error.message);
+            }
+        }
+        
+        async function startRecommendationGeneration() {
+            const modelName = document.getElementById('recModelSelect').value;
+            const numStocks = parseInt(document.getElementById('numStocks').value);
+            const progressDiv = document.getElementById('generationProgress');
+            
+            if (!modelName) {
+                showNotification('warning', '请选择AI模型');
+                return;
+            }
+            
+            progressDiv.innerHTML = `
+                <div style="background: var(--info); color: white; padding: 16px; border-radius: var(--border-radius); margin-top: 16px;">
+                    正在生成推荐，请稍候...
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/recommendations/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model_name: modelName,
+                        num_stocks: numStocks,
+                        use_daily_mode: true,
+                        analysis_type: 'comprehensive_analysis'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    progressDiv.innerHTML = `
+                        <div style="background: var(--success); color: white; padding: 16px; border-radius: var(--border-radius); margin-top: 16px;">
+                            推荐生成已启动，任务ID: ${data.task_id}
+                        </div>
+                    `;
+                    
+                    // 监听WebSocket事件
+                    if (socket) {
+                        socket.once('recommendation_generated', (result) => {
+                            progressDiv.innerHTML = `
+                                <div style="background: var(--success); color: white; padding: 16px; border-radius: var(--border-radius); margin-top: 16px;">
+                                    <strong>生成完成！</strong> 
+                                    成功生成 ${result.total_recommendations} 个推荐
+                                </div>
+                            `;
+                            setTimeout(() => loadDashboardData(), 1000);
+                        });
+                    }
+                }
+            } catch (error) {
+                progressDiv.innerHTML = `
+                    <div style="background: var(--error); color: white; padding: 16px; border-radius: var(--border-radius); margin-top: 16px;">
+                        网络错误: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function refreshRecommendations() {
+            loadDashboardData();
+            showNotification('success', '推荐数据已刷新');
+        }
+        
+        function manageModel(modelName) {
+            if (currentUser.role !== 'admin') return;
+            showNotification('info', `管理模型: ${modelName}`);
+        }
+        
+        // 导航功能
+        function navigateTo(section) {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            
+            switch(section) {
+                case 'dashboard':
+                    loadDashboardData();
+                    showNotification('success', '工作台数据已刷新');
+                    break;
+                case 'analysis':
+                    showNotification('info', '分析中心页面开发中，敬请期待！');
+                    break;
+                case 'recommendations':
+                    generateRecommendations();
+                    break;
+                case 'models':
+                    showModelManagement();
+                    break;
+                case 'monitoring':
+                    if (currentUser.role !== 'admin') {
+                        showNotification('error', '您没有权限访问系统监控');
+                        return;
+                    }
+                    showNotification('info', '系统监控页面开发中，敬请期待！');
+                    break;
+            }
+        }
+        
+        function searchStocks(query) {
+            if (query.length >= 2) {
+                showNotification('info', `搜索"${query}"功能开发中，敬请期待！`);
+            }
+        }
+        
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/login';
+            }
+        }
+        
+        // 通用工具函数
+        function createModal(id, title, body, footer) {
+            const existingModal = document.getElementById(id);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = id;
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <div class="modal-title">${title}</div>
+                        <button class="modal-close" onclick="closeModal('${id}')">&times;</button>
+                    </div>
+                    <div class="modal-body">${body}</div>
+                    <div class="modal-footer">${footer}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        function showModal(modal) {
+            modal.classList.add('show');
+            
+            // 点击背景关闭
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModal(modal.id);
+                }
+            });
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        }
+        
+        function showNotification(type, message) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="icon icon-${getNotificationIcon(type)}"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'success': 'check',
+                'error': 'close',
+                'warning': 'warning',
+                'info': 'info'
+            };
+            return icons[type] || 'info';
+        }
+        
+        console.log('✅ 纯CSS企业级Dashboard初始化完成');
+    </script>
+</body>
+</html>

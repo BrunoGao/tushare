@@ -500,3 +500,78 @@ class StrategyManager:
         except Exception as e:
             print(f"Error updating strategy: {e}")
             return False
+    
+    def get_strategies(self, user_id: str = 'default') -> List[Dict]:
+        """获取用户的策略列表"""
+        try:
+            # 从数据库获取策略
+            strategies = self.db.list_strategies(user_id=user_id)
+            
+            # 转换为字典格式，方便API返回
+            strategy_list = []
+            for strategy in strategies:
+                strategy_dict = {
+                    'id': strategy.id,
+                    'name': strategy.name,
+                    'strategy_type': strategy.strategy_type,
+                    'description': strategy.description,
+                    'status': strategy.status,
+                    'tags': strategy.tags,
+                    'created_at': strategy.created_at,
+                    'updated_at': strategy.updated_at,
+                    'buy_rules_count': len(strategy.buy_rules),
+                    'sell_rules_count': len(strategy.sell_rules)
+                }
+                strategy_list.append(strategy_dict)
+            
+            # 如果没有策略，返回默认策略
+            if not strategy_list:
+                strategy_list = self._get_default_strategies()
+                
+            return strategy_list
+            
+        except Exception as e:
+            print(f"Error getting strategies for user {user_id}: {e}")
+            # 返回默认策略
+            return self._get_default_strategies()
+    
+    def _get_default_strategies(self) -> List[Dict]:
+        """获取默认策略列表"""
+        return [
+            {
+                'id': 'default_ma_cross',
+                'name': '双均线交叉',
+                'strategy_type': 'technical',
+                'description': '基于短期和长期移动平均线交叉的策略',
+                'status': 'active',
+                'tags': ['均线', '趋势'],
+                'created_at': '2025-01-01',
+                'updated_at': '2025-01-01',
+                'buy_rules_count': 2,
+                'sell_rules_count': 2
+            },
+            {
+                'id': 'default_rsi_oversold',
+                'name': 'RSI超卖反弹',
+                'strategy_type': 'technical', 
+                'description': '基于RSI指标的超卖反弹策略',
+                'status': 'active',
+                'tags': ['RSI', '反弹'],
+                'created_at': '2025-01-01',
+                'updated_at': '2025-01-01',
+                'buy_rules_count': 1,
+                'sell_rules_count': 1
+            },
+            {
+                'id': 'default_macd_golden_cross',
+                'name': 'MACD金叉',
+                'strategy_type': 'technical',
+                'description': '基于MACD指标金叉信号的买入策略',
+                'status': 'active',
+                'tags': ['MACD', '金叉', '趋势'],
+                'created_at': '2025-01-01',
+                'updated_at': '2025-01-01',
+                'buy_rules_count': 1,
+                'sell_rules_count': 1
+            }
+        ]

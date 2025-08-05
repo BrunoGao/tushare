@@ -206,25 +206,33 @@ class RecommendationParser:
     
     def _extract_time_horizon(self, text: str) -> int:
         """提取时间周期（天）"""
-        for pattern in self.time_patterns:
-            matches = re.findall(pattern, text)
-            if matches:
-                if "月" in pattern:
-                    return int(matches[0]) * 30
-                elif "周" in pattern:
-                    return int(matches[0]) * 7
-                elif "天" in pattern:
-                    return int(matches[0])
-        
-        # 关键词匹配
-        if "短期" in text or "1个月以内" in text:
-            return 30
-        elif "中期" in text or "3个月以内" in text:
-            return 90
-        elif "长期" in text or "半年以上" in text:
-            return 180
-        
-        return 30  # 默认30天
+        try:
+            for pattern in self.time_patterns:
+                matches = re.findall(pattern, text)
+                if matches:
+                    # 检查匹配的是数字还是文字
+                    match = matches[0]
+                    if isinstance(match, str) and match.isdigit():
+                        if "月" in pattern:
+                            return int(match) * 30
+                        elif "周" in pattern:
+                            return int(match) * 7
+                        elif "天" in pattern:
+                            return int(match)
+            
+            # 关键词匹配
+            if "短期" in text or "1个月以内" in text:
+                return 30
+            elif "中期" in text or "3个月以内" in text:
+                return 90
+            elif "长期" in text or "半年以上" in text:
+                return 180
+            
+            return 30  # 默认30天
+            
+        except (ValueError, TypeError) as e:
+            self.logger.warning(f"解析时间周期失败: {e}, 使用默认值30天")
+            return 30  # 默认30天
     
     def _calculate_confidence(self, text: str, rec_type: RecommendationType) -> float:
         """计算推荐置信度"""
@@ -273,6 +281,10 @@ class RecommendationTracker:
         self.logger = logging.getLogger(__name__)
         self.parser = RecommendationParser()
         
+        # 初始化默认的 db_path
+        self.db_path = "data/recommendation_backtest.db"
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
         # 尝试连接远程MySQL，失败则回退到SQLite
         if use_mysql:
             try:
@@ -292,12 +304,8 @@ class RecommendationTracker:
             except Exception as e:
                 self.logger.warning(f"⚠️ 远程MySQL连接失败，回退到本地SQLite: {e}")
                 self.use_mysql = False
-                self.db_path = "data/recommendation_backtest.db"
-                os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         else:
             self.use_mysql = False
-            self.db_path = "data/recommendation_backtest.db"
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         
         self.init_database()
     
@@ -312,8 +320,9 @@ class RecommendationTracker:
         """初始化MySQL数据库"""
         try:
             conn = pymysql.connect(**self.connection_params)
-                # 推荐记录表
-                cursor.execute('''
+            cursor = conn.cursor()
+            # 推荐记录表
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS recommendations (
                         id VARCHAR(255) PRIMARY KEY,
                         model_name VARCHAR(100),
@@ -336,9 +345,9 @@ class RecommendationTracker:
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 ''')
-                
-                # 回测指标表
-                cursor.execute('''
+            
+            # 回测指标表
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS backtest_metrics (
                         id VARCHAR(255) PRIMARY KEY,
                         model_name VARCHAR(100),

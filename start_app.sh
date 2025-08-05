@@ -18,10 +18,14 @@ if [ ! -f ".env" ]; then
     echo "📋 参考env.example创建.env文件"
 fi
 
+# 安装依赖包
+echo "📦 安装/更新依赖包..."
+./tushare_venv/bin/pip install -r requirements.txt
+
 echo "🚀 启动 ljwx-stock 应用..."
 echo "📁 工作目录: $SCRIPT_DIR"
 echo "🐍 Python路径: ./tushare_venv/bin/python"
-echo "=" * 50
+echo "=========================="
 
 # 启动应用
 ./tushare_venv/bin/python wsgi_app.py

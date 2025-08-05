@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LJWX Stock | 用户登录</title>
+    
+    <style>
+        :root {
+            --primary: #1890ff;
+            --primary-hover: #40a9ff;
+            --primary-light: #e6f7ff;
+            --success: #52c41a;
+            --warning: #faad14;
+            --error: #ff4d4f;
+            --text-primary: #262626;
+            --text-secondary: #8c8c8c;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --border-color: #d9d9d9;
+            --border-radius: 6px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: var(--box-shadow);
+            padding: 48px;
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .logo-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .user-type-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+        
+        .user-type-tab {
+            flex: 1;
+            padding: 8px 16px;
+            text-align: center;
+            border-radius: calc(var(--border-radius) - 2px);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .user-type-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .form-control {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            outline: none;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .form-control:invalid {
+            border-color: var(--error);
+        }
+        
+        .btn {
+            width: 100%;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+        
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .demo-accounts {
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .demo-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-align: center;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .demo-account {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .demo-account:hover {
+            background: var(--primary-light);
+        }
+        
+        .demo-account:last-child {
+            margin-bottom: 0;
+        }
+        
+        .demo-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .demo-username {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+        
+        .demo-password {
+            font-weight: 500;
+            color: var(--primary);
+            font-size: 12px;
+            margin-bottom: 4px;
+            font-family: monospace;
+        }
+        
+        .demo-role {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .demo-badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .demo-badge.admin {
+            background: rgba(255, 77, 79, 0.1);
+            color: var(--error);
+        }
+        
+        .demo-badge.user {
+            background: rgba(24, 144, 255, 0.1);
+            color: var(--primary);
+        }
+        
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .forgot-password {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .footer-text {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .version {
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+        
+        .error-message {
+            background: rgba(255, 77, 79, 0.1);
+            color: var(--error);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success-message {
+            background: rgba(82, 196, 26, 0.1);
+            color: var(--success);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 32px 24px;
+                margin: 16px;
+            }
+            
+            .logo-icon {
+                width: 56px;
+                height: 56px;
+                font-size: 20px;
+            }
+            
+            .logo-text {
+                font-size: 20px;
+            }
+        }
+        
+        .loading {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <div class="logo-icon">📈</div>
+            <div class="logo-text">LJWX Stock</div>
+            <div class="logo-subtitle">智能投资决策平台</div>
+        </div>
+        
+        <div class="user-type-tabs">
+            <div class="user-type-tab active" data-type="user">普通用户</div>
+            <div class="user-type-tab" data-type="admin">系统管理员</div>
+        </div>
+        
+        <form id="loginForm">
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+            
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-control" id="username" required placeholder="请输入用户名">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-control" id="password" required placeholder="请输入密码">
+            </div>
+            
+            <div class="remember-forgot">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <span>记住我</span>
+                </label>
+                <a href="#" class="forgot-password">忘记密码？</a>
+            </div>
+            
+            <button type="submit" class="btn" id="loginBtn">
+                <span id="loginText">登录</span>
+                <div class="loading" id="loginLoading"></div>
+            </button>
+        </form>
+        
+        <div class="demo-accounts">
+            <div class="demo-title">演示账户（点击自动填入）</div>
+            <div class="demo-account" onclick="fillDemoAccount('user', 'demo123', 'user')">
+                <div class="demo-info">
+                    <div class="demo-username">用户名: user</div>
+                    <div class="demo-password">密码: demo123</div>
+                    <div class="demo-role">普通用户 - 投资分析师</div>
+                </div>
+                <div class="demo-badge user">USER</div>
+            </div>
+            <div class="demo-account" onclick="fillDemoAccount('admin', 'admin123', 'admin')">
+                <div class="demo-info">
+                    <div class="demo-username">用户名: admin</div>
+                    <div class="demo-password">密码: admin123</div>
+                    <div class="demo-role">系统管理员 - 全权限</div>
+                </div>
+                <div class="demo-badge admin">ADMIN</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-text">LJWX Stock 智能投资平台</div>
+            <div class="version">v2.0 Enterprise Edition</div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUserType = 'user';
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeLogin();
+        });
+        
+        function initializeLogin() {
+            // 用户类型切换
+            document.querySelectorAll('.user-type-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.user-type-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentUserType = this.getAttribute('data-type');
+                    clearMessages();
+                });
+            });
+            
+            // 登录表单提交
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // 回车键登录
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.target.closest('form')) {
+                    document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            if (!username || !password) {
+                showError('请输入用户名和密码');
+                return;
+            }
+            
+            setLoginLoading(true);
+            clearMessages();
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        user_type: currentUserType,
+                        remember_me: rememberMe
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showSuccess('登录成功，正在跳转...');
+                    
+                    // 保存用户信息到localStorage
+                    localStorage.setItem('user_info', JSON.stringify({
+                        username: result.user.username,
+                        role: result.user.role,
+                        name: result.user.name,
+                        token: result.token
+                    }));
+                    
+                    // 延迟跳转
+                    setTimeout(() => {
+                        if (result.user.role === 'admin') {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/dashboard';
+                        }
+                    }, 1500);
+                    
+                } else {
+                    showError(result.message || '登录失败，请检查用户名和密码');
+                }
+                
+            } catch (error) {
+                console.error('登录错误:', error);
+                showError('网络错误，请稍后重试');
+            } finally {
+                setLoginLoading(false);
+            }
+        }
+        
+        function fillDemoAccount(username, password, type) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            
+            // 切换用户类型
+            document.querySelectorAll('.user-type-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.getAttribute('data-type') === type) {
+                    tab.classList.add('active');
+                }
+            });
+            currentUserType = type;
+            
+            clearMessages();
+            showSuccess('演示账户信息已填入，点击登录即可体验');
+        }
+        
+        function setLoginLoading(loading) {
+            const btn = document.getElementById('loginBtn');
+            const text = document.getElementById('loginText');
+            const loader = document.getElementById('loginLoading');
+            
+            if (loading) {
+                btn.disabled = true;
+                text.style.display = 'none';
+                loader.style.display = 'inline-block';
+            } else {
+                btn.disabled = false;
+                text.style.display = 'inline';
+                loader.style.display = 'none';
+            }
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            
+            // 5秒后自动隐藏
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        function clearMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+        
+        // 检查是否已登录
+        function checkLoginStatus() {
+            const userInfo = localStorage.getItem('user_info');
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    // 可以在这里验证token是否有效
+                    showSuccess('检测到已登录状态');
+                    
+                    setTimeout(() => {
+                        if (user.role === 'admin') {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/dashboard';
+                        }
+                    }, 1000);
+                } catch (error) {
+                    localStorage.removeItem('user_info');
+                }
+            }
+        }
+        
+        // 页面加载时检查登录状态
+        // checkLoginStatus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+/* 简单图标字体替代方案 */
+.icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    text-align: center;
+    line-height: 1;
+}
+
+/* 使用Unicode字符作为图标 */
+.icon-stock:before { content: "📈"; }
+.icon-search:before { content: "🔍"; }
+.icon-star:before { content: "⭐"; }
+.icon-chart:before { content: "📊"; }
+.icon-cpu:before { content: "💻"; }
+.icon-target:before { content: "🎯"; }
+.icon-chart-up:before { content: "📈"; }
+.icon-monitor:before { content: "🖥️"; }
+.icon-setting:before { content: "⚙️"; }
+.icon-user:before { content: "👤"; }
+.icon-refresh:before { content: "🔄"; }
+.icon-logout:before { content: "🚪"; }
+.icon-plus:before { content: "➕"; }
+.icon-check:before { content: "✅"; }
+.icon-close:before { content: "❌"; }
+.icon-warning:before { content: "⚠️"; }
+.icon-info:before { content: "ℹ️"; }
+
+/* 如果需要单色图标，可以使用这些简单的CSS图标 */
+.icon-simple {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    position: relative;
+}
+
+.icon-simple.search:before {
+    content: "";
+    position: absolute;
+    width: 0.6em;
+    height: 0.6em;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    top: 0;
+    left: 0;
+}
+
+.icon-simple.search:after {
+    content: "";
+    position: absolute;
+    width: 2px;
+    height: 0.4em;
+    background: currentColor;
+    transform: rotate(45deg);
+    bottom: 0;
+    right: 0;
+}
+
+.icon-simple.star:before {
+    content: "★";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.icon-simple.gear:before {
+    content: "⚙";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.icon-simple.chart:before {
+    content: "📊";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

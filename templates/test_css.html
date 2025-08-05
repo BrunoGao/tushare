@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS测试页面</title>
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .test-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSS测试页面</h1>
+        
+        <div class="test-card">
+            <h3>Bootstrap 基础测试</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="text-primary">这是蓝色文字</p>
+                    <button class="btn btn-primary">主要按钮</button>
+                </div>
+                <div class="col-md-6">
+                    <p class="text-success">这是绿色文字</p>
+                    <button class="btn btn-success">成功按钮</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-card">
+            <h3>Bootstrap Icons 测试</h3>
+            <p><i class="bi bi-star"></i> 星星图标</p>
+            <p><i class="bi bi-gear"></i> 齿轮图标</p>
+            <p><i class="bi bi-graph-up"></i> 图表图标</p>
+        </div>
+        
+        <div class="test-card">
+            <h3>响应式测试</h3>
+            <div class="alert alert-info">
+                如果你能看到这个蓝色的提示框，说明Bootstrap CSS已正确加载。
+            </div>
+        </div>
+    </div>
+</body>
+</html>

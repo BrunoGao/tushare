@@ -766,6 +766,43 @@ PARAMETER num_predict 1024
         
         self.logger.info(f"结果已保存: {results_file}")
         return results
+    
+    def get_available_models(self) -> List[str]:
+        """获取可用的模型列表"""
+        models = []
+        
+        try:
+            # 扫描models目录下的模型文件
+            models_dir = self.config['models_dir']
+            if os.path.exists(models_dir):
+                # 查找JSON结果文件中记录的模型名称
+                for filename in os.listdir(models_dir):
+                    if filename.startswith('comprehensive_training_results_') and filename.endswith('.json'):
+                        try:
+                            result_path = os.path.join(models_dir, filename)
+                            with open(result_path, 'r', encoding='utf-8') as f:
+                                result_data = json.load(f)
+                                if result_data.get('status') == 'success' and 'final_model' in result_data:
+                                    model_name = result_data['final_model']
+                                    if model_name and model_name not in models:
+                                        models.append(model_name)
+                        except Exception as e:
+                            self.logger.warning(f"解析模型结果文件失败 {filename}: {e}")
+            
+            # 添加默认的基础模型
+            base_models = ['ljwx-stock', 'ljwx-stock:latest']
+            for base_model in base_models:
+                if base_model not in models:
+                    models.append(base_model)
+            
+            self.logger.info(f"找到 {len(models)} 个可用模型: {models}")
+            
+        except Exception as e:
+            self.logger.error(f"获取模型列表失败: {e}")
+            # 返回默认模型列表
+            models = ['ljwx-stock', 'ljwx-stock:latest']
+        
+        return models
 
 def main():
     """主函数"""

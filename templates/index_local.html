@@ -1,0 +1,468 @@
+{% extends "base_local.html" %}
+
+{% block content %}
+<div x-data="dashboardApp()" x-cloak class="fade-in">
+    <!-- 页面头部 -->
+    <div class="mb-8 text-center">
+        <h1 class="text-3xl font-bold text-gray-900 sm:text-4xl mb-2">股票分析系统</h1>
+        <p class="text-gray-600 text-lg">实时数据分析与智能推荐</p>
+        <div class="flex items-center justify-center mt-4 space-x-4 text-sm text-gray-500">
+            <div class="flex items-center">
+                <span class="status-indicator" :class="wsConnected ? 'status-online' : 'status-offline'"></span>
+                <span x-text="wsConnected ? '实时连接' : '连接断开'"></span>
+            </div>
+            <div>更新时间: <span x-text="lastUpdateTime"></span></div>
+        </div>
+    </div>
+    
+    <!-- 快速搜索 -->
+    <div class="mb-8">
+        <div class="relative max-w-md mx-auto">
+            <input 
+                type="text" 
+                x-model="searchQuery"
+                @input="searchStocks"
+                placeholder="搜索股票代码或名称..."
+                class="w-full px-4 py-3 pl-12 pr-4 text-gray-900 placeholder-gray-500 bg-white border-2 border-gray-300 rounded-xl shadow-sm input-enhanced transition-all duration-300"
+            >
+            <div class="absolute inset-y-0 left-0 flex items-center pl-4">
+                <i data-lucide="search" class="h-5 w-5 text-gray-400"></i>
+            </div>
+            
+            <!-- 搜索结果下拉 -->
+            <div x-show="searchResults.length > 0" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform scale-95"
+                 x-transition:enter-end="opacity-100 transform scale-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform scale-100"
+                 x-transition:leave-end="opacity-0 transform scale-95"
+                 class="absolute top-full mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                <template x-for="stock in searchResults" :key="stock.ts_code">
+                    <div @click="selectStock(stock)" 
+                         class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors">
+                        <div class="font-medium text-gray-900" x-text="stock.name"></div>
+                        <div class="text-sm text-gray-500 flex items-center justify-between">
+                            <span x-text="stock.ts_code"></span>
+                            <span x-text="stock.industry" class="text-xs bg-gray-100 px-2 py-1 rounded"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 功能卡片网格 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- 技术分析卡片 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <div class="flex items-center mb-4">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="bar-chart-3" class="h-6 w-6 text-blue-600"></i>
+                </div>
+                <h3 class="ml-3 text-lg font-semibold text-gray-900">技术分析</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">专业的技术指标分析和图表展示</p>
+            <button @click="openAnalysis()" 
+                    class="w-full btn-primary">
+                开始分析
+            </button>
+        </div>
+        
+        <!-- 智能推荐卡片 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <div class="flex items-center mb-4">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="target" class="h-6 w-6 text-green-600"></i>
+                </div>
+                <h3 class="ml-3 text-lg font-semibold text-gray-900">智能推荐</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">AI驱动的股票推荐和策略建议</p>
+            <button @click="getRecommendations()" 
+                    class="w-full btn-success">
+                获取推荐
+            </button>
+        </div>
+        
+        <!-- 实时监控卡片 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <div class="flex items-center mb-4">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <i data-lucide="activity" class="h-6 w-6 text-purple-600"></i>
+                </div>
+                <h3 class="ml-3 text-lg font-semibold text-gray-900">实时监控</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">实时价格变动和信号提醒</p>
+            <button @click="openMonitoring()" 
+                    class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
+                开启监控
+            </button>
+        </div>
+        
+        <!-- AI分析卡片 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <div class="flex items-center mb-4">
+                <div class="p-3 bg-orange-100 rounded-lg">
+                    <i data-lucide="brain" class="h-6 w-6 text-orange-600"></i>
+                </div>
+                <h3 class="ml-3 text-lg font-semibold text-gray-900">AI分析</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">深度学习模型预测和分析</p>
+            <button @click="openAIAnalysis()" 
+                    class="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors">
+                AI分析
+            </button>
+        </div>
+    </div>
+    
+    <!-- 热门股票 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 card-hover">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                <i data-lucide="trending-up" class="h-5 w-5 mr-2 text-red-500"></i>
+                热门股票
+            </h2>
+            <button @click="refreshHotStocks()" 
+                    class="text-purple-600 hover:text-purple-700 p-2 rounded-lg hover:bg-purple-50 transition-colors">
+                <i data-lucide="refresh-cw" class="h-5 w-5" :class="refreshing ? 'animate-spin' : ''"></i>
+            </button>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="w-full table-striped">
+                <thead>
+                    <tr class="border-b border-gray-200 text-left text-sm font-medium text-gray-500">
+                        <th class="pb-3">股票</th>
+                        <th class="pb-3 text-right">现价</th>
+                        <th class="pb-3 text-right">涨跌</th>
+                        <th class="pb-3 text-right">涨跌幅</th>
+                        <th class="pb-3 text-right">成交量</th>
+                        <th class="pb-3 text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <template x-for="(stock, index) in hotStocks" :key="stock.ts_code">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 transform translate-y-4"
+                            x-transition:enter-end="opacity-100 transform translate-y-0"
+                            :style="`animation-delay: ${index * 50}ms`">
+                            <td class="py-4">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-bold mr-3"
+                                         x-text="index + 1"></div>
+                                    <div>
+                                        <div class="font-medium text-gray-900" x-text="stock.name"></div>
+                                        <div class="text-gray-500" x-text="stock.ts_code"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 text-right font-medium number-animate" x-text="formatCurrency(stock.close)"></td>
+                            <td class="py-4 text-right number-animate" 
+                                :class="getChangeColorClass(stock.change)" 
+                                x-text="stock.change >= 0 ? '+' + formatNumber(stock.change) : formatNumber(stock.change)"></td>
+                            <td class="py-4 text-right number-animate" 
+                                :class="getChangeColorClass(stock.pct_chg)" 
+                                x-text="formatPercent(stock.pct_chg)"></td>
+                            <td class="py-4 text-right text-gray-600" x-text="formatNumber(stock.vol/10000, 0) + '万'"></td>
+                            <td class="py-4 text-center">
+                                <button @click="viewStock(stock.ts_code)" 
+                                        class="text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-3 py-1 rounded-lg transition-colors text-sm font-medium">
+                                    查看详情
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            
+            <!-- 空状态 -->
+            <div x-show="hotStocks.length === 0" class="text-center py-8">
+                <i data-lucide="trending-up" class="h-12 w-12 text-gray-300 mx-auto mb-3"></i>
+                <p class="text-gray-500">暂无热门股票数据</p>
+                <button @click="refreshHotStocks()" class="mt-2 text-purple-600 hover:text-purple-700">
+                    点击刷新
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 市场概览 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 指数行情 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                <i data-lucide="dashboard" class="h-5 w-5 mr-2 text-blue-500"></i>
+                主要指数
+            </h2>
+            <div class="space-y-4">
+                <template x-for="index in majorIndexes" :key="index.code">
+                    <div class="flex items-center justify-between p-4 bg-gradient-card rounded-lg transition-all hover:shadow-md">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mr-3">
+                                <i data-lucide="trending-up" class="h-5 w-5 text-gray-600"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-900" x-text="index.name"></div>
+                                <div class="text-sm text-gray-500" x-text="index.code"></div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-medium text-lg" x-text="formatNumber(index.close)"></div>
+                            <div class="text-sm" 
+                                 :class="getChangeColorClass(index.pct_chg)" 
+                                 x-text="formatPercent(index.pct_chg)"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- 系统状态 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                <i data-lucide="activity" class="h-5 w-5 mr-2 text-green-500"></i>
+                系统状态
+            </h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i data-lucide="clock" class="h-5 w-5 text-gray-500 mr-2"></i>
+                        <span class="text-gray-600">数据更新时间</span>
+                    </div>
+                    <span class="font-medium" x-text="lastUpdateTime"></span>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <span class="status-indicator" :class="wsConnected ? 'status-online' : 'status-offline'"></span>
+                        <span class="text-gray-600">WebSocket连接</span>
+                    </div>
+                    <span :class="wsConnected ? 'text-green-600' : 'text-red-600'" 
+                          class="font-medium"
+                          x-text="wsConnected ? '已连接' : '未连接'"></span>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i data-lucide="bookmark" class="h-5 w-5 text-gray-500 mr-2"></i>
+                        <span class="text-gray-600">监控股票数</span>
+                    </div>
+                    <span class="font-medium" x-text="monitoredStocks + ' 只'"></span>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i data-lucide="bell" class="h-5 w-5 text-gray-500 mr-2"></i>
+                        <span class="text-gray-600">今日信号数</span>
+                    </div>
+                    <span class="font-medium" x-text="todaySignals + ' 个'"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function dashboardApp() {
+    return {
+        searchQuery: '',
+        searchResults: [],
+        hotStocks: [],
+        majorIndexes: [],
+        lastUpdateTime: '--',
+        wsConnected: false,
+        monitoredStocks: 0,
+        todaySignals: 0,
+        refreshing: false,
+        
+        init() {
+            this.loadHotStocks();
+            this.loadMajorIndexes();
+            this.connectWebSocket();
+            this.updateSystemStatus();
+            
+            // 定期更新数据
+            setInterval(() => {
+                this.updateSystemStatus();
+            }, 30000); // 30秒更新一次
+        },
+        
+        async searchStocks() {
+            if (this.searchQuery.length < 2) {
+                this.searchResults = [];
+                return;
+            }
+            
+            try {
+                const response = await apiRequest(`/api/stocks/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
+                this.searchResults = response.data || [];
+            } catch (error) {
+                this.searchResults = [];
+                console.error('搜索股票失败:', error);
+            }
+        },
+        
+        selectStock(stock) {
+            this.searchQuery = stock.name;
+            this.searchResults = [];
+            this.viewStock(stock.ts_code);
+        },
+        
+        async loadHotStocks() {
+            try {
+                // 模拟数据 - 实际应用中应该从API获取
+                this.hotStocks = [
+                    { ts_code: '000001.SZ', name: '平安银行', close: 12.56, change: 0.23, pct_chg: 1.87, vol: 234567000 },
+                    { ts_code: '000002.SZ', name: '万科A', close: 18.92, change: -0.45, pct_chg: -2.32, vol: 156789000 },
+                    { ts_code: '600000.SH', name: '浦发银行', close: 8.76, change: 0.12, pct_chg: 1.39, vol: 345678000 },
+                    { ts_code: '600036.SH', name: '招商银行', close: 35.67, change: 1.23, pct_chg: 3.57, vol: 123456000 },
+                    { ts_code: '000858.SZ', name: '五粮液', close: 185.43, change: -2.34, pct_chg: -1.25, vol: 87654000 }
+                ];
+            } catch (error) {
+                console.error('加载热门股票失败:', error);
+                showToast('加载热门股票失败', 'error');
+            }
+        },
+        
+        async loadMajorIndexes() {
+            try {
+                // 模拟数据 - 实际应用中应该从API获取
+                this.majorIndexes = [
+                    { code: '000001.SH', name: '上证指数', close: 3245.67, pct_chg: 1.23 },
+                    { code: '399001.SZ', name: '深证成指', close: 10876.54, pct_chg: -0.87 },
+                    { code: '399006.SZ', name: '创业板指', close: 2543.21, pct_chg: 2.45 },
+                    { code: '000300.SH', name: '沪深300', close: 4123.89, pct_chg: 0.56 }
+                ];
+            } catch (error) {
+                console.error('加载指数数据失败:', error);
+                showToast('加载指数数据失败', 'error');
+            }
+        },
+        
+        connectWebSocket() {
+            try {
+                const ws = new WebSocket(`ws://${window.location.hostname}:8765`);
+                
+                ws.onopen = () => {
+                    this.wsConnected = true;
+                    showToast('实时连接已建立', 'success');
+                };
+                
+                ws.onclose = () => {
+                    this.wsConnected = false;
+                    showToast('实时连接已断开', 'warning');
+                    
+                    // 尝试重连
+                    setTimeout(() => this.connectWebSocket(), 5000);
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket错误:', error);
+                    this.wsConnected = false;
+                };
+            } catch (error) {
+                console.error('WebSocket连接失败:', error);
+                this.wsConnected = false;
+            }
+        },
+        
+        handleWebSocketMessage(data) {
+            if (data.type === 'realtime_update') {
+                this.updateStockPrice(data.code, data.data);
+            } else if (data.type === 'system_status') {
+                this.updateSystemInfo(data.data);
+            }
+        },
+        
+        updateStockPrice(code, data) {
+            const stock = this.hotStocks.find(s => s.ts_code === code);
+            if (stock && data.price) {
+                const oldValue = stock.close;
+                stock.close = data.price.current;
+                stock.change = data.price.change;
+                stock.pct_chg = data.price.change_pct;
+                
+                // 添加数字动画效果
+                this.$nextTick(() => {
+                    const elements = document.querySelectorAll(`[x-text*="${code}"]`);
+                    elements.forEach(el => {
+                        if (el.textContent && el.textContent.includes(formatCurrency(stock.close))) {
+                            animateNumber(el, stock.close, oldValue);
+                        }
+                    });
+                });
+            }
+        },
+        
+        updateSystemInfo(data) {
+            if (data.last_update) this.lastUpdateTime = formatTime(data.last_update);
+            if (data.monitored_stocks) this.monitoredStocks = data.monitored_stocks;
+            if (data.today_signals) this.todaySignals = data.today_signals;
+        },
+        
+        async updateSystemStatus() {
+            try {
+                const response = await apiRequest('/api/system/status');
+                const status = response.data || {};
+                
+                this.lastUpdateTime = status.last_update ? formatTime(status.last_update) : new Date().toLocaleTimeString();
+                this.monitoredStocks = status.monitored_stocks || 0;
+                this.todaySignals = status.today_signals || 0;
+            } catch (error) {
+                console.error('获取系统状态失败:', error);
+                this.lastUpdateTime = '获取失败';
+            }
+        },
+        
+        openAnalysis() {
+            window.location.href = '/analysis';
+        },
+        
+        async getRecommendations() {
+            try {
+                showToast('正在获取推荐...', 'info');
+                const response = await apiRequest('/api/recommendations');
+                if (response.success) {
+                    showToast('推荐获取成功!', 'success');
+                    window.location.href = '/recommendations';
+                } else {
+                    showToast('获取推荐失败', 'error');
+                }
+            } catch (error) {
+                showToast('获取推荐失败', 'error');
+            }
+        },
+        
+        openMonitoring() {
+            window.location.href = '/signals';
+        },
+        
+        openAIAnalysis() {
+            window.location.href = '/ai-analysis';
+        },
+        
+        viewStock(tsCode) {
+            window.location.href = `/analysis?code=${tsCode}`;
+        },
+        
+        async refreshHotStocks() {
+            this.refreshing = true;
+            try {
+                await this.loadHotStocks();
+                showToast('数据已刷新', 'success');
+            } catch (error) {
+                showToast('刷新失败', 'error');
+            } finally {
+                this.refreshing = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

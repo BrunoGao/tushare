@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LJWX Stock | 投资工作台</title>
+    
+    <!-- 使用本地图标 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/icons.css') }}">
+    
+    <style>
+        /* 沿用之前的CSS样式变量和基础样式 */
+        :root {
+            --primary: #1890ff;
+            --primary-hover: #40a9ff;
+            --primary-light: #e6f7ff;
+            --success: #52c41a;
+            --warning: #faad14;
+            --error: #ff4d4f;
+            --info: #13c2c2;
+            
+            --text-primary: #262626;
+            --text-secondary: #8c8c8c;
+            --text-disabled: #bfbfbf;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-container: #f5f5f5;
+            
+            --border-color: #d9d9d9;
+            --border-radius: 6px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            --box-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-container);
+            color: var(--text-primary);
+            line-height: 1.5715;
+            font-size: 14px;
+        }
+        
+        /* 顶部导航 */
+        .navbar {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: var(--box-shadow-light);
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .navbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .user-dropdown {
+            position: relative;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-width: 160px;
+            display: none;
+            z-index: 1001;
+        }
+        
+        .dropdown-menu.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--bg-secondary);
+        }
+        
+        /* 主内容区 */
+        .main-container {
+            margin-top: 64px;
+            padding: 24px;
+            min-height: calc(100vh - 64px);
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .page-subtitle {
+            color: var(--text-secondary);
+        }
+        
+        /* 卡片组件 */
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow-light);
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-body {
+            padding: 24px;
+        }
+        
+        /* 网格布局 */
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        
+        .grid-2 {
+            grid-template-columns: 2fr 1fr;
+        }
+        
+        /* 按钮组件 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+        }
+        
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+        
+        /* 策略卡片 */
+        .strategy-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .strategy-card:hover {
+            box-shadow: var(--box-shadow);
+            transform: translateY(-2px);
+        }
+        
+        .strategy-card.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        
+        .strategy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+        
+        .strategy-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .strategy-type {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .strategy-status {
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .strategy-status.running {
+            background: rgba(82, 196, 26, 0.1);
+            color: var(--success);
+        }
+        
+        .strategy-status.training {
+            background: rgba(250, 173, 20, 0.1);
+            color: var(--warning);
+        }
+        
+        .strategy-status.stopped {
+            background: rgba(140, 140, 140, 0.1);
+            color: var(--text-secondary);
+        }
+        
+        .strategy-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        
+        .strategy-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* 模态框 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-dialog {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        .modal-body {
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        /* 表单组件 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px 12px;
+            padding-right: 32px;
+        }
+        
+        .form-textarea {
+            height: 80px;
+            resize: vertical;
+            padding: 8px 12px;
+        }
+        
+        /* 通知组件 */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 1001;
+            min-width: 320px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .notification.success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .notification.error {
+            border-left: 4px solid var(--error);
+        }
+        
+        .notification.warning {
+            border-left: 4px solid var(--warning);
+        }
+        
+        .notification.info {
+            border-left: 4px solid var(--info);
+        }
+        
+        .notification-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 16px;
+            }
+            
+            .navbar-nav {
+                display: none;
+            }
+            
+            .main-container {
+                padding: 16px;
+            }
+            
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-dialog {
+                width: 95%;
+                margin: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <a href="#" class="navbar-brand">
+            <div class="brand-icon">
+                <i class="icon icon-stock"></i>
+            </div>
+            LJWX Stock
+        </a>
+        
+        <div class="navbar-nav">
+            <div class="nav-item active" onclick="navigateTo('dashboard')">我的工作台</div>
+            <div class="nav-item" onclick="navigateTo('strategies')">投资策略</div>
+            <div class="nav-item" onclick="navigateTo('analysis')">分析工具</div>
+            <div class="nav-item" onclick="navigateTo('portfolio')">投资组合</div>
+        </div>
+        
+        <div class="navbar-actions">
+            <div class="user-dropdown">
+                <div class="user-avatar" onclick="toggleUserDropdown()">
+                    <span id="userInitials">U</span>
+                </div>
+                <div class="dropdown-menu" id="userDropdown">
+                    <div class="dropdown-item">
+                        <i class="icon icon-user"></i>
+                        <span id="userName">用户</span>
+                    </div>
+                    <div class="dropdown-item">
+                        <i class="icon icon-setting"></i>
+                        个人设置
+                    </div>
+                    <div class="dropdown-item" onclick="logout()">
+                        <i class="icon icon-logout"></i>
+                        退出登录
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 工作台页面 -->
+        <div id="dashboardPage" class="page">
+            <div class="page-header">
+                <h1 class="page-title">我的投资工作台</h1>
+                <p class="page-subtitle">管理您的投资策略，获取AI智能建议</p>
+            </div>
+
+            <!-- 我的策略 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="icon icon-star"></i>
+                        我的投资策略
+                    </div>
+                    <button class="btn btn-primary" onclick="showCreateStrategyModal()">
+                        <i class="icon icon-plus"></i>
+                        创建策略
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-3" id="strategiesGrid">
+                        <!-- 策略卡片将通过JavaScript加载 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最新推荐 -->
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="icon icon-chart"></i>
+                            最新AI推荐
+                        </div>
+                        <button class="btn btn-sm" onclick="refreshRecommendations()">
+                            <i class="icon icon-refresh"></i>
+                            刷新
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendationsList">
+                            <!-- 推荐列表 -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="icon icon-target"></i>
+                            策略表现
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="performanceChart">
+                            <!-- 策略表现图表 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 策略页面 -->
+        <div id="strategiesPage" class="page" style="display: none;">
+            <div class="page-header">
+                <h1 class="page-title">投资策略管理</h1>
+                <p class="page-subtitle">创建、训练和管理您的个人投资策略</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">策略列表</div>
+                    <div>
+                        <button class="btn" onclick="importStrategy()">
+                            <i class="icon icon-upload"></i>
+                            导入策略
+                        </button>
+                        <button class="btn btn-primary" onclick="showCreateStrategyModal()">
+                            <i class="icon icon-plus"></i>
+                            创建策略
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-3" id="allStrategiesGrid">
+                        <!-- 所有策略卡片 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 其他页面... -->
+        <div id="analysisPage" class="page" style="display: none;">
+            <div class="page-header">
+                <h1 class="page-title">分析工具</h1>
+                <p class="page-subtitle">使用AI工具分析股票和市场趋势</p>
+            </div>
+            <!-- 分析工具内容 -->
+        </div>
+
+        <div id="portfolioPage" class="page" style="display: none;">
+            <div class="page-header">
+                <h1 class="page-title">投资组合</h1>
+                <p class="page-subtitle">查看和管理您的投资组合</p>
+            </div>
+            <!-- 投资组合内容 -->
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <script>
+        console.log('🚀 用户工作台初始化...');
+        
+        // 全局变量
+        let currentUser = {
+            name: '投资分析师',
+            role: 'user',
+            initials: 'UA'
+        };
+        
+        let socket;
+        let userStrategies = [];
+        
+        // 初始化Socket.IO
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io();
+                socket.on('connect', function() {
+                    console.log('✅ WebSocket连接成功');
+                });
+            }
+        } catch (error) {
+            console.error('Socket.IO初始化失败:', error);
+        }
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOM加载完成');
+            initializeUserDashboard();
+        });
+        
+        function initializeUserDashboard() {
+            loadUserInfo();
+            loadUserStrategies();
+            loadRecommendations();
+            setupEventListeners();
+            console.log('✅ 用户工作台初始化完成');
+        }
+        
+        function setupEventListeners() {
+            // 点击外部关闭下拉菜单
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.user-dropdown')) {
+                    document.getElementById('userDropdown').classList.remove('show');
+                }
+            });
+        }
+        
+        // 用户管理
+        function loadUserInfo() {
+            const userInfo = localStorage.getItem('user_info');
+            if (userInfo) {
+                try {
+                    currentUser = JSON.parse(userInfo);
+                    document.getElementById('userName').textContent = currentUser.name;
+                    document.getElementById('userInitials').textContent = currentUser.name.charAt(0);
+                } catch (error) {
+                    console.error('用户信息解析失败:', error);
+                }
+            }
+        }
+        
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('user_info');
+                window.location.href = '/login';
+            }
+        }
+        
+        // 策略管理
+        async function loadUserStrategies() {
+            try {
+                const response = await fetch('/api/user/strategies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    userStrategies = data.strategies;
+                    renderStrategies();
+                } else {
+                    // 显示默认策略
+                    userStrategies = [
+                        {
+                            id: 'demo1',
+                            name: '价值投资策略',
+                            type: '基本面分析',
+                            status: 'running',
+                            accuracy: 72.5,
+                            return: 15.8,
+                            description: '基于PE、PB等指标的价值投资策略'
+                        },
+                        {
+                            id: 'demo2',
+                            name: '技术分析策略',
+                            type: '技术分析',
+                            status: 'training',
+                            accuracy: 68.2,
+                            return: 12.4,
+                            description: '基于技术指标的短期交易策略'
+                        }
+                    ];
+                    renderStrategies();
+                }
+            } catch (error) {
+                console.error('加载策略失败:', error);
+                renderStrategies(); // 显示默认策略
+            }
+        }
+        
+        function renderStrategies() {
+            const grid = document.getElementById('strategiesGrid');
+            const allGrid = document.getElementById('allStrategiesGrid');
+            
+            const strategyCards = userStrategies.map(strategy => createStrategyCard(strategy)).join('');
+            
+            if (grid) grid.innerHTML = strategyCards;
+            if (allGrid) allGrid.innerHTML = strategyCards;
+        }
+        
+        function createStrategyCard(strategy) {
+            const statusClass = {
+                'running': 'running',
+                'training': 'training',
+                'stopped': 'stopped'
+            }[strategy.status] || 'stopped';
+            
+            const statusText = {
+                'running': '运行中',
+                'training': '训练中',
+                'stopped': '已停止'
+            }[strategy.status] || '未知';
+            
+            return `
+                <div class="strategy-card" data-id="${strategy.id}">
+                    <div class="strategy-header">
+                        <div>
+                            <div class="strategy-name">${strategy.name}</div>
+                            <div class="strategy-type">${strategy.type}</div>
+                        </div>
+                        <div class="strategy-status ${statusClass}">${statusText}</div>
+                    </div>
+                    
+                    <div class="strategy-metrics">
+                        <div class="metric">
+                            <div class="metric-value">${strategy.accuracy}%</div>
+                            <div class="metric-label">准确率</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">+${strategy.return}%</div>
+                            <div class="metric-label">收益率</div>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-actions">
+                        <button class="btn btn-sm" onclick="editStrategy('${strategy.id}')">
+                            <i class="icon icon-setting"></i>
+                            编辑
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="trainStrategy('${strategy.id}')">
+                            <i class="icon icon-cpu"></i>
+                            训练
+                        </button>
+                        <button class="btn btn-sm" onclick="backtestStrategy('${strategy.id}')">
+                            <i class="icon icon-chart"></i>
+                            回测
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 策略操作
+        function showCreateStrategyModal() {
+            const modal = createModal('createStrategyModal', '创建投资策略', `
+                <div class="form-group">
+                    <label class="form-label">策略名称</label>
+                    <input type="text" class="form-control" id="strategyName" placeholder="请输入策略名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">策略类型</label>
+                    <select class="form-control form-select" id="strategyType">
+                        <option value="value">价值投资</option>
+                        <option value="technical">技术分析</option>
+                        <option value="momentum">动量策略</option>
+                        <option value="arbitrage">套利策略</option>
+                        <option value="custom">自定义策略</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">策略描述</label>
+                    <textarea class="form-control form-textarea" id="strategyDescription" placeholder="请描述您的投资策略逻辑"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">策略参数 (JSON格式)</label>
+                    <textarea class="form-control form-textarea" id="strategyParams" placeholder='{"pe_ratio": 15, "pb_ratio": 1.5}'></textarea>
+                </div>
+            `, `
+                <button class="btn" onclick="closeModal('createStrategyModal')">取消</button>
+                <button class="btn btn-primary" onclick="createStrategy()">创建策略</button>
+            `);
+            
+            showModal(modal);
+        }
+        
+        async function createStrategy() {
+            const name = document.getElementById('strategyName').value.trim();
+            const type = document.getElementById('strategyType').value;
+            const description = document.getElementById('strategyDescription').value.trim();
+            const params = document.getElementById('strategyParams').value.trim();
+            
+            if (!name || !description) {
+                showNotification('warning', '请填写策略名称和描述');
+                return;
+            }
+            
+            try {
+                let parsedParams = {};
+                if (params) {
+                    parsedParams = JSON.parse(params);
+                }
+                
+                const response = await fetch('/api/user/strategies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        type: type,
+                        description: description,
+                        parameters: parsedParams
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('success', '策略创建成功！');
+                    closeModal('createStrategyModal');
+                    loadUserStrategies();
+                } else {
+                    showNotification('error', result.message || '策略创建失败');
+                }
+                
+            } catch (error) {
+                console.error('创建策略失败:', error);
+                showNotification('error', '网络错误或参数格式不正确');
+            }
+        }
+        
+        function editStrategy(strategyId) {
+            const strategy = userStrategies.find(s => s.id === strategyId);
+            if (!strategy) return;
+            
+            showNotification('info', `编辑策略: ${strategy.name} (功能开发中)`);
+        }
+        
+        async function trainStrategy(strategyId) {
+            const strategy = userStrategies.find(s => s.id === strategyId);
+            if (!strategy) return;
+            
+            if (confirm(`确定要训练策略 "${strategy.name}" 吗？训练过程可能需要较长时间。`)) {
+                try {
+                    const response = await fetch('/api/user/strategies/train', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ strategy_id: strategyId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showNotification('success', '策略训练已启动，请耐心等待');
+                        // 更新策略状态
+                        strategy.status = 'training';
+                        renderStrategies();
+                    } else {
+                        showNotification('error', result.message || '训练启动失败');
+                    }
+                    
+                } catch (error) {
+                    console.error('训练策略失败:', error);
+                    showNotification('error', '网络错误');
+                }
+            }
+        }
+        
+        function backtestStrategy(strategyId) {
+            const strategy = userStrategies.find(s => s.id === strategyId);
+            if (!strategy) return;
+            
+            showNotification('info', `回测策略: ${strategy.name} (功能开发中)`);
+        }
+        
+        function importStrategy() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,.py,.txt';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const content = e.target.result;
+                            showNotification('success', `文件 ${file.name} 导入成功`);
+                            // 处理导入的策略文件
+                        } catch (error) {
+                            showNotification('error', '文件格式不正确');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+        
+        // 推荐系统
+        async function loadRecommendations() {
+            try {
+                const response = await fetch('/api/mobile/recommendations/latest?limit=5');
+                const data = await response.json();
+                updateRecommendationsList(data.recommendations || []);
+            } catch (error) {
+                console.error('加载推荐失败:', error);
+            }
+        }
+        
+        function updateRecommendationsList(recommendations) {
+            const container = document.getElementById('recommendationsList');
+            
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                        <p>暂无推荐数据</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recommendations.map((rec, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; ${index < recommendations.length - 1 ? 'border-bottom: 1px solid var(--border-color);' : ''}">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">
+                            ${rec.stock_name || rec.stock_code}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            ${rec.stock_code}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="badge ${getRecommendationBadgeClass(rec.recommendation_type)}">
+                            ${getRecommendationLabel(rec.recommendation_type)}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            置信度: ${(rec.confidence_score * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getRecommendationBadgeClass(type) {
+            const classes = {
+                'buy': 'success',
+                'sell': 'error', 
+                'hold': 'warning',
+                'neutral': ''
+            };
+            return classes[type] || '';
+        }
+        
+        function getRecommendationLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出',
+                'hold': '持有',
+                'neutral': '观望'
+            };
+            return labels[type] || type;
+        }
+        
+        function refreshRecommendations() {
+            loadRecommendations();
+            showNotification('success', '推荐数据已刷新');
+        }
+        
+        // 导航功能
+        function navigateTo(section) {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.style.display = 'none');
+            
+            // 激活导航项
+            const activeNav = Array.from(navItems).find(item => 
+                item.textContent.includes({
+                    'dashboard': '工作台',
+                    'strategies': '策略',
+                    'analysis': '分析',
+                    'portfolio': '组合'
+                }[section])
+            );
+            if (activeNav) activeNav.classList.add('active');
+            
+            // 显示对应页面
+            const pageMap = {
+                'dashboard': 'dashboardPage',
+                'strategies': 'strategiesPage',
+                'analysis': 'analysisPage',
+                'portfolio': 'portfolioPage'
+            };
+            
+            const targetPage = document.getElementById(pageMap[section]);
+            if (targetPage) targetPage.style.display = 'block';
+        }
+        
+        // 通用工具函数
+        function createModal(id, title, body, footer) {
+            const existingModal = document.getElementById(id);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = id;
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <div class="modal-title">${title}</div>
+                        <button class="modal-close" onclick="closeModal('${id}')">&times;</button>
+                    </div>
+                    <div class="modal-body">${body}</div>
+                    <div class="modal-footer">${footer}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        function showModal(modal) {
+            modal.classList.add('show');
+            
+            // 点击背景关闭
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModal(modal.id);
+                }
+            });
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        }
+        
+        function showNotification(type, message) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="icon icon-${getNotificationIcon(type)}"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'success': 'check',
+                'error': 'close',
+                'warning': 'warning',
+                'info': 'info'
+            };
+            return icons[type] || 'info';
+        }
+        
+        console.log('✅ 用户工作台脚本初始化完成');
+    </script>
+</body>
+</html>

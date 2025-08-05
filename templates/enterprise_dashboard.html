@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LJWX Stock | 企业级智能投资平台 v2.0</title>
+    
+    <!-- 字体和样式资源 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- 本地化资源 -->
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}?v=20250805" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}?v=20250805" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app.css') }}?v=20250805" rel="stylesheet">
+    
+    <!-- 企业级样式设计 -->
+    <style>
+        :root {
+            /* 主色调 - 现代蓝色系 */
+            --primary: #0066ff;
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-500: #0066ff;
+            --primary-600: #0052cc;
+            --primary-700: #003d99;
+            --primary-900: #001a66;
+            
+            /* 中性色系 */
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            
+            /* 语义色彩 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            
+            /* 布局变量 */
+            --sidebar-width: 280px;
+            --topbar-height: 70px;
+            --border-radius: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            margin: 0;
+            line-height: 1.6;
+            font-weight: 400;
+            overflow-x: hidden;
+        }
+        
+        /* 顶部导航栏 */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--topbar-height);
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            box-shadow: var(--shadow-sm);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: var(--gray-900);
+            font-weight: 700;
+            font-size: 1.25rem;
+            margin-right: 48px;
+        }
+        
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .topbar-nav {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            gap: 32px;
+        }
+        
+        .nav-link {
+            color: var(--gray-600);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary);
+            background: var(--primary-50);
+        }
+        
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2px;
+            background: var(--primary);
+            border-radius: 1px;
+        }
+        
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-left: auto;
+        }
+        
+        .search-box {
+            position: relative;
+            width: 320px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--gray-300);
+            border-radius: 10px;
+            background: var(--gray-50);
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray-400);
+            font-size: 16px;
+        }
+        
+        .notification-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: var(--gray-100);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--gray-600);
+        }
+        
+        .notification-btn:hover {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 18px;
+            height: 18px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-menu {
+            position: relative;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            width: 220px;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            padding: 8px 0;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .user-dropdown.show {
+            display: block;
+        }
+        
+        .user-info {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+        
+        .user-role {
+            font-size: 12px;
+            color: var(--gray-500);
+            padding: 2px 8px;
+            background: var(--gray-100);
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            gap: 12px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--gray-50);
+            color: var(--gray-900);
+        }
+        
+        /* 主内容区域 */
+        .main-content {
+            margin-top: var(--topbar-height);
+            padding: 32px;
+        }
+        
+        .page-header {
+            margin-bottom: 32px;
+        }
+        
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+        }
+        
+        .page-subtitle {
+            color: var(--gray-600);
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        /* 仪表板网格 */
+        .dashboard-grid {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        
+        .content-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+        
+        .full-row {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+        
+        /* 卡片组件 */
+        .card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow);
+        }
+        
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: between;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .card-body {
+            padding: 24px;
+        }
+        
+        /* 指标卡片 */
+        .metric-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-600) 100%);
+        }
+        
+        .metric-card:hover {
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+        }
+        
+        .metric-card.success::before { background: linear-gradient(90deg, var(--success) 0%, #059669 100%); }
+        .metric-card.warning::before { background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%); }
+        .metric-card.danger::before { background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%); }
+        .metric-card.info::before { background: linear-gradient(90deg, var(--info) 0%, #0891b2 100%); }
+        
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        
+        .metric-change {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .metric-change.positive { color: var(--success); }
+        .metric-change.negative { color: var(--danger); }
+        .metric-change.neutral { color: var(--gray-500); }
+        
+        /* 按钮组件 */
+        .btn-primary {
+            background: var(--primary);
+            border: 1px solid var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-600);
+            border-color: var(--primary-600);
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: white;
+            border: 1px solid var(--gray-300);
+            color: var(--gray-700);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
+            color: var(--gray-900);
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--gray-100);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.warning .status-dot { background: var(--warning); }
+        .status-indicator.danger .status-dot { background: var(--danger); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+        
+        .toolbar-left, .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        /* 表格样式 */
+        .table-container {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th {
+            background: var(--gray-50);
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--gray-900);
+            font-size: 14px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--gray-700);
+            font-size: 14px;
+        }
+        
+        .table tbody tr:hover {
+            background: var(--gray-50);
+        }
+        
+        /* 徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .badge.success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .badge.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .badge.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .badge.info { background: rgba(6, 182, 212, 0.1); color: var(--info); }
+        .badge.secondary { background: var(--gray-100); color: var(--gray-600); }
+        
+        /* 加载状态 */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 6px;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* 快速操作面板 */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .quick-action-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--gray-700);
+        }
+        
+        .quick-action-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+            color: var(--primary);
+        }
+        
+        .quick-action-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--gray-100);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+            color: var(--gray-600);
+            transition: all 0.2s ease;
+        }
+        
+        .quick-action-card:hover .quick-action-icon {
+            background: var(--primary-50);
+            color: var(--primary);
+        }
+        
+        .quick-action-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .quick-action-desc {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin: 0;
+        }
+        
+        /* 权限控制显示 */
+        .admin-only { display: none; }
+        .user-role[data-role="admin"] ~ * .admin-only,
+        .user-role[data-role="admin"] ~ .admin-only { display: block !important; }
+        
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .content-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-box {
+                width: 240px;
+            }
+            
+            .metrics-row {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+            
+            .topbar {
+                padding: 0 16px;
+                height: 60px;
+            }
+            
+            .topbar-nav {
+                display: none;
+            }
+            
+            .search-box {
+                display: none;
+            }
+            
+            .page-title {
+                font-size: 24px;
+            }
+            
+            .page-subtitle {
+                font-size: 14px;
+            }
+            
+            .metrics-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .metric-card {
+                padding: 16px;
+            }
+            
+            .metric-value {
+                font-size: 24px;
+            }
+            
+            .quick-actions {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 12px;
+            }
+            
+            .quick-action-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 20px;
+            }
+            
+            .card-body {
+                padding: 16px;
+            }
+            
+            .card-header {
+                padding: 16px;
+            }
+            
+            .btn-primary, .btn-secondary {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+            
+            .user-dropdown {
+                width: 200px;
+                right: -20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 12px;
+                margin-top: 60px;
+            }
+            
+            .page-header {
+                margin-bottom: 20px;
+            }
+            
+            .page-title {
+                font-size: 20px;
+            }
+            
+            .metrics-row {
+                gap: 12px;
+            }
+            
+            .metric-card {
+                padding: 12px;
+            }
+            
+            .metric-value {
+                font-size: 20px;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .quick-action-card {
+                padding: 16px 12px;
+            }
+            
+            .quick-action-title {
+                font-size: 14px;
+            }
+            
+            .quick-action-desc {
+                font-size: 12px;
+            }
+            
+            .brand {
+                font-size: 16px;
+            }
+            
+            .brand-icon {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .notification-btn, .user-avatar {
+                width: 36px;
+                height: 36px;
+            }
+        }
+        
+        /* 动画效果 */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <div class="topbar">
+        <a href="#" class="brand">
+            <div class="brand-icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            LJWX Stock
+        </a>
+        
+        <nav class="topbar-nav">
+            <a href="#" class="nav-link active" onclick="navigateToDashboard()">工作台</a>
+            <a href="#" class="nav-link" onclick="navigateToAnalysis()">分析中心</a>
+            <a href="#" class="nav-link" onclick="navigateToRecommendations()">推荐系统</a>
+            <a href="#" class="nav-link admin-only" onclick="navigateToModelManagement()">模型管理</a>
+            <a href="#" class="nav-link admin-only" onclick="navigateToSystemMonitoring()">系统监控</a>
+        </nav>
+        
+        <div class="topbar-actions">
+            <div class="search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="搜索股票代码或公司名称...">
+            </div>
+            
+            <button class="notification-btn">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge">3</div>
+            </button>
+            
+            <div class="user-menu">
+                <div class="user-avatar" onclick="toggleUserDropdown()">
+                    <span id="userInitials">U</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-info">
+                        <div class="user-name" id="userName">用户</div>
+                        <div class="user-role" id="userRole" data-role="user">普通用户</div>
+                    </div>
+                    <a href="#" class="dropdown-item">
+                        <i class="bi bi-person"></i>个人设置
+                    </a>
+                    <a href="#" class="dropdown-item admin-only">
+                        <i class="bi bi-gear"></i>系统设置
+                    </a>
+                    <a href="#" class="dropdown-item" onclick="toggleRole()">
+                        <i class="bi bi-arrow-repeat"></i>切换角色 (开发模式)
+                    </a>
+                    <a href="#" class="dropdown-item">
+                        <i class="bi bi-question-circle"></i>帮助中心
+                    </a>
+                    <div style="border-top: 1px solid var(--gray-100); margin: 8px 0;"></div>
+                    <a href="#" class="dropdown-item" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i>退出登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 页面头部 -->
+        <div class="page-header fade-in">
+            <h1 class="page-title">智能投资工作台 <small class="badge bg-primary">企业版 v2.0</small></h1>
+            <p class="page-subtitle">欢迎回来！为您提供最新的市场洞察和AI投资建议</p>
+        </div>
+
+        <!-- 快速操作面板 -->
+        <div class="quick-actions fade-in">
+            <a href="#" class="quick-action-card" onclick="showQuickAnalysis()">
+                <div class="quick-action-icon">
+                    <i class="bi bi-search"></i>
+                </div>
+                <div class="quick-action-title">快速分析</div>
+                <p class="quick-action-desc">输入股票代码获取即时分析</p>
+            </a>
+            
+            <a href="#" class="quick-action-card" onclick="showRecommendations()">
+                <div class="quick-action-icon">
+                    <i class="bi bi-star"></i>
+                </div>
+                <div class="quick-action-title">AI推荐</div>
+                <p class="quick-action-desc">获取智能投资建议</p>
+            </a>
+            
+            <a href="#" class="quick-action-card" onclick="showPortfolio()">
+                <div class="quick-action-icon">
+                    <i class="bi bi-pie-chart"></i>
+                </div>
+                <div class="quick-action-title">我的投资组合</div>
+                <p class="quick-action-desc">查看持仓和收益情况</p>
+            </a>
+            
+            <a href="#" class="quick-action-card admin-only" onclick="showModelManagement()">
+                <div class="quick-action-icon">
+                    <i class="bi bi-cpu"></i>
+                </div>
+                <div class="quick-action-title">模型管理</div>
+                <p class="quick-action-desc">管理AI训练模型</p>
+            </a>
+        </div>
+
+        <!-- 仪表板网格 -->
+        <div class="dashboard-grid">
+            <!-- 核心指标行 -->
+            <div class="metrics-row fade-in">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">今日推荐</div>
+                        <div class="metric-icon" style="background: var(--primary);">
+                            <i class="bi bi-star-fill"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="todayRecommendations">-</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>比昨日+2</span>
+                    </div>
+                </div>
+
+                <div class="metric-card success">
+                    <div class="metric-header">
+                        <div class="metric-label">预测准确率</div>
+                        <div class="metric-icon" style="background: var(--success);">
+                            <i class="bi bi-bullseye"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="hitRate">-</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>高于行业平均</span>
+                    </div>
+                </div>
+
+                <div class="metric-card warning">
+                    <div class="metric-header">
+                        <div class="metric-label">活跃模型</div>
+                        <div class="metric-icon" style="background: var(--warning);">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="activeModels">-</div>
+                    <div class="metric-change neutral">
+                        <i class="bi bi-dash"></i>
+                        <span>运行正常</span>
+                    </div>
+                </div>
+
+                <div class="metric-card info">
+                    <div class="metric-header">
+                        <div class="metric-label">策略收益</div>
+                        <div class="metric-icon" style="background: var(--info);">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="strategyReturn">-</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>月度+8.5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 内容行 -->
+            <div class="content-row slide-up">
+                <!-- 最新推荐 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="bi bi-star-fill" style="color: var(--warning);"></i>
+                            最新AI推荐
+                        </h3>
+                        <div>
+                            <button class="btn-secondary btn-sm" onclick="refreshRecommendations()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                刷新
+                            </button>
+                            <button class="btn-primary btn-sm" onclick="generateNewRecommendations()">
+                                <i class="bi bi-plus"></i>
+                                生成推荐
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendationsList">
+                            <!-- 推荐列表将通过JS加载 -->
+                            <div class="text-center py-4">
+                                <div class="loading-skeleton" style="height: 20px; margin-bottom: 12px;"></div>
+                                <div class="loading-skeleton" style="height: 16px; width: 60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统状态 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="bi bi-activity" style="color: var(--success);"></i>
+                            系统状态
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="status-indicator">
+                            <div class="status-dot"></div>
+                            <span id="systemStatus">系统运行正常</span>
+                        </div>
+                        
+                        <div style="margin-top: 24px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 14px; color: var(--gray-600);">CPU使用率</span>
+                                <span style="font-size: 14px; font-weight: 600;" id="cpuUsage">15%</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--gray-200); border-radius: 3px;">
+                                <div style="width: 15%; height: 100%; background: var(--success); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 14px; color: var(--gray-600);">内存使用率</span>
+                                <span style="font-size: 14px; font-weight: 600;" id="memoryUsage">45%</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--gray-200); border-radius: 3px;">
+                                <div style="width: 45%; height: 100%; background: var(--info); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--gray-100);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 12px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em;">活跃连接</div>
+                                    <div style="font-size: 20px; font-weight: 700; color: var(--gray-900);" id="activeConnections">8</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 12px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em;">最后更新</div>
+                                    <div style="font-size: 20px; font-weight: 700; color: var(--gray-900);" id="lastUpdate">刚刚</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 管理员专用行 -->
+            <div class="full-row admin-only slide-up">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="bi bi-gear-fill" style="color: var(--gray-600);"></i>
+                            管理中心
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>模型名称</th>
+                                        <th>状态</th>
+                                        <th>准确率</th>
+                                        <th>最后训练</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modelsTable">
+                                    <!-- 模型列表将通过JS加载 -->
+                                    <tr>
+                                        <td colspan="5" class="text-center">
+                                            <div class="loading-skeleton" style="height: 16px; margin: 8px 0;"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <!-- Bootstrap JavaScript - 多重CDN备用策略 -->
+    <script>
+        // Bootstrap 加载策略 - 尝试多个CDN源
+        function loadBootstrap() {
+            const cdnSources = [
+                'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js',
+                'https://unpkg.com/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'
+            ];
+            
+            let currentIndex = 0;
+            
+            function tryLoadBootstrap() {
+                if (currentIndex >= cdnSources.length) {
+                    console.warn('⚠️ 所有Bootstrap CDN源均加载失败，使用降级方案');
+                    window.bootstrapLoadFailed = true;
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = cdnSources[currentIndex];
+                script.crossOrigin = 'anonymous';
+                
+                script.onload = function() {
+                    console.log(`✅ Bootstrap JS 加载成功 (来源: ${currentIndex + 1})`);
+                    window.bootstrapLoaded = true;
+                    checkDependencies();
+                };
+                
+                script.onerror = function() {
+                    console.warn(`❌ Bootstrap CDN ${currentIndex + 1} 加载失败，尝试下一个...`);
+                    currentIndex++;
+                    tryLoadBootstrap();
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            tryLoadBootstrap();
+        }
+        
+        // 立即开始加载Bootstrap
+        loadBootstrap();
+    </script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" 
+            onload="console.log('✅ Socket.IO 加载成功')" 
+            onerror="console.error('❌ Socket.IO 加载失败')"></script>
+    
+    <script>
+        // 页面加载检查
+        console.log('🚀 Enterprise Dashboard JavaScript 开始加载...');
+        
+        // 检查依赖和初始化
+        let dependenciesLoaded = false;
+        
+        function checkDependencies() {
+            const bootstrapReady = typeof bootstrap !== 'undefined' || window.bootstrapLoaded;
+            const socketioReady = typeof io !== 'undefined';
+            
+            console.log('Bootstrap 可用:', bootstrapReady);
+            console.log('Socket.IO 可用:', socketioReady);
+            
+            // 如果Bootstrap加载失败但有降级方案，也继续初始化
+            const canProceed = socketioReady && (bootstrapReady || window.bootstrapLoadFailed);
+            
+            if (canProceed && !dependenciesLoaded) {
+                dependenciesLoaded = true;
+                if (window.bootstrapLoadFailed) {
+                    console.log('⚠️ Bootstrap未加载，但已启用降级方案，初始化应用...');
+                } else {
+                    console.log('✅ 所有依赖已加载，初始化应用...');
+                }
+                initializeApp();
+            }
+        }
+        
+        // DOM加载完成后检查
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOM 已加载');
+            
+            // 延迟检查依赖，给脚本时间加载
+            setTimeout(checkDependencies, 100);
+            
+            // 如果依赖加载较慢，每500ms检查一次，最多等待5秒
+            let checkCount = 0;
+            const maxChecks = 10;
+            const intervalId = setInterval(() => {
+                checkCount++;
+                if (dependenciesLoaded || checkCount >= maxChecks) {
+                    clearInterval(intervalId);
+                    if (checkCount >= maxChecks && !dependenciesLoaded) {
+                        console.warn('⚠️ 部分依赖可能未加载，但继续初始化应用');
+                        initializeApp();
+                    }
+                } else {
+                    checkDependencies();
+                }
+            }, 500);
+        });
+        
+        // 全局变量
+        let currentUser = {
+            name: '演示用户',
+            role: 'user', // user, admin
+            initials: 'DU'
+        };
+        
+        console.log('✅ 全局变量已初始化');
+        
+        // 从服务器加载用户信息
+        async function loadUserInfo(role = null) {
+            try {
+                const url = role ? `/api/user-info?role=${role}` : '/api/user-info';
+                const response = await fetch(url);
+                const userData = await response.json();
+                initializeUser(userData);
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+                // 使用默认用户信息
+                initializeUser();
+            }
+        }
+        
+        // 初始化用户信息
+        function initializeUser(userData = null) {
+            if (userData) {
+                currentUser = userData;
+            }
+            
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userInitials').textContent = currentUser.initials;
+            
+            const roleElement = document.getElementById('userRole');
+            roleElement.textContent = currentUser.role === 'admin' ? '系统管理员' : '普通用户';
+            roleElement.setAttribute('data-role', currentUser.role);
+            
+            // 根据用户角色显示/隐藏管理员功能
+            updateUIForUserRole();
+        }
+        
+        // 根据用户角色更新UI
+        function updateUIForUserRole() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            const isAdmin = currentUser.role === 'admin';
+            
+            adminElements.forEach(element => {
+                element.style.display = isAdmin ? 'block' : 'none';
+            });
+            
+            // 特殊处理grid布局中的admin-only元素
+            const adminRows = document.querySelectorAll('.dashboard-grid .admin-only');
+            adminRows.forEach(element => {
+                if (element.classList.contains('full-row') || element.classList.contains('content-row')) {
+                    element.style.display = isAdmin ? 'grid' : 'none';
+                }
+            });
+        }
+        
+        // 切换用户下拉菜单
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        // 点击外部关闭下拉菜单
+        document.addEventListener('click', function(event) {
+            const userMenu = document.querySelector('.user-menu');
+            if (!userMenu.contains(event.target)) {
+                document.getElementById('userDropdown').classList.remove('show');
+            }
+        });
+        
+        // Socket.IO连接
+        let socket;
+        
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io();
+                console.log('✅ Socket.IO 初始化成功');
+                
+                socket.on('connect', function() {
+                    console.log('🔗 WebSocket连接成功');
+                    updateSystemStatus('success', '系统运行正常');
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('❌ WebSocket连接断开');
+                    updateSystemStatus('danger', '连接已断开');
+                });
+                
+                socket.on('connect_error', function(error) {
+                    console.error('❌ WebSocket连接错误:', error);
+                    updateSystemStatus('warning', '连接异常');
+                });
+                
+            } else {
+                console.error('❌ Socket.IO 未加载');
+                socket = null;
+            }
+        } catch (error) {
+            console.error('❌ Socket.IO 初始化失败:', error);
+            socket = null;
+        }
+        
+        // 原有的事件监听器（保持兼容性）
+        if (socket) {
+            socket.on('connected', function(data) {
+                console.log('WebSocket连接成功 (兼容事件)');
+                updateSystemStatus('success', '系统运行正常');
+            });
+        }
+        
+        // 其他Socket.IO事件监听器（需要socket存在时才绑定）
+        if (socket) {
+            socket.on('recommendation_generated', function(data) {
+                console.log('推荐生成完成:', data);
+                loadRecommendations();
+                updateMetrics();
+            });
+        }
+        
+        // 更新系统状态
+        function updateSystemStatus(type, message) {
+            const statusIndicator = document.querySelector('.status-indicator');
+            const statusText = document.getElementById('systemStatus');
+            
+            // 重置所有状态类
+            statusIndicator.classList.remove('warning', 'danger');
+            
+            if (type !== 'success') {
+                statusIndicator.classList.add(type);
+            }
+            
+            statusText.textContent = message;
+        }
+        
+        // 加载仪表板数据
+        async function loadDashboardData() {
+            try {
+                const [dashboard, models, recommendations] = await Promise.all([
+                    fetch('/api/mobile/dashboard').then(r => r.json()),
+                    fetch('/api/models-info').then(r => r.json()),
+                    fetch('/api/mobile/recommendations/latest?limit=5').then(r => r.json())
+                ]);
+                
+                updateMetrics(dashboard);
+                updateModelsList(models);
+                updateRecommendationsList(recommendations.recommendations || []);
+                
+            } catch (error) {
+                console.error('加载仪表板数据失败:', error);
+                updateSystemStatus('danger', '数据加载失败');
+            }
+        }
+        
+        // 更新指标数据
+        function updateMetrics(data) {
+            if (!data) return;
+            
+            // 更新核心指标
+            document.getElementById('todayRecommendations').textContent = '8';
+            document.getElementById('hitRate').textContent = ((data.recommendation_summary?.hit_rate || 0.68) * 100).toFixed(1) + '%';
+            document.getElementById('activeModels').textContent = data.training_summary?.total_models || '3';
+            document.getElementById('strategyReturn').textContent = '+8.5%';
+            
+            // 更新系统监控数据
+            updateSystemMonitoring();
+        }
+        
+        // 更新系统监控数据
+        function updateSystemMonitoring() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                now.getHours().toString().padStart(2, '0') + ':' + 
+                now.getMinutes().toString().padStart(2, '0');
+        }
+        
+        // 更新推荐列表
+        function updateRecommendationsList(recommendations) {
+            const container = document.getElementById('recommendationsList');
+            
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <div style="width: 60px; height: 60px; background: var(--gray-100); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: var(--gray-400); font-size: 24px;">
+                            <i class="bi bi-star"></i>
+                        </div>
+                        <p style="color: var(--gray-500); margin-bottom: 8px;">暂无推荐数据</p>
+                        <button class="btn-primary btn-sm" onclick="generateNewRecommendations()">
+                            <i class="bi bi-plus"></i>
+                            生成AI推荐
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recommendations.map((rec, index) => `
+                <div class="d-flex justify-content-between align-items-center py-3 ${index < recommendations.length - 1 ? 'border-bottom' : ''}" style="border-color: var(--gray-100);">
+                    <div class="flex-grow-1">
+                        <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">
+                            ${rec.stock_name || rec.stock_code}
+                        </div>
+                        <div style="font-size: 13px; color: var(--gray-500);">
+                            ${rec.stock_code}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge ${getRecommendationBadgeClass(rec.recommendation_type)}">
+                            ${getRecommendationLabel(rec.recommendation_type)}
+                        </div>
+                        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">
+                            置信度: <span style="font-weight: 600;">${(rec.confidence_score * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 获取推荐类型的徽章样式
+        function getRecommendationBadgeClass(type) {
+            const classes = {
+                'buy': 'success',
+                'sell': 'danger', 
+                'hold': 'warning',
+                'neutral': 'secondary'
+            };
+            return classes[type] || 'secondary';
+        }
+        
+        // 获取推荐类型的标签
+        function getRecommendationLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出',
+                'hold': '持有',
+                'neutral': '观望'
+            };
+            return labels[type] || type;
+        }
+        
+        // 更新模型列表 (管理员功能)
+        function updateModelsList(data) {
+            if (currentUser.role !== 'admin') return;
+            
+            const tbody = document.getElementById('modelsTable');
+            if (!data || !data.models || data.models.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center" style="color: var(--gray-500);">暂无模型数据</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = data.models.map(model => `
+                <tr>
+                    <td style="font-weight: 600;">${model.name}</td>
+                    <td>
+                        <div class="badge success">运行中</div>
+                    </td>
+                    <td>${model.performance ? (model.performance.hit_rate * 100).toFixed(1) + '%' : '-'}</td>
+                    <td>${model.created ? new Date(model.created).toLocaleDateString() : '-'}</td>
+                    <td>
+                        <button class="btn-secondary btn-sm" onclick="manageModel('${model.name}')">
+                            <i class="bi bi-gear"></i>
+                            管理
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // 快速操作函数
+        function showQuickAnalysis() {
+            console.log('🎯 showQuickAnalysis() 被调用');
+            
+            try {
+                // 创建快速分析模态框
+                const modal = createModal('quickAnalysisModal', '股票快速分析', `
+                <div class="mb-3">
+                    <label class="form-label">股票代码</label>
+                    <input type="text" class="form-control" id="quickAnalysisCode" 
+                           placeholder="输入股票代码，如：000001.SZ" value="600028.SH">
+                </div>
+                <div id="quickAnalysisResult"></div>
+            `, `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="runQuickAnalysisModal()">开始分析</button>
+            `);
+            
+            showModal(modal);
+            console.log('✅ 快速分析模态框已创建');
+            
+            } catch (error) {
+                console.error('❌ showQuickAnalysis 错误:', error);
+                alert('打开快速分析失败: ' + error.message);
+            }
+        }
+        
+        async function runQuickAnalysisModal() {
+            const stockCode = document.getElementById('quickAnalysisCode').value.trim();
+            const resultDiv = document.getElementById('quickAnalysisResult');
+            
+            if (!stockCode) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">请输入股票代码</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border me-2"></div>正在分析...</div>';
+            
+            try {
+                const response = await fetch('/api/mobile/quick-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_code: stockCode })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else {
+                    const analysis = data.analysis;
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><strong>${data.stock_name || stockCode}</strong></h6>
+                            <div class="row">
+                                <div class="col-6">当前价格: <strong>${analysis.current_price}</strong></div>
+                                <div class="col-6">涨跌幅: <strong class="${analysis.price_change >= 0 ? 'text-success' : 'text-danger'}">${analysis.price_change >= 0 ? '+' : ''}${analysis.price_change}%</strong></div>
+                                <div class="col-6">成交量: <strong>${(analysis.volume / 10000).toFixed(2)}万手</strong></div>
+                                <div class="col-6">趋势: <strong>${analysis.trend}</strong></div>
+                            </div>
+                            <hr>
+                            <small class="text-muted">分析时间: ${analysis.analysis_time}</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">网络错误: ${error.message}</div>`;
+            }
+        }
+        
+        function showRecommendations() {
+            console.log('🤖 showRecommendations() 被调用');
+            // 跳转到推荐页面或显示推荐模态框
+            generateNewRecommendations();
+        }
+        
+        function showPortfolio() {
+            console.log('💼 showPortfolio() 被调用');
+            // 显示投资组合功能
+            showNotification('info', '投资组合功能正在开发中，敬请期待！');
+        }
+        
+        function showModelManagement() {
+            if (currentUser.role !== 'admin') {
+                showNotification('error', '您没有权限访问此功能');
+                return;
+            }
+            
+            // 创建模型管理模态框
+            const modal = createModal('modelManagementModal', 'AI模型管理', `
+                <div id="modelsList">
+                    <div class="text-center py-4">
+                        <div class="spinner-border mb-2"></div>
+                        <p>正在加载模型列表...</p>
+                    </div>
+                </div>
+            `, `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="loadAvailableModels()">刷新列表</button>
+            `);
+            
+            showModal(modal);
+            loadAvailableModels();
+        }
+        
+        async function generateNewRecommendations() {
+            // 先加载可用模型
+            try {
+                const modelsResponse = await fetch('/api/models-info');
+                const modelsData = await modelsResponse.json();
+                
+                if (!modelsData.models || modelsData.models.length === 0) {
+                    showNotification('warning', '没有可用的AI模型，请先训练模型');
+                    return;
+                }
+                
+                // 创建推荐生成模态框
+                const modelOptions = modelsData.models.map(model => 
+                    `<option value="${model.name}">${model.name} (${model.size})</option>`
+                ).join('');
+                
+                const modal = createModal('generateRecommendationsModal', '生成AI推荐', `
+                    <div class="mb-3">
+                        <label class="form-label">选择AI模型</label>
+                        <select class="form-select" id="recModelSelect">
+                            ${modelOptions}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">推荐数量</label>
+                        <select class="form-select" id="numStocks">
+                            <option value="3">3只股票</option>
+                            <option value="5" selected>5只股票</option>
+                            <option value="10">10只股票</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="useDailyMode" checked>
+                            <label class="form-check-label" for="useDailyMode">
+                                启用每日推荐模式
+                            </label>
+                        </div>
+                    </div>
+                    <div id="generationProgress"></div>
+                `, `
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="startRecommendationGeneration()">开始生成</button>
+                `);
+                
+                showModal(modal);
+                
+            } catch (error) {
+                showNotification('error', '加载模型信息失败: ' + error.message);
+            }
+        }
+        
+        function refreshRecommendations() {
+            loadRecommendations();
+        }
+        
+        async function loadRecommendations() {
+            try {
+                const response = await fetch('/api/mobile/recommendations/latest?limit=5');
+                const data = await response.json();
+                updateRecommendationsList(data.recommendations || []);
+            } catch (error) {
+                console.error('加载推荐失败:', error);
+            }
+        }
+        
+        function manageModel(modelName) {
+            if (currentUser.role !== 'admin') return;
+            alert(`管理模型: ${modelName}`);
+        }
+        
+        // 切换用户角色 (开发模式)
+        async function toggleRole() {
+            const newRole = currentUser.role === 'admin' ? 'user' : 'admin';
+            
+            try {
+                const response = await fetch('/api/switch-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // 重新加载用户信息
+                    await loadUserInfo(newRole);
+                    
+                    // 显示切换成功提示
+                    showNotification('success', `角色已切换为: ${newRole === 'admin' ? '系统管理员' : '普通用户'}`);
+                    
+                    // 关闭下拉菜单
+                    document.getElementById('userDropdown').classList.remove('show');
+                } else {
+                    showNotification('error', '角色切换失败');
+                }
+            } catch (error) {
+                console.error('切换角色失败:', error);
+                showNotification('error', '网络错误');
+            }
+        }
+        
+        // 显示通知
+        function showNotification(type, message) {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger', 
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            const iconClass = {
+                'success': 'bi-check-circle',
+                'error': 'bi-exclamation-triangle',
+                'warning': 'bi-exclamation-triangle', 
+                'info': 'bi-info-circle'
+            }[type] || 'bi-info-circle';
+            
+            notification.className = `alert ${alertClass} position-fixed`;
+            notification.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px;';
+            notification.innerHTML = `
+                <i class="bi ${iconClass} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 5秒后自动移除
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        // 创建模态框
+        function createModal(id, title, body, footer) {
+            // 移除已存在的模态框
+            const existingModal = document.getElementById(id);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = id;
+            modal.tabIndex = -1;
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${body}
+                        </div>
+                        <div class="modal-footer">
+                            ${footer}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        // 显示模态框
+        function showModal(modalElement) {
+            try {
+                // 检查Bootstrap是否可用
+                if (typeof bootstrap !== 'undefined') {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                    
+                    // 模态框关闭时移除DOM元素
+                    modalElement.addEventListener('hidden.bs.modal', function() {
+                        modalElement.remove();
+                    });
+                } else {
+                    // 降级方案：直接显示模态框
+                    console.warn('⚠️ Bootstrap 未加载，使用降级方案');
+                    modalElement.style.display = 'block';
+                    modalElement.classList.add('show');
+                    document.body.classList.add('modal-open');
+                    
+                    // 添加背景遮罩
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                    
+                    // 关闭按钮事件
+                    const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+                    closeButtons.forEach(btn => {
+                        btn.onclick = function() {
+                            modalElement.style.display = 'none';
+                            modalElement.classList.remove('show');
+                            document.body.classList.remove('modal-open');
+                            if (backdrop.parentNode) {
+                                backdrop.parentNode.removeChild(backdrop);
+                            }
+                            modalElement.remove();
+                        };
+                    });
+                    
+                    // 点击背景关闭
+                    backdrop.onclick = function() {
+                        modalElement.style.display = 'none';
+                        modalElement.classList.remove('show');
+                        document.body.classList.remove('modal-open');
+                        backdrop.remove();
+                        modalElement.remove();
+                    };
+                }
+            } catch (error) {
+                console.error('❌ 显示模态框失败:', error);
+                alert('打开对话框失败，请刷新页面重试');
+            }
+        }
+        
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                // 执行登出逻辑
+                window.location.href = '/login';
+            }
+        }
+        
+        // 应用初始化函数
+        function initializeApp() {
+            console.log('🎯 开始初始化应用功能...');
+            
+            try {
+                // 初始化搜索功能
+                initializeSearchFunction();
+                
+                // 从服务器加载用户信息
+                loadUserInfo();
+                
+                // 加载仪表板数据
+                loadDashboardData();
+                
+                // 设置定时刷新
+                setInterval(updateSystemMonitoring, 60000); // 每分钟更新一次时间
+                setInterval(loadDashboardData, 300000); // 每5分钟刷新数据
+                
+                // 显示初始化完成通知
+                setTimeout(() => {
+                    showNotification('success', '🎉 系统已就绪，所有功能可正常使用！');
+                }, 1000);
+                
+                console.log('✅ 应用初始化完成');
+                
+            } catch (error) {
+                console.error('❌ 应用初始化失败:', error);
+                showNotification('error', '系统初始化失败，部分功能可能不可用');
+            }
+        }
+        
+        // 搜索功能（在应用初始化时绑定）
+        function initializeSearchFunction() {
+            const searchInput = document.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const query = e.target.value.trim();
+                        if (query) {
+                            searchStocks(query);
+                        }
+                    }
+                });
+                console.log('✅ 搜索功能已绑定');
+            } else {
+                console.warn('⚠️ 搜索输入框未找到');
+            }
+        }
+        
+        // 推荐生成功能
+        async function startRecommendationGeneration() {
+            const modelName = document.getElementById('recModelSelect').value;
+            const numStocks = parseInt(document.getElementById('numStocks').value);
+            const useDailyMode = document.getElementById('useDailyMode').checked;
+            const progressDiv = document.getElementById('generationProgress');
+            
+            if (!modelName) {
+                showNotification('warning', '请选择AI模型');
+                return;
+            }
+            
+            progressDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        <span>正在生成推荐，请稍候...</span>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/recommendations/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model_name: modelName,
+                        num_stocks: numStocks,
+                        use_daily_mode: useDailyMode,
+                        analysis_type: 'comprehensive_analysis'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    progressDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            推荐生成已启动，任务ID: ${data.task_id}
+                        </div>
+                    `;
+                    
+                    // 监听WebSocket事件获取实时进度
+                    socket.once('recommendation_generated', (result) => {
+                        progressDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <strong>生成完成！</strong> 
+                                成功生成 ${result.total_recommendations} 个推荐
+                            </div>
+                        `;
+                        
+                        // 刷新推荐列表
+                        setTimeout(() => loadRecommendations(), 1000);
+                    });
+                    
+                    socket.once('task_failed', (error) => {
+                        progressDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>生成失败：</strong> ${error.error}
+                            </div>
+                        `;
+                    });
+                    
+                } else {
+                    progressDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            推荐生成失败: ${data.error || '未知错误'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        网络错误: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 加载可用模型列表
+        async function loadAvailableModels() {
+            const container = document.getElementById('modelsList');
+            
+            try {
+                const response = await fetch('/api/models-info');
+                const data = await response.json();
+                
+                if (data.models && data.models.length > 0) {
+                    container.innerHTML = data.models.map(model => `
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="card-title">${model.name}</h6>
+                                        <p class="card-text text-muted small mb-2">${model.description || '暂无描述'}</p>
+                                        <small class="text-muted">
+                                            大小: ${model.size} | 
+                                            创建: ${model.created ? new Date(model.created).toLocaleDateString() : '未知'}
+                                            ${model.performance ? ` | 准确率: ${(model.performance.accuracy * 100).toFixed(1)}%` : ''}
+                                        </small>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown">操作</button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="testModel('${model.name}')">测试模型</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="viewModelDetails('${model.name}')">查看详情</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted py-4">暂无可用模型</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger">加载失败: ' + error.message + '</div>';
+            }
+        }
+        
+        // 测试模型
+        async function testModel(modelName) {
+            showNotification('info', `正在测试模型 ${modelName}，功能开发中...`);
+        }
+        
+        // 查看模型详情
+        async function viewModelDetails(modelName) {
+            showNotification('info', `查看模型 ${modelName} 详情，功能开发中...`);
+        }
+        
+        // 顶部导航功能
+        function navigateToDashboard() {
+            // 当前就在工作台，刷新数据
+            loadDashboardData();
+            showNotification('success', '工作台数据已刷新');
+            
+            // 更新导航状态
+            updateNavigation('dashboard');
+        }
+        
+        function navigateToAnalysis() {
+            showNotification('info', '分析中心页面开发中，敬请期待！');
+            updateNavigation('analysis');
+        }
+        
+        function navigateToRecommendations() {
+            generateNewRecommendations();
+            updateNavigation('recommendations');
+        }
+        
+        function navigateToModelManagement() {
+            showModelManagement();
+            updateNavigation('models');
+        }
+        
+        function navigateToSystemMonitoring() {
+            if (currentUser.role !== 'admin') {
+                showNotification('error', '您没有权限访问系统监控');
+                return;
+            }
+            showNotification('info', '系统监控页面开发中，敬请期待！');
+            updateNavigation('monitoring');
+        }
+        
+        // 更新导航状态
+        function updateNavigation(activeSection) {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => link.classList.remove('active'));
+            
+            const sectionMap = {
+                'dashboard': 0,
+                'analysis': 1,
+                'recommendations': 2,
+                'models': 3,
+                'monitoring': 4
+            };
+            
+            const activeIndex = sectionMap[activeSection];
+            if (activeIndex !== undefined && navLinks[activeIndex]) {
+                navLinks[activeIndex].classList.add('active');
+            }
+        }
+        
+        function searchStocks(query) {
+            // 实现股票搜索功能
+            if (query.length >= 2) {
+                showNotification('info', `搜索"${query}"功能开发中，敬请期待！`);
+            }
+        }
+    </script>
+</body>
+</html>

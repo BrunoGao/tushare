@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript 调试页面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>JavaScript 功能测试</h1>
+        
+        <div class="alert alert-info">
+            <h5>调试信息</h5>
+            <div id="debug-info">
+                <p>jQuery 可用: <span id="jquery-status">检查中...</span></p>
+                <p>Bootstrap 可用: <span id="bootstrap-status">检查中...</span></p>
+                <p>Socket.IO 可用: <span id="socketio-status">检查中...</span></p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h3>功能测试按钮</h3>
+                <button class="btn btn-primary mb-2" onclick="testBasicFunction()">测试基本函数</button><br>
+                <button class="btn btn-success mb-2" onclick="testNotification()">测试通知</button><br>
+                <button class="btn btn-warning mb-2" onclick="testModal()">测试模态框</button><br>
+                <button class="btn btn-info mb-2" onclick="testAPICall()">测试API调用</button><br>
+                <button class="btn btn-secondary mb-2" onclick="testSocketIO()">测试Socket.IO</button><br>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>结果输出</h3>
+                <div id="test-results" style="background: #f8f9fa; padding: 15px; border-radius: 5px; min-height: 200px;">
+                    等待测试结果...
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="/" class="btn btn-outline-primary">返回主页</a>
+        </div>
+    </div>
+
+    <!-- JavaScript 依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <script>
+        let testResults = document.getElementById('test-results');
+        
+        // 页面加载时检查依赖
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查jQuery
+            document.getElementById('jquery-status').textContent = 
+                typeof $ !== 'undefined' ? '✅ 可用' : '❌ 不可用';
+            
+            // 检查Bootstrap
+            document.getElementById('bootstrap-status').textContent = 
+                typeof bootstrap !== 'undefined' ? '✅ 可用' : '❌ 不可用';
+            
+            // 检查Socket.IO
+            document.getElementById('socketio-status').textContent = 
+                typeof io !== 'undefined' ? '✅ 可用' : '❌ 不可用';
+            
+            logResult('✅ 页面依赖检查完成');
+        });
+        
+        function logResult(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            testResults.scrollTop = testResults.scrollHeight;
+        }
+        
+        function testBasicFunction() {
+            try {
+                logResult('🧪 测试基本JavaScript函数...');
+                let test = "Hello World";
+                logResult('✅ 基本函数测试成功: ' + test);
+            } catch (error) {
+                logResult('❌ 基本函数测试失败: ' + error.message);
+            }
+        }
+        
+        function testNotification() {
+            try {
+                logResult('🔔 测试通知功能...');
+                showNotification('success', '这是一个测试通知');
+                logResult('✅ 通知功能测试成功');
+            } catch (error) {
+                logResult('❌ 通知功能测试失败: ' + error.message);
+            }
+        }
+        
+        function testModal() {
+            try {
+                logResult('📱 测试模态框功能...');
+                const modal = createModal('testModal', '测试模态框', '这是一个测试模态框', 
+                    '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>');
+                showModal(modal);
+                logResult('✅ 模态框功能测试成功');
+            } catch (error) {
+                logResult('❌ 模态框功能测试失败: ' + error.message);
+            }
+        }
+        
+        async function testAPICall() {
+            try {
+                logResult('🌐 测试API调用...');
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                logResult('✅ API调用成功: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                logResult('❌ API调用失败: ' + error.message);
+            }
+        }
+        
+        function testSocketIO() {
+            try {
+                logResult('🔗 测试Socket.IO连接...');
+                if (typeof io !== 'undefined') {
+                    const testSocket = io();
+                    testSocket.on('connect', function() {
+                        logResult('✅ Socket.IO连接成功');
+                    });
+                    testSocket.on('connect_error', function(error) {
+                        logResult('❌ Socket.IO连接失败: ' + error);
+                    });
+                } else {
+                    logResult('❌ Socket.IO不可用');
+                }
+            } catch (error) {
+                logResult('❌ Socket.IO测试失败: ' + error.message);
+            }
+        }
+        
+        // 通知函数
+        function showNotification(type, message) {
+            const notification = document.createElement('div');
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger', 
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            notification.className = `alert ${alertClass} position-fixed`;
+            notification.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `${message}`;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+        
+        // 模态框函数
+        function createModal(id, title, body, footer) {
+            const existingModal = document.getElementById(id);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = id;
+            modal.tabIndex = -1;
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">${body}</div>
+                        <div class="modal-footer">${footer}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        function showModal(modalElement) {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+            
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                modalElement.remove();
+            });
+        }
+    </script>
+</body>
+</html>
