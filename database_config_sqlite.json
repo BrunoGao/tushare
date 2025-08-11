@@ -1,0 +1,35 @@
+{
+  "database": {
+    "type": "sqlite",
+    "database": "data/ljwx-stock.db"
+  },
+  "tushare_token": "e43b6eab95ac0d2d9de22f6ca3b1b4ef3483650893794569337dc973",
+  "cache": {
+    "memory_cache": {
+      "enabled": true,
+      "max_size": 1000,
+      "default_ttl": 3600
+    },
+    "redis_cache": {
+      "enabled": false,
+      "host": "localhost",
+      "port": 6379,
+      "db": 0,
+      "password": null,
+      "default_ttl": 3600
+    }
+  },
+  "scheduler": {
+    "timezone": "Asia/Shanghai",
+    "enabled": true
+  },
+  "monitoring": {
+    "enabled": true,
+    "max_history": 1000
+  },
+  "system": {
+    "log_level": "INFO",
+    "max_concurrent_tasks": 5,
+    "data_retention_days": 90
+  }
+}

@@ -20,6 +20,9 @@ class StrategyType(Enum):
     FUNDAMENTAL = "fundamental"  # 基本面策略
     QUANTITATIVE = "quantitative"  # 量化策略
     HYBRID = "hybrid"  # 混合策略
+    SECTOR_ROTATION = "sector_rotation"  # 行业轮动策略
+    EVENT_DRIVEN = "event_driven"  # 事件驱动策略
+    PAIRS_TRADING = "pairs_trading"  # 配对交易策略
 
 class SignalType(Enum):
     """信号类型"""
@@ -35,6 +38,13 @@ class IndicatorType(Enum):
     BOLLINGER = "bollinger"  # 布林带
     KDJ = "kdj"  # KDJ
     VOLUME = "volume"  # 成交量
+    ATR = "atr"  # 真实波动幅度
+    CCI = "cci"  # 商品通道指数
+    WILLIAMS_R = "williams_r"  # 威廉指标
+    STOCH = "stoch"  # 随机指标
+    OBV = "obv"  # 能量潮
+    ADX = "adx"  # 平均趋向指数
+    VWAP = "vwap"  # 成交量加权平均价
     CUSTOM = "custom"  # 自定义
 
 class ConditionOperator(Enum):
@@ -379,90 +389,106 @@ class StrategyDatabase:
         """字典转回测结果对象"""
         return BacktestResult(**data)
 
-# 预定义策略模板
-STRATEGY_TEMPLATES = {
-    "ma_crossover": {
-        "name": "双均线交叉策略",
-        "description": "基于短期和长期移动平均线交叉的经典策略",
-        "strategy_type": StrategyType.TECHNICAL.value,
-        "buy_rules": [
-            StrategyRule(
-                name="金叉买入",
-                conditions=[
-                    TradingCondition(
-                        indicator_type=IndicatorType.MA.value,
-                        indicator_params={"period": 5},
-                        operator=ConditionOperator.CROSS_UP.value,
-                        threshold=20,  # 与20日均线比较
-                        description="5日均线上穿20日均线"
-                    )
-                ],
-                logic_operator="AND",
-                signal_type=SignalType.BUY.value,
-                weight=1.0
-            )
-        ],
-        "sell_rules": [
-            StrategyRule(
-                name="死叉卖出",
-                conditions=[
-                    TradingCondition(
-                        indicator_type=IndicatorType.MA.value,
-                        indicator_params={"period": 5},
-                        operator=ConditionOperator.CROSS_DOWN.value,
-                        threshold=20,
-                        description="5日均线下穿20日均线"
-                    )
-                ],
-                logic_operator="AND",
-                signal_type=SignalType.SELL.value,
-                weight=1.0
-            )
-        ],
-        "tags": ["技术分析", "均线", "经典策略"]
-    },
-    
-    "rsi_oversold": {
-        "name": "RSI超卖策略",
-        "description": "基于RSI指标的超卖反弹策略",
-        "strategy_type": StrategyType.TECHNICAL.value,
-        "buy_rules": [
-            StrategyRule(
-                name="RSI超卖买入",
-                conditions=[
-                    TradingCondition(
-                        indicator_type=IndicatorType.RSI.value,
-                        indicator_params={"period": 14},
-                        operator=ConditionOperator.LT.value,
-                        threshold=30,
-                        description="RSI小于30"
-                    )
-                ],
-                logic_operator="AND",
-                signal_type=SignalType.BUY.value,
-                weight=1.0
-            )
-        ],
-        "sell_rules": [
-            StrategyRule(
-                name="RSI超买卖出",
-                conditions=[
-                    TradingCondition(
-                        indicator_type=IndicatorType.RSI.value,
-                        indicator_params={"period": 14},
-                        operator=ConditionOperator.GT.value,
-                        threshold=70,
-                        description="RSI大于70"
-                    )
-                ],
-                logic_operator="AND",
-                signal_type=SignalType.SELL.value,
-                weight=1.0
-            )
-        ],
-        "tags": ["技术分析", "RSI", "超卖反弹"]
+# 预定义策略模板 - 导入市场主流策略
+# 从单独的策略文件导入所有主流策略
+try:
+    from .market_mainstream_strategies import (
+        MAINSTREAM_STRATEGIES, 
+        STRATEGY_RISK_LEVELS, 
+        MARKET_ENVIRONMENT_STRATEGIES,
+        get_strategies_by_risk_level,
+        get_strategies_by_market_environment,
+        get_strategy_template,
+        get_all_strategy_ids,
+        get_strategies_by_type
+    )
+    # 合并策略模板
+    STRATEGY_TEMPLATES = MAINSTREAM_STRATEGIES.copy()
+except ImportError:
+    # 如果导入失败，使用基础策略模板
+    STRATEGY_TEMPLATES = {
+        "ma_crossover": {
+            "name": "双均线交叉策略",
+            "description": "基于短期和长期移动平均线交叉的经典策略",
+            "strategy_type": StrategyType.TECHNICAL.value,
+            "buy_rules": [
+                StrategyRule(
+                    name="金叉买入",
+                    conditions=[
+                        TradingCondition(
+                            indicator_type=IndicatorType.MA.value,
+                            indicator_params={"period": 5},
+                            operator=ConditionOperator.CROSS_UP.value,
+                            threshold=20,
+                            description="5日均线上穿20日均线"
+                        )
+                    ],
+                    logic_operator="AND",
+                    signal_type=SignalType.BUY.value,
+                    weight=1.0
+                )
+            ],
+            "sell_rules": [
+                StrategyRule(
+                    name="死叉卖出",
+                    conditions=[
+                        TradingCondition(
+                            indicator_type=IndicatorType.MA.value,
+                            indicator_params={"period": 5},
+                            operator=ConditionOperator.CROSS_DOWN.value,
+                            threshold=20,
+                            description="5日均线下穿20日均线"
+                        )
+                    ],
+                    logic_operator="AND",
+                    signal_type=SignalType.SELL.value,
+                    weight=1.0
+                )
+            ],
+            "tags": ["技术分析", "均线", "经典策略"]
+        },
+        
+        "rsi_oversold": {
+            "name": "RSI超卖策略",
+            "description": "基于RSI指标的超卖反弹策略",
+            "strategy_type": StrategyType.TECHNICAL.value,
+            "buy_rules": [
+                StrategyRule(
+                    name="RSI超卖买入",
+                    conditions=[
+                        TradingCondition(
+                            indicator_type=IndicatorType.RSI.value,
+                            indicator_params={"period": 14},
+                            operator=ConditionOperator.LT.value,
+                            threshold=30,
+                            description="RSI小于30"
+                        )
+                    ],
+                    logic_operator="AND",
+                    signal_type=SignalType.BUY.value,
+                    weight=1.0
+                )
+            ],
+            "sell_rules": [
+                StrategyRule(
+                    name="RSI超买卖出",
+                    conditions=[
+                        TradingCondition(
+                            indicator_type=IndicatorType.RSI.value,
+                            indicator_params={"period": 14},
+                            operator=ConditionOperator.GT.value,
+                            threshold=70,
+                            description="RSI大于70"
+                        )
+                    ],
+                    logic_operator="AND",
+                    signal_type=SignalType.SELL.value,
+                    weight=1.0
+                )
+            ],
+            "tags": ["技术分析", "RSI", "超卖反弹"]
+        }
     }
-}
 
 
 class StrategyManager:

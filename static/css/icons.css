@@ -26,6 +26,39 @@
 .icon-warning:before { content: "⚠️"; }
 .icon-info:before { content: "ℹ️"; }
 
+/* 数据准备相关图标 */
+.icon-database:before { content: "🗄️"; }
+.icon-file:before { content: "📄"; }
+
+/* 模型训练相关图标 */
+.icon-flask:before { content: "🧪"; }
+.icon-sliders:before { content: "🎛️"; }
+.icon-archive:before { content: "📦"; }
+.icon-lightbulb:before { content: "💡"; }
+
+/* 模型评估相关图标 */
+.icon-forward:before { content: "⏭️"; }
+.icon-shield:before { content: "🛡️"; }
+.icon-balance:before { content: "⚖️"; }
+
+/* 系统管理相关图标 */
+.icon-activity:before { content: "📊"; }
+.icon-award:before { content: "🏆"; }
+.icon-clock:before { content: "⏰"; }
+.icon-settings:before { content: "⚙️"; }
+.icon-repeat:before { content: "🔁"; }
+.icon-trending-up:before { content: "📈"; }
+.icon-trophy:before { content: "🏆"; }
+.icon-alert-triangle:before { content: "⚠️"; }
+
+/* 通用功能图标 */
+.icon-play:before { content: "▶️"; }
+.icon-eye:before { content: "👁️"; }
+.icon-download:before { content: "⬇️"; }
+.icon-upload:before { content: "⬆️"; }
+.icon-help:before { content: "❓"; }
+.icon-zap:before { content: "⚡"; }
+
 /* 如果需要单色图标，可以使用这些简单的CSS图标 */
 .icon-simple {
     display: inline-block;

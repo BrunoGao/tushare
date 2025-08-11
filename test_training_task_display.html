@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练任务详情测试</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --error-color: #dc2626;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close {
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .detail-section h3 {
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-item label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .info-item span {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .progress-section {
+            margin-bottom: 15px;
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .metrics-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        
+        .chart-placeholder {
+            height: 200px;
+            background: linear-gradient(45deg, transparent 25%, rgba(0,0,0,0.1) 25%, rgba(0,0,0,0.1) 50%, transparent 50%, transparent 75%, rgba(0,0,0,0.1) 75%);
+            background-size: 20px 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .chart-info {
+            text-align: center;
+            color: var(--text-primary);
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .chart-summary {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>训练任务详情测试页面</h1>
+        <button class="btn" onclick="showTaskDetails()">显示训练任务详情</button>
+    </div>
+
+    <!-- 训练任务详情模态框 -->
+    <div id="trainingTaskDetailModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>训练任务详情</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="taskDetailContent">
+                    <!-- 任务基本信息 -->
+                    <div class="detail-section">
+                        <h3>基本信息</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>任务名称</label>
+                                <span id="detailTaskName">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>状态</label>
+                                <span id="detailTaskStatus">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>算法</label>
+                                <span id="detailTaskAlgorithm">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>进度</label>
+                                <span id="detailTaskProgress">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>数据集</label>
+                                <span id="detailTaskDataset">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>关联策略</label>
+                                <span id="detailTaskStrategy">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>创建时间</label>
+                                <span id="detailTaskCreated">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>开始时间</label>
+                                <span id="detailTaskStarted">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>完成时间</label>
+                                <span id="detailTaskCompleted">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>训练时长</label>
+                                <span id="detailTrainingTime">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练配置 -->
+                    <div class="detail-section">
+                        <h3>训练配置</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>验证方法</label>
+                                <span id="detailValidationMethod">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>超参数优化</label>
+                                <span id="detailHyperopt">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>测试集比例</label>
+                                <span id="detailTestSize">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>随机种子</label>
+                                <span id="detailRandomState">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练进度 -->
+                    <div class="detail-section">
+                        <h3>训练进度</h3>
+                        <div class="progress-section">
+                            <div class="progress-info">
+                                <span>总体进度</span>
+                                <span id="detailProgressText">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="detailProgressBar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 当前指标 -->
+                    <div class="detail-section">
+                        <h3>训练指标</h3>
+                        <div class="metrics-display">
+                            <div class="metric-card">
+                                <div class="metric-label">最终损失</div>
+                                <div class="metric-value" id="detailMetricLoss">-</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">最终准确率</div>
+                                <div class="metric-value" id="detailMetricAccuracy">-</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">总轮次</div>
+                                <div class="metric-value" id="detailMetricEpoch">-</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">训练时长</div>
+                                <div class="metric-value" id="detailMetricTrainingTime">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练历史图表 -->
+                    <div class="detail-section">
+                        <h3>训练历史</h3>
+                        <div class="chart-container">
+                            <div class="chart-placeholder">
+                                <div class="chart-info">
+                                    <div class="chart-title">损失和准确率变化</div>
+                                    <div class="chart-summary">
+                                        训练完成，最终损失: <span id="finalLossDisplay">-</span>，最终准确率: <span id="finalAccuracyDisplay">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟您提供的API数据
+        const mockTaskData = {
+            "algorithm": "lightgbm",
+            "completed_at": "2025-08-06T15:02:53.297686",
+            "config": {
+                "enable_hyperopt": true,
+                "random_state": 42,
+                "test_size": 0.2,
+                "validation_method": "holdout"
+            },
+            "created_at": "2025-08-06T15:02:29.108485",
+            "current_metrics": {
+                "final_accuracy": 0.9351,
+                "final_loss": 0.0362,
+                "total_epochs": 20,
+                "training_time": 1326
+            },
+            "dataset_id": "strategy_strategy_demo_1_1754458870",
+            "error_message": null,
+            "id": "c9dee7a0-30bf-4610-b08a-1a381176118d",
+            "name": "沪深300均值回归_lightgbm_2025-08-06",
+            "progress": 100,
+            "started_at": "2025-08-06T15:02:30.922216",
+            "status": "completed",
+            "updated_at": "2025-08-06T15:02:53.297692"
+        };
+
+        function showTaskDetails() {
+            displayTrainingTaskDetails(mockTaskData);
+        }
+
+        function closeModal() {
+            document.getElementById('trainingTaskDetailModal').style.display = 'none';
+        }
+
+        function getStatusBadge(status) {
+            const statusMap = {
+                'completed': '<span class="status-badge status-completed">已完成</span>',
+                'training': '<span class="status-badge status-running">训练中</span>',
+                'pending': '<span class="status-badge status-pending">等待中</span>',
+                'failed': '<span class="status-badge status-failed">失败</span>'
+            };
+            return statusMap[status] || status;
+        }
+
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '-';
+            try {
+                const date = new Date(dateTimeStr);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            } catch (e) {
+                return dateTimeStr;
+            }
+        }
+
+        function displayTrainingTaskDetails(task) {
+            // 填充基本信息
+            document.getElementById('detailTaskName').textContent = task.name || '-';
+            document.getElementById('detailTaskStatus').innerHTML = getStatusBadge(task.status);
+            document.getElementById('detailTaskAlgorithm').textContent = task.algorithm || '-';
+            document.getElementById('detailTaskProgress').textContent = `${task.progress || 0}%`;
+            document.getElementById('detailTaskDataset').textContent = task.dataset_name || task.dataset_id || '-';
+            document.getElementById('detailTaskStrategy').textContent = task.strategy_name || '未知策略';
+            document.getElementById('detailTaskCreated').textContent = formatDateTime(task.created_at);
+            document.getElementById('detailTaskStarted').textContent = formatDateTime(task.started_at);
+            
+            // 填充训练配置
+            const config = task.config || {};
+            document.getElementById('detailValidationMethod').textContent = config.validation_method || '-';
+            document.getElementById('detailHyperopt').textContent = config.enable_hyperopt ? '启用' : '禁用';
+            document.getElementById('detailTestSize').textContent = config.test_size ? `${(config.test_size * 100).toFixed(1)}%` : '-';
+            document.getElementById('detailRandomState').textContent = config.random_state || '-';
+            
+            // 更新进度条
+            const progress = task.progress || 0;
+            document.getElementById('detailProgressText').textContent = `${progress}%`;
+            document.getElementById('detailProgressBar').style.width = `${progress}%`;
+            
+            // 填充训练指标
+            const metrics = task.current_metrics || {};
+            document.getElementById('detailMetricLoss').textContent = 
+                metrics.final_loss ? metrics.final_loss.toFixed(4) :
+                metrics.loss ? metrics.loss.toFixed(4) : '-';
+            
+            document.getElementById('detailMetricAccuracy').textContent = 
+                metrics.final_accuracy ? `${(metrics.final_accuracy * 100).toFixed(1)}%` :
+                metrics.accuracy ? `${(metrics.accuracy * 100).toFixed(1)}%` : '-';
+            
+            document.getElementById('detailMetricEpoch').textContent = 
+                metrics.total_epochs || metrics.epoch || '-';
+            
+            // 添加训练时长显示到指标卡片
+            const trainingTimeElement = document.getElementById('detailMetricTrainingTime');
+            if (trainingTimeElement && metrics.training_time) {
+                const hours = Math.floor(metrics.training_time / 3600);
+                const minutes = Math.floor((metrics.training_time % 3600) / 60);
+                const seconds = metrics.training_time % 60;
+                trainingTimeElement.textContent = `${hours}h ${minutes}m ${seconds}s`;
+            } else if (trainingTimeElement) {
+                trainingTimeElement.textContent = '-';
+            }
+            
+            // 更新单独的训练时长显示
+            const detailTrainingTimeElement = document.getElementById('detailTrainingTime');
+            if (detailTrainingTimeElement && metrics.training_time) {
+                const hours = Math.floor(metrics.training_time / 3600);
+                const minutes = Math.floor((metrics.training_time % 3600) / 60);
+                const seconds = metrics.training_time % 60;
+                detailTrainingTimeElement.textContent = `${hours}h ${minutes}m ${seconds}s`;
+            } else if (detailTrainingTimeElement) {
+                detailTrainingTimeElement.textContent = '-';
+            }
+
+            // 添加完成时间显示
+            if (task.status === 'completed' && task.completed_at) {
+                const completedAtElement = document.getElementById('detailTaskCompleted');
+                if (completedAtElement) {
+                    completedAtElement.textContent = formatDateTime(task.completed_at);
+                }
+            }
+            
+            // 更新图表区域的数据显示
+            const finalLossDisplay = document.getElementById('finalLossDisplay');
+            const finalAccuracyDisplay = document.getElementById('finalAccuracyDisplay');
+            
+            if (finalLossDisplay) {
+                finalLossDisplay.textContent = metrics.final_loss ? metrics.final_loss.toFixed(4) : '-';
+            }
+            
+            if (finalAccuracyDisplay) {
+                finalAccuracyDisplay.textContent = metrics.final_accuracy ? `${(metrics.final_accuracy * 100).toFixed(1)}%` : '-';
+            }
+            
+            // 显示模态框
+            document.getElementById('trainingTaskDetailModal').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
