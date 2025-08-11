@@ -4,8 +4,8 @@
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "your_password",
-    "database": "ljwx-stock"
+    "password": "123456",
+    "database": "ljwx_stock"
   },
   "tushare_token": "e43b6eab95ac0d2d9de22f6ca3b1b4ef3483650893794569337dc973",
   "cache": {

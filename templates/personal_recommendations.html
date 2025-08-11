@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LJWX Stock | 个人股票推荐</title>
+    
+    <style>
+        /* 专业金融配色方案 */
+        :root {
+            --primary: #1890ff;
+            --primary-hover: #40a9ff;
+            --primary-light: rgba(24, 144, 255, 0.1);
+            --success: #00b96b;
+            --warning: #fa8c16;
+            --error: #ff4d4f;
+            --text-primary: #262626;
+            --text-secondary: #595959;
+            --text-tertiary: #8c8c8c;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-container: #f0f2f5;
+            --border-color: #f0f0f0;
+            --box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.12);
+            --transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC';
+            background: var(--bg-container);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: var(--bg-primary);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--box-shadow);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .navbar-nav {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-item {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        /* 主容器 */
+        .main-container {
+            margin-top: 64px;
+            padding: 24px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* 页面头部 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: var(--bg-primary);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            color: white;
+        }
+
+        /* 推荐筛选器 */
+        .recommendation-filters {
+            background: var(--bg-primary);
+            padding: 20px 24px;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .filter-select {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        /* 推荐统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .stat-value.positive {
+            color: var(--success);
+        }
+
+        .stat-value.negative {
+            color: var(--error);
+        }
+
+        .stat-value.neutral {
+            color: var(--primary);
+        }
+
+        /* 推荐列表 */
+        .recommendations-container {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+        }
+
+        .recommendations-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recommendations-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .recommendations-list {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+
+        .recommendation-item {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: var(--transition);
+        }
+
+        .recommendation-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .recommendation-item:last-child {
+            border-bottom: none;
+        }
+
+        /* 股票基本信息 */
+        .stock-info {
+            flex: 2;
+            min-width: 200px;
+        }
+
+        .stock-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stock-code {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .stock-sector {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        /* 推荐信息 */
+        .recommendation-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .recommendation-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .recommendation-type.buy {
+            background: rgba(0, 185, 107, 0.1);
+            color: var(--success);
+        }
+
+        .recommendation-type.sell {
+            background: rgba(255, 77, 79, 0.1);
+            color: var(--error);
+        }
+
+        .recommendation-type.hold {
+            background: rgba(250, 140, 22, 0.1);
+            color: var(--warning);
+        }
+
+        .confidence-score {
+            margin-top: 4px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* 价格信息 */
+        .price-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .current-price {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .price-change {
+            font-size: 14px;
+        }
+
+        .price-change.positive {
+            color: var(--success);
+        }
+
+        .price-change.negative {
+            color: var(--error);
+        }
+
+        /* 目标价格 */
+        .target-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .target-price {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .potential-return {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* 风险等级 */
+        .risk-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .risk-level {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .risk-level.low {
+            background: rgba(0, 185, 107, 0.1);
+            color: var(--success);
+        }
+
+        .risk-level.medium {
+            background: rgba(250, 140, 22, 0.1);
+            color: var(--warning);
+        }
+
+        .risk-level.high {
+            background: rgba(255, 77, 79, 0.1);
+            color: var(--error);
+        }
+
+        /* 操作按钮 */
+        .recommendation-actions {
+            flex: 0 0 auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+
+        /* 详情模态框 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-dialog {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 16px;
+            }
+
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .recommendation-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .recommendation-item {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .stock-info,
+            .recommendation-info,
+            .price-info,
+            .target-info,
+            .risk-info {
+                flex: none;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <a href="/dashboard" class="navbar-brand">LJWX Stock</a>
+        <div class="navbar-nav">
+            <a href="/dashboard" class="nav-item">工作台</a>
+            <a href="/recommendations" class="nav-item active">个人推荐</a>
+            <a href="/strategies" class="nav-item">投资策略</a>
+            <a href="/portfolio" class="nav-item">投资组合</a>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn btn-primary" onclick="refreshRecommendations()">
+                刷新推荐
+            </button>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 页面头部 -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">🎯 个人股票推荐</h1>
+                <p class="page-subtitle">基于AI大模型的个性化股票推荐系统</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn" onclick="showPersonalizationSettings()">
+                    ⚙️ 个性化设置
+                </button>
+                <button class="btn" onclick="showRecommendationHistory()">
+                    📊 历史记录
+                </button>
+            </div>
+        </div>
+
+        <!-- 推荐统计 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value positive" id="totalRecommendations">0</div>
+                <div class="stat-label">今日推荐</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value positive" id="buyRecommendations">0</div>
+                <div class="stat-label">买入推荐</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value neutral" id="holdRecommendations">0</div>
+                <div class="stat-label">持有推荐</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value positive" id="avgConfidence">0%</div>
+                <div class="stat-label">平均置信度</div>
+            </div>
+        </div>
+
+        <!-- 推荐筛选器 -->
+        <div class="recommendation-filters">
+            <div class="filter-group">
+                <label>推荐类型：</label>
+                <select class="filter-select" id="recommendationTypeFilter" onchange="filterRecommendations()">
+                    <option value="">全部</option>
+                    <option value="buy">买入</option>
+                    <option value="sell">卖出</option>
+                    <option value="hold">持有</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>风险等级：</label>
+                <select class="filter-select" id="riskLevelFilter" onchange="filterRecommendations()">
+                    <option value="">全部</option>
+                    <option value="low">低风险</option>
+                    <option value="medium">中风险</option>
+                    <option value="high">高风险</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>行业板块：</label>
+                <select class="filter-select" id="sectorFilter" onchange="filterRecommendations()">
+                    <option value="">全部</option>
+                    <option value="technology">科技</option>
+                    <option value="finance">金融</option>
+                    <option value="healthcare">医疗</option>
+                    <option value="energy">能源</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>置信度：</label>
+                <select class="filter-select" id="confidenceFilter" onchange="filterRecommendations()">
+                    <option value="">全部</option>
+                    <option value="high">高置信度(≥80%)</option>
+                    <option value="medium">中置信度(60%-80%)</option>
+                    <option value="low">低置信度(<60%)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 推荐列表 -->
+        <div class="recommendations-container">
+            <div class="recommendations-header">
+                <h2 class="recommendations-title">智能推荐列表</h2>
+                <div>
+                    <span id="recommendationsCount">0</span> 条推荐
+                </div>
+            </div>
+            <div class="recommendations-list" id="recommendationsList">
+                <!-- 推荐项目将通过JavaScript动态加载 -->
+                <div class="loading" id="loadingIndicator">
+                    <div class="loading-spinner"></div>
+                    <div>正在生成个性化推荐...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推荐详情模态框 -->
+    <div class="modal" id="recommendationDetailModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalStockName">股票详情</h3>
+                <button class="modal-close" onclick="closeModal('recommendationDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- 详情内容将通过JavaScript动态填充 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let allRecommendations = [];
+        let filteredRecommendations = [];
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecommendations();
+        });
+
+        // 加载推荐数据
+        async function loadRecommendations() {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/mobile/recommendations/intelligent?limit=50');
+                const data = await response.json();
+                
+                if (data.success && data.recommendations) {
+                    allRecommendations = data.recommendations;
+                    filteredRecommendations = [...allRecommendations];
+                    renderRecommendations();
+                    updateStatistics();
+                } else {
+                    showError('加载推荐数据失败');
+                }
+            } catch (error) {
+                console.error('加载推荐失败:', error);
+                showError('网络错误，请稍后重试');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 渲染推荐列表
+        function renderRecommendations() {
+            const container = document.getElementById('recommendationsList');
+            const countElement = document.getElementById('recommendationsCount');
+            
+            countElement.textContent = filteredRecommendations.length;
+            
+            if (filteredRecommendations.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                        <h3 style="margin-bottom: 8px;">暂无推荐</h3>
+                        <p>请调整筛选条件或刷新推荐</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredRecommendations.map(rec => createRecommendationItem(rec)).join('');
+        }
+
+        // 创建推荐项目HTML
+        function createRecommendationItem(rec) {
+            const priceChange = rec.current_price_change || 0;
+            const priceChangePercent = rec.current_price_change_percent || 0;
+            const targetPrice = rec.target_price || rec.current_price * 1.1;
+            const potentialReturn = targetPrice ? ((targetPrice - rec.current_price) / rec.current_price * 100).toFixed(2) : '0.00';
+            
+            return `
+                <div class="recommendation-item" onclick="showRecommendationDetail('${rec.id || rec.ts_code}')">
+                    <div class="stock-info">
+                        <div class="stock-name">${rec.stock_name || rec.name}</div>
+                        <div class="stock-code">${rec.stock_code || rec.ts_code}</div>
+                        <div class="stock-sector">${rec.sector || '其他'}</div>
+                    </div>
+                    
+                    <div class="recommendation-info">
+                        <div class="recommendation-type ${rec.recommendation_type || rec.recommendation}">
+                            ${getRecommendationLabel(rec.recommendation_type || rec.recommendation)}
+                        </div>
+                        <div class="confidence-score">置信度: ${((rec.confidence_score || rec.confidence) * 100).toFixed(0)}%</div>
+                    </div>
+                    
+                    <div class="price-info">
+                        <div class="current-price">¥${(rec.current_price || 0).toFixed(2)}</div>
+                        <div class="price-change ${priceChange >= 0 ? 'positive' : 'negative'}">
+                            ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)} (${priceChangePercent.toFixed(2)}%)
+                        </div>
+                    </div>
+                    
+                    <div class="target-info">
+                        <div class="target-price">目标价: ¥${targetPrice.toFixed(2)}</div>
+                        <div class="potential-return ${potentialReturn >= 0 ? 'positive' : 'negative'}">
+                            潜在收益: ${potentialReturn}%
+                        </div>
+                    </div>
+                    
+                    <div class="risk-info">
+                        <div class="risk-level ${rec.risk_level || 'medium'}">
+                            ${getRiskLevelLabel(rec.risk_level || 'medium')}
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-actions">
+                        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addToWatchlist('${rec.ts_code || rec.stock_code}')">
+                            关注
+                        </button>
+                        <button class="btn btn-sm" onclick="event.stopPropagation(); showRecommendationDetail('${rec.id || rec.ts_code}')">
+                            详情
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 获取推荐类型标签
+        function getRecommendationLabel(type) {
+            const labels = {
+                'buy': '买入',
+                'sell': '卖出', 
+                'hold': '持有',
+                'neutral': '观望'
+            };
+            return labels[type] || type;
+        }
+
+        // 获取风险等级标签
+        function getRiskLevelLabel(level) {
+            const labels = {
+                'low': '低风险',
+                'medium': '中风险',
+                'high': '高风险',
+                '低': '低风险',
+                '中': '中风险',
+                '高': '高风险'
+            };
+            return labels[level] || level;
+        }
+
+        // 更新统计数据
+        function updateStatistics() {
+            const total = allRecommendations.length;
+            const buyCount = allRecommendations.filter(r => (r.recommendation_type || r.recommendation) === 'buy').length;
+            const holdCount = allRecommendations.filter(r => (r.recommendation_type || r.recommendation) === 'hold').length;
+            const avgConfidence = total > 0 ? 
+                (allRecommendations.reduce((sum, r) => sum + (r.confidence_score || r.confidence || 0), 0) / total * 100).toFixed(0) : 0;
+            
+            document.getElementById('totalRecommendations').textContent = total;
+            document.getElementById('buyRecommendations').textContent = buyCount;
+            document.getElementById('holdRecommendations').textContent = holdCount;
+            document.getElementById('avgConfidence').textContent = avgConfidence + '%';
+        }
+
+        // 筛选推荐
+        function filterRecommendations() {
+            const typeFilter = document.getElementById('recommendationTypeFilter').value;
+            const riskFilter = document.getElementById('riskLevelFilter').value;
+            const sectorFilter = document.getElementById('sectorFilter').value;
+            const confidenceFilter = document.getElementById('confidenceFilter').value;
+            
+            filteredRecommendations = allRecommendations.filter(rec => {
+                // 推荐类型筛选
+                if (typeFilter && (rec.recommendation_type || rec.recommendation) !== typeFilter) {
+                    return false;
+                }
+                
+                // 风险等级筛选
+                if (riskFilter && !rec.risk_level?.includes(riskFilter.substring(0, 1))) {
+                    return false;
+                }
+                
+                // 板块筛选
+                if (sectorFilter && !rec.sector?.includes(sectorFilter)) {
+                    return false;
+                }
+                
+                // 置信度筛选
+                if (confidenceFilter) {
+                    const confidence = (rec.confidence_score || rec.confidence || 0) * 100;
+                    if (confidenceFilter === 'high' && confidence < 80) return false;
+                    if (confidenceFilter === 'medium' && (confidence < 60 || confidence >= 80)) return false;
+                    if (confidenceFilter === 'low' && confidence >= 60) return false;
+                }
+                
+                return true;
+            });
+            
+            renderRecommendations();
+        }
+
+        // 刷新推荐
+        async function refreshRecommendations() {
+            await loadRecommendations();
+            showNotification('推荐数据已刷新', 'success');
+        }
+
+        // 显示推荐详情
+        function showRecommendationDetail(id) {
+            const rec = allRecommendations.find(r => (r.id || r.ts_code) === id);
+            if (!rec) return;
+            
+            document.getElementById('modalStockName').textContent = `${rec.stock_name || rec.name} (${rec.stock_code || rec.ts_code})`;
+            
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div style="display: grid; gap: 20px;">
+                    <div>
+                        <h4>推荐信息</h4>
+                        <p><strong>推荐类型：</strong>${getRecommendationLabel(rec.recommendation_type || rec.recommendation)}</p>
+                        <p><strong>置信度：</strong>${((rec.confidence_score || rec.confidence) * 100).toFixed(0)}%</p>
+                        <p><strong>风险等级：</strong>${getRiskLevelLabel(rec.risk_level || 'medium')}</p>
+                    </div>
+                    
+                    <div>
+                        <h4>价格信息</h4>
+                        <p><strong>当前价格：</strong>¥${(rec.current_price || 0).toFixed(2)}</p>
+                        <p><strong>目标价格：</strong>¥${(rec.target_price || rec.current_price * 1.1).toFixed(2)}</p>
+                        <p><strong>止损价格：</strong>¥${(rec.stop_loss || rec.current_price * 0.95).toFixed(2)}</p>
+                    </div>
+                    
+                    <div>
+                        <h4>分析理由</h4>
+                        <p>${rec.reasoning || rec.recommendation_text || '基于技术分析和AI模型综合判断'}</p>
+                    </div>
+                    
+                    <div>
+                        <h4>关键因素</h4>
+                        <ul>
+                            ${(rec.key_factors || ['技术指标良好']).map(factor => `<li>${factor}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            showModal('recommendationDetailModal');
+        }
+
+        // 添加到观察列表
+        function addToWatchlist(stockCode) {
+            // 这里可以调用API添加到用户观察列表
+            showNotification(`已添加 ${stockCode} 到观察列表`, 'success');
+        }
+
+        // 显示个性化设置
+        function showPersonalizationSettings() {
+            // 这里可以打开个性化设置页面
+            showNotification('个性化设置功能开发中', 'info');
+        }
+
+        // 显示历史记录
+        function showRecommendationHistory() {
+            // 这里可以打开历史记录页面
+            showNotification('历史记录功能开发中', 'info');
+        }
+
+        // 工具函数
+        function showLoading(show) {
+            document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function showError(message) {
+            const container = document.getElementById('recommendationsList');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: var(--error);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+                    <h3 style="margin-bottom: 8px;">加载失败</h3>
+                    <p>${message}</p>
+                    <button class="btn btn-primary" onclick="loadRecommendations()" style="margin-top: 16px;">
+                        重新加载
+                    </button>
+                </div>
+            `;
+        }
+
+        function showNotification(message, type = 'info') {
+            // 简单的通知实现
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: var(--bg-primary);
+                padding: 12px 20px;
+                border-radius: 4px;
+                box-shadow: var(--box-shadow);
+                z-index: 3000;
+                border-left: 4px solid var(--${type === 'success' ? 'success' : type === 'error' ? 'error' : 'primary'});
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -553,6 +553,382 @@ MAINSTREAM_STRATEGIES = {
             max_position_size=0.35  # 行业轮动可以更集中
         ),
         "tags": ["混合策略", "行业轮动", "宏观经济", "周期性"]
+    },
+    
+    # ==================== 新增主流策略 ====================
+    
+    "value_investment": {
+        "name": "价值投资策略",
+        "description": "基于巴菲特价值投资理念的长期策略",
+        "strategy_type": StrategyType.FUNDAMENTAL.value,
+        "buy_rules": [
+            StrategyRule(
+                name="低估值买入",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="PE",
+                        indicator_params={},
+                        operator=ConditionOperator.LT.value,
+                        threshold=15,
+                        description="PE小于15倍"
+                    ),
+                    TradingCondition(
+                        indicator_type="PB",
+                        indicator_params={},
+                        operator=ConditionOperator.LT.value,
+                        threshold=1.5,
+                        description="PB小于1.5倍"
+                    ),
+                    TradingCondition(
+                        indicator_type="ROE",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.12,
+                        description="ROE大于12%"
+                    ),
+                    TradingCondition(
+                        indicator_type="DEBT_TO_EQUITY",
+                        indicator_params={},
+                        operator=ConditionOperator.LT.value,
+                        threshold=0.50,
+                        description="资产负债率小于50%"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="高估值卖出",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="PE",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=25,
+                        description="PE大于25倍"
+                    ),
+                    TradingCondition(
+                        indicator_type="PB",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=3.0,
+                        description="PB大于3倍"
+                    )
+                ],
+                logic_operator="OR",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.20,
+            take_profit=0.50,
+            max_position_size=0.30
+        ),
+        "tags": ["基本面分析", "价值投资", "长期持有", "巴菲特"]
+    },
+    
+    "bollinger_bands": {
+        "name": "布林带策略",
+        "description": "基于布林带的超买超卖反转策略",
+        "strategy_type": StrategyType.TECHNICAL.value,
+        "buy_rules": [
+            StrategyRule(
+                name="布林下轨反弹",
+                conditions=[
+                    TradingCondition(
+                        indicator_type=IndicatorType.BOLLINGER.value,
+                        indicator_params={"period": 20, "std": 2},
+                        operator=ConditionOperator.LT.value,
+                        threshold=0.05,  # 价格触及下轨
+                        description="价格触及布林下轨"
+                    ),
+                    TradingCondition(
+                        indicator_type=IndicatorType.RSI.value,
+                        indicator_params={"period": 14},
+                        operator=ConditionOperator.LT.value,
+                        threshold=35,
+                        description="RSI小于35"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="布林上轨压制",
+                conditions=[
+                    TradingCondition(
+                        indicator_type=IndicatorType.BOLLINGER.value,
+                        indicator_params={"period": 20, "std": 2},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.95,  # 价格接近上轨
+                        description="价格接近布林上轨"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.06,
+            take_profit=0.12,
+            max_position_size=0.20
+        ),
+        "tags": ["技术分析", "布林带", "均值回归", "短线"]
+    },
+    
+    "momentum_strategy": {
+        "name": "动量策略",
+        "description": "追涨强势股票的动量投资策略",
+        "strategy_type": StrategyType.QUANTITATIVE.value,
+        "buy_rules": [
+            StrategyRule(
+                name="强势动量买入",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="MOMENTUM",
+                        indicator_params={"period": 20},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.15,  # 20日动量大于15%
+                        description="20日动量大于15%"
+                    ),
+                    TradingCondition(
+                        indicator_type="RELATIVE_STRENGTH",
+                        indicator_params={"period": 60},
+                        operator=ConditionOperator.GT.value,
+                        threshold=80,  # 相对强度排名前20%
+                        description="60日相对强度前20%"
+                    ),
+                    TradingCondition(
+                        indicator_type=IndicatorType.VOLUME.value,
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=1.5,  # 成交量放大1.5倍
+                        description="成交量放大1.5倍"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="动量衰减卖出",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="MOMENTUM",
+                        indicator_params={"period": 10},
+                        operator=ConditionOperator.LT.value,
+                        threshold=-0.05,  # 10日动量小于-5%
+                        description="10日动量小于-5%"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.10,
+            take_profit=0.30,
+            max_position_size=0.20
+        ),
+        "tags": ["量化策略", "动量", "强势股", "追涨"]
+    },
+    
+    "mean_reversion": {
+        "name": "均值回归策略",
+        "description": "基于价格偏离均值后的回归特性",
+        "strategy_type": StrategyType.QUANTITATIVE.value,
+        "buy_rules": [
+            StrategyRule(
+                name="超跌反弹买入",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="PRICE_DEVIATION",
+                        indicator_params={"period": 20, "std": 2},
+                        operator=ConditionOperator.LT.value,
+                        threshold=-2.0,  # 价格偏离均值-2个标准差
+                        description="价格偏离20日均线-2标准差"
+                    ),
+                    TradingCondition(
+                        indicator_type=IndicatorType.RSI.value,
+                        indicator_params={"period": 14},
+                        operator=ConditionOperator.LT.value,
+                        threshold=25,
+                        description="RSI小于25"
+                    ),
+                    TradingCondition(
+                        indicator_type=IndicatorType.WILLIAMS_R.value,
+                        indicator_params={"period": 14},
+                        operator=ConditionOperator.LT.value,
+                        threshold=-80,
+                        description="威廉指标小于-80"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="回归均值卖出",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="PRICE_DEVIATION",
+                        indicator_params={"period": 20, "std": 2},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.0,  # 价格回到均值附近
+                        description="价格回到20日均线附近"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.05,
+            take_profit=0.08,
+            max_position_size=0.15
+        ),
+        "tags": ["量化策略", "均值回归", "超跌反弹", "短线"]
+    },
+    
+    "kdj_strategy": {
+        "name": "KDJ策略",
+        "description": "基于KDJ随机指标的交易策略",
+        "strategy_type": StrategyType.TECHNICAL.value,
+        "buy_rules": [
+            StrategyRule(
+                name="KDJ金叉买入",
+                conditions=[
+                    TradingCondition(
+                        indicator_type=IndicatorType.KDJ.value,
+                        indicator_params={"period": 9},
+                        operator=ConditionOperator.CROSS_UP.value,
+                        threshold=20,  # K线上穿D线且在20以下
+                        description="KDJ金叉且低位"
+                    ),
+                    TradingCondition(
+                        indicator_type=IndicatorType.KDJ.value,
+                        indicator_params={"period": 9, "type": "J"},
+                        operator=ConditionOperator.LT.value,
+                        threshold=30,
+                        description="J值小于30"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="KDJ死叉卖出",
+                conditions=[
+                    TradingCondition(
+                        indicator_type=IndicatorType.KDJ.value,
+                        indicator_params={"period": 9},
+                        operator=ConditionOperator.CROSS_DOWN.value,
+                        threshold=80,  # K线下穿D线且在80以上
+                        description="KDJ死叉且高位"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.07,
+            take_profit=0.15,
+            max_position_size=0.20
+        ),
+        "tags": ["技术分析", "KDJ", "随机指标", "短线"]
+    },
+    
+    "growth_investment": {
+        "name": "成长投资策略",
+        "description": "投资高成长性公司的长期策略",
+        "strategy_type": StrategyType.FUNDAMENTAL.value,
+        "buy_rules": [
+            StrategyRule(
+                name="高成长买入",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="REVENUE_GROWTH",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.20,  # 营收增长大于20%
+                        description="营收增长大于20%"
+                    ),
+                    TradingCondition(
+                        indicator_type="EPS_GROWTH",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.25,  # EPS增长大于25%
+                        description="EPS增长大于25%"
+                    ),
+                    TradingCondition(
+                        indicator_type="PE",
+                        indicator_params={},
+                        operator=ConditionOperator.LT.value,
+                        threshold=30,  # PE小于30倍（合理成长估值）
+                        description="PE小于30倍"
+                    ),
+                    TradingCondition(
+                        indicator_type="ROE",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=0.18,
+                        description="ROE大于18%"
+                    )
+                ],
+                logic_operator="AND",
+                signal_type=SignalType.BUY.value,
+                weight=1.0
+            )
+        ],
+        "sell_rules": [
+            StrategyRule(
+                name="成长停滞卖出",
+                conditions=[
+                    TradingCondition(
+                        indicator_type="EPS_GROWTH",
+                        indicator_params={},
+                        operator=ConditionOperator.LT.value,
+                        threshold=0.10,  # EPS增长小于10%
+                        description="EPS增长小于10%"
+                    ),
+                    TradingCondition(
+                        indicator_type="PE",
+                        indicator_params={},
+                        operator=ConditionOperator.GT.value,
+                        threshold=40,  # 估值过高
+                        description="PE大于40倍"
+                    )
+                ],
+                logic_operator="OR",
+                signal_type=SignalType.SELL.value,
+                weight=1.0
+            )
+        ],
+        "risk_management": RiskManagement(
+            stop_loss=0.15,
+            take_profit=0.60,
+            max_position_size=0.25
+        ),
+        "tags": ["基本面分析", "成长投资", "高成长", "长期持有"]
     }
 }
 

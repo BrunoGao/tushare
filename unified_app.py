@@ -70,6 +70,11 @@ try:
 except ImportError:
     UserManager = None
 
+try:
+    from api.personal_recommendations_api import recommendations_bp
+except ImportError:
+    recommendations_bp = None
+
 # 导入新的模型开发和评估组件
 try:
     from model_development.experiment_manager import get_experiment_manager, ExperimentManager
@@ -108,6 +113,9 @@ class UnifiedStockApp:
         
         # 初始化核心组件
         self._init_components()
+        
+        # 注册蓝图
+        self._register_blueprints()
         
         # 设置路由
         self._setup_routes()
@@ -158,6 +166,17 @@ class UnifiedStockApp:
             self.logger.error(f"组件初始化失败: {e}")
             # 不要抛出异常，允许应用继续运行
             pass
+    
+    def _register_blueprints(self):
+        """注册Flask蓝图"""
+        try:
+            if recommendations_bp:
+                self.app.register_blueprint(recommendations_bp)
+                self.logger.info("✅ 个人推荐API蓝图已注册")
+            else:
+                self.logger.warning("⚠️ 个人推荐API蓝图导入失败，跳过注册")
+        except Exception as e:
+            self.logger.error(f"蓝图注册失败: {e}")
     
     # ==================== 延迟加载方法 ====================
     
@@ -211,6 +230,17 @@ class UnifiedStockApp:
                 self.logger.error(f"模型推荐器加载失败: {e}")
         return self.model_recommender
     
+    def get_recommendation_tracker(self):
+        """延迟加载推荐跟踪器"""
+        if self.recommendation_tracker is None and RecommendationTracker:
+            try:
+                self.recommendation_tracker = RecommendationTracker()
+                self.recommendation_tracker.init_database()
+                self.logger.info("✅ 推荐跟踪器已延迟加载")
+            except Exception as e:
+                self.logger.error(f"推荐跟踪器加载失败: {e}")
+        return self.recommendation_tracker
+    
     def _setup_routes(self):
         """设置所有API路由"""
         
@@ -235,6 +265,11 @@ class UnifiedStockApp:
         def admin_dashboard():
             """管理员控制台"""
             return render_template('admin_dashboard.html')
+        
+        @self.app.route('/recommendations')
+        def personal_recommendations():
+            """个人推荐页面"""
+            return render_template('personal_recommendations.html')
         
         @self.app.route('/demo')
         def demo_dashboard():
@@ -761,10 +796,19 @@ class UnifiedStockApp:
                 strategy_manager = self.get_strategy_manager()
                 if strategy_manager:
                     strategies = strategy_manager.get_strategies(user_id)
-                    return jsonify({'strategies': strategies})
+                    return jsonify({
+                        'success': True,
+                        'data': {'strategies': strategies},
+                        'strategies': strategies
+                    })
                 else:
                     # 返回默认策略
-                    return jsonify({'strategies': self._get_default_user_strategies()})
+                    strategies = self._get_default_user_strategies()
+                    return jsonify({
+                        'success': True,
+                        'data': {'strategies': strategies},
+                        'strategies': strategies
+                    })
             except Exception as e:
                 return jsonify({'error': str(e)})
         
@@ -867,18 +911,22 @@ class UnifiedStockApp:
                 # 从策略模型获取模板，包含市场主流策略
                 from strategy.strategy_models import STRATEGY_TEMPLATES
                 
-                # 尝试导入额外的策略信息
+                # 尝试导入额外的策略信息和主流策略
                 try:
                     from strategy.market_mainstream_strategies import (
+                        MAINSTREAM_STRATEGIES,
                         STRATEGY_RISK_LEVELS, 
                         MARKET_ENVIRONMENT_STRATEGIES
                     )
+                    # 合并主流策略到模板中
+                    ALL_TEMPLATES = {**STRATEGY_TEMPLATES, **MAINSTREAM_STRATEGIES}
                 except ImportError:
                     STRATEGY_RISK_LEVELS = {}
                     MARKET_ENVIRONMENT_STRATEGIES = {}
+                    ALL_TEMPLATES = STRATEGY_TEMPLATES
                 
                 templates = []
-                for template_id, template_data in STRATEGY_TEMPLATES.items():
+                for template_id, template_data in ALL_TEMPLATES.items():
                     # 确定风险等级
                     risk_level = 'moderate'
                     for level, config in STRATEGY_RISK_LEVELS.items():
@@ -935,6 +983,14 @@ class UnifiedStockApp:
                         grouped_templates['technical'].append(template)  # 默认归类到技术分析
                 
                 return jsonify({
+                    'success': True,
+                    'data': {
+                        'templates': templates,
+                        'grouped_templates': grouped_templates,
+                        'total_count': len(templates),
+                        'risk_levels': list(STRATEGY_RISK_LEVELS.keys()),
+                        'market_environments': list(MARKET_ENVIRONMENT_STRATEGIES.keys())
+                    },
                     'templates': templates,
                     'grouped_templates': grouped_templates,
                     'total_count': len(templates),
@@ -3916,7 +3972,8 @@ class UnifiedStockApp:
             try:
                 limit = int(request.args.get('limit', 10))
                 
-                # 检查推荐跟踪器是否可用
+                # 尝试获取推荐跟踪器
+                self.recommendation_tracker = self.get_recommendation_tracker()
                 if not self.recommendation_tracker:
                     return jsonify({
                         'recommendations': [],
@@ -3933,6 +3990,22 @@ class UnifiedStockApp:
                     })
                 
                 latest_recs = self.recommendation_tracker.get_latest_recommendations(limit)
+                
+                # 如果没有推荐数据，尝试生成一些
+                if not latest_recs:
+                    self.logger.info("没有推荐数据，尝试生成AI推荐")
+                    try:
+                        model_recommender = self.get_model_recommender()
+                        if model_recommender:
+                            # 生成5个推荐
+                            rec_ids = model_recommender.generate_daily_recommendations(5)
+                            self.logger.info(f"生成了 {len(rec_ids)} 个推荐: {rec_ids}")
+                            # 重新获取推荐
+                            latest_recs = self.recommendation_tracker.get_latest_recommendations(limit)
+                        else:
+                            self.logger.warning("模型推荐器不可用")
+                    except Exception as e:
+                        self.logger.error(f"生成推荐失败: {e}")
                 
                 mobile_recs = []
                 for rec in latest_recs:
@@ -3952,6 +4025,39 @@ class UnifiedStockApp:
                 return jsonify({'recommendations': mobile_recs})
             except Exception as e:
                 return jsonify({'error': str(e)})
+        
+        @self.app.route('/api/generate-recommendations', methods=['POST'])
+        def generate_ai_recommendations():
+            """生成AI推荐"""
+            try:
+                data = request.get_json() or {}
+                num_stocks = data.get('num_stocks', 5)
+                
+                # 获取模型推荐器
+                model_recommender = self.get_model_recommender()
+                if not model_recommender:
+                    return jsonify({
+                        'success': False,
+                        'message': '推荐系统不可用'
+                    })
+                
+                # 生成推荐
+                self.logger.info(f"开始生成 {num_stocks} 个AI推荐")
+                rec_ids = model_recommender.generate_daily_recommendations(num_stocks)
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'成功生成 {len(rec_ids)} 个AI推荐',
+                    'recommendation_ids': rec_ids,
+                    'count': len(rec_ids)
+                })
+                
+            except Exception as e:
+                self.logger.error(f"生成推荐失败: {e}")
+                return jsonify({
+                    'success': False,
+                    'message': f'生成推荐失败: {str(e)}'
+                })
         
         @self.app.route('/api/mobile/quick-analysis', methods=['POST'])
         def mobile_quick_analysis():

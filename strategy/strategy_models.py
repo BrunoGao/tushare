@@ -501,7 +501,7 @@ class StrategyManager:
     def get_active_strategies(self) -> List[Strategy]:
         """获取活跃策略"""
         try:
-            return self.db.get_all_strategies()[:10]  # 返回前10个策略
+            return self.db.list_strategies()[:10]  # 返回前10个策略
         except Exception as e:
             print(f"Error getting active strategies: {e}")
             return []
@@ -541,7 +541,6 @@ class StrategyManager:
                     'name': strategy.name,
                     'strategy_type': strategy.strategy_type,
                     'description': strategy.description,
-                    'status': strategy.status,
                     'tags': strategy.tags,
                     'created_at': strategy.created_at,
                     'updated_at': strategy.updated_at,
@@ -569,7 +568,6 @@ class StrategyManager:
                 'name': '双均线交叉',
                 'strategy_type': 'technical',
                 'description': '基于短期和长期移动平均线交叉的策略',
-                'status': 'active',
                 'tags': ['均线', '趋势'],
                 'created_at': '2025-01-01',
                 'updated_at': '2025-01-01',
@@ -581,7 +579,6 @@ class StrategyManager:
                 'name': 'RSI超卖反弹',
                 'strategy_type': 'technical', 
                 'description': '基于RSI指标的超卖反弹策略',
-                'status': 'active',
                 'tags': ['RSI', '反弹'],
                 'created_at': '2025-01-01',
                 'updated_at': '2025-01-01',
@@ -593,7 +590,6 @@ class StrategyManager:
                 'name': 'MACD金叉',
                 'strategy_type': 'technical',
                 'description': '基于MACD指标金叉信号的买入策略',
-                'status': 'active',
                 'tags': ['MACD', '金叉', '趋势'],
                 'created_at': '2025-01-01',
                 'updated_at': '2025-01-01',

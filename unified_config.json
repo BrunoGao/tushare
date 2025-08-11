@@ -1,0 +1,128 @@
+{
+  "api": {
+    "host": "0.0.0.0",
+    "port": 5005,
+    "debug": true,
+    "cors_enabled": true,
+    "cors_origins": [
+      "*"
+    ],
+    "max_connections": 100
+  },
+  "database": {
+    "type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "123456",
+    "database": "ljwx_stock",
+    "charset": "utf8mb4",
+    "sqlite_path": "data/ljwx_stock.db"
+  },
+  "hardware": {
+    "cpu_cores": 24,
+    "memory_gb": 192.0,
+    "is_m2_ultra": true,
+    "max_workers": 20,
+    "chunk_size": 50000,
+    "memory_limit_gb": 64,
+    "enable_gpu_acceleration": true,
+    "gpu_device": "mps"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_rotation": true,
+    "max_log_files": 10,
+    "log_dir": "logs"
+  },
+  "ollama": {
+    "api_url": "http://14.127.218.229:11434",
+    "model": "lingjingwanxiang:70b",
+    "timeout": 30,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "num_predict": 1024,
+    "openai_api_key": "sk-fake-key",
+    "openai_base_url": "http://14.127.218.229:11434/v1"
+  },
+  "redis": {
+    "enabled": false,
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "default_ttl": 3600
+  },
+  "scheduler": {
+    "enabled": true,
+    "timezone": "Asia/Shanghai",
+    "daily_update_enabled": true,
+    "daily_update_times": [
+      "09:35",
+      "15:05",
+      "21:00"
+    ],
+    "weekly_sync_enabled": true,
+    "weekly_sync_day": 6,
+    "weekly_sync_time": "20:00",
+    "market_hours": {
+      "morning_start": "09:30",
+      "morning_end": "11:30",
+      "afternoon_start": "13:00",
+      "afternoon_end": "15:00"
+    }
+  },
+  "security": {
+    "secret_key": "ljwx-stock-unified-2025",
+    "jwt_secret_key": "",
+    "jwt_expiration_hours": 24,
+    "api_rate_limit": 1000,
+    "enable_api_key_auth": false,
+    "allowed_ips": []
+  },
+  "system": {
+    "max_concurrent_tasks": 5,
+    "data_retention_days": 90,
+    "cache_enabled": true,
+    "cache_size_gb": 4.0,
+    "monitoring_enabled": true,
+    "max_history": 1000,
+    "backup_enabled": true,
+    "backup_dir": "backups"
+  },
+  "training": {
+    "base_model": "ljwx-stock",
+    "training_data_dir": "data/llm_training",
+    "models_dir": "data/models",
+    "max_training_examples_per_batch": 200,
+    "stock_batch_size": 30,
+    "days_back": 90,
+    "incremental_days": 30,
+    "max_models_to_keep": 5,
+    "min_success_rate": 0.8,
+    "daily_training_time": "02:00",
+    "weekly_training_days": [
+      "monday",
+      "friday"
+    ]
+  },
+  "tushare": {
+    "token": "e43b6eab95ac0d2d9de22f6ca3b1b4ef3483650893794569337dc973",
+    "rate_limit": 500,
+    "batch_size": 100,
+    "thread_count": 5,
+    "use_pro_api": true,
+    "fallback_to_free": true
+  },
+  "websocket": {
+    "host": "0.0.0.0",
+    "port": 8765,
+    "realtime_update_interval": 10,
+    "max_connections": 100,
+    "ping_timeout": 30,
+    "ping_interval": 10
+  }
+}

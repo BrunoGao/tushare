@@ -10,6 +10,10 @@ from utils.db_helper import db
 from analysis.recommender import recommender
 from utils.user_manager import user_manager, UserRole
 
+# 初始化日志
+logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
+logger = logging.getLogger(__name__)
+
 # 导入我们的综合训练系统
 try:
     from ai.unified_trainer import unified_trainer
@@ -60,6 +64,7 @@ import tempfile
 import uuid
 import numpy as np
 from database.db_manager import DatabaseManager
+from dataclasses import asdict
 
 # 初始化数据库管理器
 db_manager = DatabaseManager()
@@ -68,8 +73,14 @@ db_manager = DatabaseManager()
 app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'ljwx_stock_secret_2024'  # 用于session加密
 CORS(app, supports_credentials=True)  # 允许跨域请求，支持认证
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
-logger = logging.getLogger(__name__)
+
+# 导入并注册个人推荐API蓝图
+try:
+    from api.personal_recommendations_api import recommendations_bp
+    app.register_blueprint(recommendations_bp)
+    logger.info("✅ 个人推荐API已注册")
+except ImportError as e:
+    logger.warning(f"⚠️ 个人推荐API加载失败: {e}")
 
 # 权限检查装饰器
 def require_permission(permission):
@@ -3352,6 +3363,391 @@ def get_evaluation_dashboard():
             "success": False,
             "error": str(e)
         }), 500
+
+# ============ 投资策略管理接口 ============
+
+@app.route('/dashboard')
+def user_dashboard():
+    """用户投资策略仪表板"""
+    return render_template('user_dashboard.html')
+
+@app.route('/api/strategies', methods=['GET'])
+def get_user_strategies():
+    """获取用户策略列表"""
+    try:
+        # 从session或header获取用户ID
+        user_id = request.headers.get('X-User-ID', 'default')
+        strategy_type = request.args.get('type')  # 策略类型过滤
+        risk_level = request.args.get('risk_level')  # 风险等级过滤
+        
+        # 导入策略管理器
+        from strategy.strategy_models import StrategyManager
+        from strategy.market_mainstream_strategies import (
+            MAINSTREAM_STRATEGIES, 
+            get_strategies_by_risk_level,
+            get_strategies_by_type
+        )
+        
+        strategy_manager = StrategyManager()
+        
+        # 获取用户自定义策略
+        user_strategies = strategy_manager.get_strategies(user_id)
+        
+        # 获取主流策略模板
+        mainstream_strategies = []
+        for strategy_id, strategy_template in MAINSTREAM_STRATEGIES.items():
+            strategy_info = {
+                'id': strategy_id,
+                'name': strategy_template['name'],
+                'description': strategy_template['description'],
+                'strategy_type': strategy_template['strategy_type'],
+                'tags': strategy_template.get('tags', []),
+                'is_template': True,
+                'risk_level': _get_strategy_risk_level(strategy_id),
+                'buy_rules_count': len(strategy_template.get('buy_rules', [])),
+                'sell_rules_count': len(strategy_template.get('sell_rules', []))
+            }
+            mainstream_strategies.append(strategy_info)
+        
+        # 合并策略列表
+        all_strategies = user_strategies + mainstream_strategies
+        
+        # 应用过滤器
+        if strategy_type:
+            all_strategies = [s for s in all_strategies if s.get('strategy_type') == strategy_type]
+        
+        if risk_level:
+            risk_strategy_ids = get_strategies_by_risk_level(risk_level)
+            all_strategies = [s for s in all_strategies if s.get('id') in risk_strategy_ids or not s.get('is_template')]
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "strategies": all_strategies,
+                "total": len(all_strategies),
+                "user_strategies_count": len(user_strategies),
+                "template_strategies_count": len(mainstream_strategies)
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取策略列表失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/strategies/<strategy_id>', methods=['GET'])
+def get_strategy_detail(strategy_id):
+    """获取策略详情"""
+    try:
+        from strategy.strategy_models import StrategyManager
+        from strategy.market_mainstream_strategies import get_strategy_template
+        
+        # 先尝试从用户策略中获取
+        strategy_manager = StrategyManager()
+        user_id = request.headers.get('X-User-ID', 'default')
+        
+        strategy = strategy_manager.db.get_strategy(strategy_id)
+        
+        if strategy:
+            # 用户自定义策略
+            strategy_data = {
+                'id': strategy.id,
+                'name': strategy.name,
+                'description': strategy.description,
+                'strategy_type': strategy.strategy_type,
+                'user_id': strategy.user_id,
+                'buy_rules': [asdict(rule) for rule in strategy.buy_rules],
+                'sell_rules': [asdict(rule) for rule in strategy.sell_rules],
+                'risk_management': asdict(strategy.risk_management),
+                'tags': strategy.tags,
+                'created_at': strategy.created_at,
+                'updated_at': strategy.updated_at,
+                'is_template': False
+            }
+        else:
+            # 主流策略模板
+            template = get_strategy_template(strategy_id)
+            if not template:
+                return jsonify({
+                    "success": False,
+                    "error": "策略不存在"
+                }), 404
+            
+            strategy_data = {
+                'id': strategy_id,
+                'name': template['name'],
+                'description': template['description'],
+                'strategy_type': template['strategy_type'],
+                'buy_rules': [asdict(rule) for rule in template.get('buy_rules', [])],
+                'sell_rules': [asdict(rule) for rule in template.get('sell_rules', [])],
+                'risk_management': asdict(template.get('risk_management', {})),
+                'tags': template.get('tags', []),
+                'is_template': True,
+                'risk_level': _get_strategy_risk_level(strategy_id)
+            }
+        
+        return jsonify({
+            "success": True,
+            "data": strategy_data,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取策略详情失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/strategies', methods=['POST'])
+def create_user_strategy():
+    """创建用户策略"""
+    try:
+        data = request.get_json()
+        user_id = request.headers.get('X-User-ID', 'default')
+        
+        from strategy.strategy_models import Strategy, StrategyManager, StrategyRule, TradingCondition, RiskManagement
+        
+        # 创建策略对象
+        strategy = Strategy(
+            name=data.get('name', ''),
+            description=data.get('description', ''),
+            strategy_type=data.get('strategy_type', 'technical'),
+            user_id=user_id
+        )
+        
+        # 解析买入规则
+        if 'buy_rules' in data:
+            for rule_data in data['buy_rules']:
+                conditions = []
+                for cond_data in rule_data.get('conditions', []):
+                    conditions.append(TradingCondition(**cond_data))
+                
+                rule = StrategyRule(
+                    name=rule_data.get('name', ''),
+                    conditions=conditions,
+                    logic_operator=rule_data.get('logic_operator', 'AND'),
+                    signal_type=rule_data.get('signal_type', 'buy'),
+                    weight=rule_data.get('weight', 1.0)
+                )
+                strategy.buy_rules.append(rule)
+        
+        # 解析卖出规则
+        if 'sell_rules' in data:
+            for rule_data in data['sell_rules']:
+                conditions = []
+                for cond_data in rule_data.get('conditions', []):
+                    conditions.append(TradingCondition(**cond_data))
+                
+                rule = StrategyRule(
+                    name=rule_data.get('name', ''),
+                    conditions=conditions,
+                    logic_operator=rule_data.get('logic_operator', 'AND'),
+                    signal_type=rule_data.get('signal_type', 'sell'),
+                    weight=rule_data.get('weight', 1.0)
+                )
+                strategy.sell_rules.append(rule)
+        
+        # 解析风险管理
+        if 'risk_management' in data:
+            strategy.risk_management = RiskManagement(**data['risk_management'])
+        
+        # 标签
+        strategy.tags = data.get('tags', [])
+        
+        # 保存策略
+        strategy_manager = StrategyManager()
+        strategy_id = strategy_manager.db.save_strategy(strategy)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "strategy_id": strategy_id,
+                "message": "策略创建成功"
+            },
+            "timestamp": datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"创建策略失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/strategies/<strategy_id>/clone', methods=['POST'])
+def clone_strategy(strategy_id):
+    """克隆策略（从模板创建用户策略）"""
+    try:
+        data = request.get_json() or {}
+        user_id = request.headers.get('X-User-ID', 'default')
+        
+        from strategy.strategy_models import Strategy, StrategyManager
+        from strategy.market_mainstream_strategies import get_strategy_template
+        
+        # 获取模板策略
+        template = get_strategy_template(strategy_id)
+        if not template:
+            return jsonify({
+                "success": False,
+                "error": "策略模板不存在"
+            }), 404
+        
+        # 创建用户策略
+        strategy = Strategy(
+            name=data.get('name', f"{template['name']} - 我的副本"),
+            description=data.get('description', template['description']),
+            strategy_type=template['strategy_type'],
+            user_id=user_id,
+            buy_rules=template.get('buy_rules', []),
+            sell_rules=template.get('sell_rules', []),
+            risk_management=template.get('risk_management'),
+            tags=template.get('tags', []) + ['克隆策略']
+        )
+        
+        # 保存策略
+        strategy_manager = StrategyManager()
+        strategy_id = strategy_manager.db.save_strategy(strategy)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "strategy_id": strategy_id,
+                "message": "策略克隆成功"
+            },
+            "timestamp": datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"克隆策略失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/strategies/templates', methods=['GET'])
+def get_strategy_templates():
+    """获取策略模板库"""
+    try:
+        from strategy.market_mainstream_strategies import (
+            MAINSTREAM_STRATEGIES, 
+            STRATEGY_RISK_LEVELS,
+            MARKET_ENVIRONMENT_STRATEGIES
+        )
+        
+        category = request.args.get('category')  # 技术分析、基本面分析、量化等
+        risk_level = request.args.get('risk_level')  # 保守、稳健、激进、投机
+        market_env = request.args.get('market_env')  # 牛市、熊市、震荡市等
+        
+        templates = []
+        for strategy_id, template in MAINSTREAM_STRATEGIES.items():
+            template_info = {
+                'id': strategy_id,
+                'name': template['name'],
+                'description': template['description'],
+                'strategy_type': template['strategy_type'],
+                'tags': template.get('tags', []),
+                'risk_level': _get_strategy_risk_level(strategy_id),
+                'market_suitability': _get_market_suitability(strategy_id),
+                'complexity': _get_strategy_complexity(template),
+                'expected_return': _get_expected_return_range(strategy_id),
+                'max_drawdown': getattr(template.get('risk_management'), 'max_drawdown', 0.15) if template.get('risk_management') else 0.15,
+                'buy_rules_count': len(template.get('buy_rules', [])),
+                'sell_rules_count': len(template.get('sell_rules', []))
+            }
+            templates.append(template_info)
+        
+        # 应用过滤器
+        if category:
+            templates = [t for t in templates if t['strategy_type'] == category]
+        
+        if risk_level:
+            risk_strategies = STRATEGY_RISK_LEVELS.get(risk_level, {}).get('strategies', [])
+            templates = [t for t in templates if t['id'] in risk_strategies]
+        
+        if market_env:
+            market_strategies = MARKET_ENVIRONMENT_STRATEGIES.get(market_env, [])
+            templates = [t for t in templates if t['id'] in market_strategies]
+        
+        # 按风险等级分组
+        templates_by_risk = {
+            'conservative': [],
+            'moderate': [],
+            'aggressive': [],
+            'speculative': []
+        }
+        
+        for template in templates:
+            risk = template['risk_level']
+            if risk in templates_by_risk:
+                templates_by_risk[risk].append(template)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "templates": templates,
+                "templates_by_risk": templates_by_risk,
+                "total": len(templates),
+                "risk_levels": list(STRATEGY_RISK_LEVELS.keys()),
+                "market_environments": list(MARKET_ENVIRONMENT_STRATEGIES.keys())
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取策略模板失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+def _get_strategy_risk_level(strategy_id):
+    """获取策略风险等级"""
+    from strategy.market_mainstream_strategies import STRATEGY_RISK_LEVELS
+    for risk_level, config in STRATEGY_RISK_LEVELS.items():
+        if strategy_id in config.get('strategies', []):
+            return risk_level
+    return 'moderate'
+
+def _get_market_suitability(strategy_id):
+    """获取策略市场适应性"""
+    from strategy.market_mainstream_strategies import MARKET_ENVIRONMENT_STRATEGIES
+    suitable_markets = []
+    for market_env, strategies in MARKET_ENVIRONMENT_STRATEGIES.items():
+        if strategy_id in strategies:
+            suitable_markets.append(market_env)
+    return suitable_markets
+
+def _get_strategy_complexity(template):
+    """计算策略复杂度"""
+    buy_rules_count = len(template.get('buy_rules', []))
+    sell_rules_count = len(template.get('sell_rules', []))
+    
+    total_conditions = 0
+    for rule in template.get('buy_rules', []):
+        total_conditions += len(rule.conditions) if hasattr(rule, 'conditions') else 0
+    for rule in template.get('sell_rules', []):
+        total_conditions += len(rule.conditions) if hasattr(rule, 'conditions') else 0
+    
+    if total_conditions <= 3:
+        return '简单'
+    elif total_conditions <= 6:
+        return '中等'
+    else:
+        return '复杂'
+
+def _get_expected_return_range(strategy_id):
+    """获取预期收益范围"""
+    risk_level = _get_strategy_risk_level(strategy_id)
+    return {
+        'conservative': '5-12%',
+        'moderate': '10-20%', 
+        'aggressive': '15-35%',
+        'speculative': '8-15%'  # 虽然风险高但配对交易等策略收益相对稳定
+    }.get(risk_level, '10-20%')
 
 # ============ 模型优化和重训练接口 ============
 

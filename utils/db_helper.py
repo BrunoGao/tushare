@@ -5,12 +5,13 @@ from sqlalchemy import create_engine, text, MetaData, Table, Column, String, Int
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
-import config
+from config_manager import get_config
 
 class DatabaseHelper:
     def __init__(self):
         try:
-            connection_string = f'mysql+pymysql://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}?charset={config.DB_CHARSET}'
+            _config = get_config()
+            connection_string = _config.get_database_url()
             self.engine = create_engine(
                 connection_string, 
                 pool_size=10, 
@@ -25,7 +26,7 @@ class DatabaseHelper:
             # 测试连接
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            self.logger.info(f"✅ 数据库连接成功: {config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}")
+            self.logger.info(f"✅ 数据库连接成功: {_config.database.host}:{_config.database.port}/{_config.database.database}")
             
         except Exception as e:
             self.logger.error(f"❌ 数据库连接失败: {e}")
