@@ -38,6 +38,7 @@ class RecommendationResult(Enum):
 @dataclass
 class StockRecommendation:
     """股票推荐记录"""
+    # Required fields (no defaults)
     id: str
     model_name: str                    # 模型名称
     stock_code: str                    # 股票代码
@@ -48,19 +49,16 @@ class StockRecommendation:
     target_price: Optional[float]      # 目标价格
     stop_loss: Optional[float]         # 止损价格
     time_horizon: int                  # 时间周期(天)
-    
-    # 推荐时的市场数据
     recommend_date: str                # 推荐日期
     recommend_price: float             # 推荐时价格
     recommend_volume: float            # 推荐时成交量
     
-    # 验证数据
+    # Optional fields with defaults
+    strategy_type: str = "comprehensive_analysis"  # 策略类型
     validation_date: Optional[str] = None      # 验证日期
     validation_price: Optional[float] = None   # 验证时价格
     actual_return: Optional[float] = None      # 实际收益率
     result: str = RecommendationResult.PENDING.value  # 推荐结果
-    
-    # 元数据
     created_at: str = ""
     updated_at: str = ""
 
@@ -334,6 +332,7 @@ class RecommendationTracker:
                         recommendation_type VARCHAR(20),
                         recommendation_text TEXT,
                         confidence_score DECIMAL(5,4),
+                        strategy_type VARCHAR(50) DEFAULT 'comprehensive_analysis',
                         target_price DECIMAL(10,2),
                         stop_loss DECIMAL(10,2),
                         time_horizon INT,
@@ -380,6 +379,7 @@ class RecommendationTracker:
                     recommendation_type TEXT,
                     recommendation_text TEXT,
                     confidence_score REAL,
+                    strategy_type TEXT DEFAULT 'comprehensive_analysis',
                     target_price REAL,
                     stop_loss REAL,
                     time_horizon INTEGER,
@@ -411,7 +411,7 @@ class RecommendationTracker:
     
     def add_recommendation(self, model_name: str, stock_code: str, stock_name: str,
                           recommendation_text: str, current_price: float, 
-                          current_volume: float = 0) -> str:
+                          current_volume: float = 0, strategy_type: str = "comprehensive_analysis") -> str:
         """添加新的股票推荐"""
         import uuid
         
@@ -432,6 +432,7 @@ class RecommendationTracker:
             recommendation_type=parsed['recommendation_type'],
             recommendation_text=recommendation_text,
             confidence_score=parsed['confidence_score'],
+            strategy_type=strategy_type,
             target_price=parsed['target_price'],
             stop_loss=parsed['stop_loss'],
             time_horizon=parsed['time_horizon'],
@@ -443,7 +444,10 @@ class RecommendationTracker:
         )
         
         # 保存到数据库
-        self._save_recommendation(recommendation)
+        if self.use_mysql:
+            self._save_recommendation_mysql(recommendation)
+        else:
+            self._save_recommendation_sqlite(recommendation)
         
         self.logger.info(f"添加推荐: {model_name} -> {stock_code} ({parsed['recommendation_type']})")
         
@@ -780,21 +784,50 @@ class RecommendationTracker:
             
             return [self._row_to_recommendation(row) for row in cursor.fetchall()]
     
-    def _save_recommendation(self, rec: StockRecommendation):
-        """保存推荐到数据库"""
+    def _save_recommendation_mysql(self, rec: StockRecommendation):
+        """保存推荐到MySQL数据库"""
+        conn = pymysql.connect(**self.connection_params)
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO recommendations 
+                    (id, model_name, stock_code, stock_name, recommendation_type, 
+                     recommendation_text, confidence_score, strategy_type, target_price, stop_loss, 
+                     time_horizon, recommend_date, recommend_price, recommend_volume,
+                     validation_date, validation_price, actual_return, result, 
+                     created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                    updated_at = %s, confidence_score = %s, recommendation_text = %s
+                ''', (
+                    rec.id, rec.model_name, rec.stock_code, rec.stock_name,
+                    rec.recommendation_type, rec.recommendation_text,
+                    rec.confidence_score, rec.strategy_type, rec.target_price, rec.stop_loss,
+                    rec.time_horizon, rec.recommend_date, rec.recommend_price,
+                    rec.recommend_volume, rec.validation_date, rec.validation_price,
+                    rec.actual_return, rec.result, rec.created_at, rec.updated_at,
+                    # ON DUPLICATE KEY UPDATE values
+                    rec.updated_at, rec.confidence_score, rec.recommendation_text
+                ))
+            conn.commit()
+        finally:
+            conn.close()
+    
+    def _save_recommendation_sqlite(self, rec: StockRecommendation):
+        """保存推荐到SQLite数据库"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute('''
                 INSERT OR REPLACE INTO recommendations 
                 (id, model_name, stock_code, stock_name, recommendation_type, 
-                 recommendation_text, confidence_score, target_price, stop_loss, 
+                 recommendation_text, confidence_score, strategy_type, target_price, stop_loss, 
                  time_horizon, recommend_date, recommend_price, recommend_volume,
                  validation_date, validation_price, actual_return, result, 
                  created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 rec.id, rec.model_name, rec.stock_code, rec.stock_name,
                 rec.recommendation_type, rec.recommendation_text,
-                rec.confidence_score, rec.target_price, rec.stop_loss,
+                rec.confidence_score, rec.strategy_type, rec.target_price, rec.stop_loss,
                 rec.time_horizon, rec.recommend_date, rec.recommend_price,
                 rec.recommend_volume, rec.validation_date, rec.validation_price,
                 rec.actual_return, rec.result, rec.created_at, rec.updated_at
@@ -970,6 +1003,10 @@ class RecommendationTracker:
             self.logger.error(f"获取最新推荐失败: {e}")
             return []
     
+    def get_recommendations_by_model(self, model_name: str, limit: int = 100) -> List[StockRecommendation]:
+        """根据模型名称获取推荐列表 - 兼容接口"""
+        return self.get_model_recommendations(model_name, limit)
+    
     def _get_latest_recommendations_mysql(self, limit: int) -> List[StockRecommendation]:
         """从MySQL获取最新推荐"""
         conn = pymysql.connect(**self.connection_params)
@@ -1007,6 +1044,111 @@ class RecommendationTracker:
             
             return recommendations
 
+
+    def get_statistics(self) -> Dict:
+        """获取推荐系统统计数据"""
+        try:
+            if self.use_mysql:
+                return self._get_statistics_mysql()
+            else:
+                return self._get_statistics_sqlite()
+        except Exception as e:
+            self.logger.error(f"获取统计数据失败: {e}")
+            return {
+                'total_statistics': {
+                    'total_recommendations': 0,
+                    'overall_hit_rate': 0.0,
+                    'average_return': 0.0
+                },
+                'model_statistics': {}
+            }
+    
+    def _get_statistics_mysql(self) -> Dict:
+        """从MySQL获取统计数据"""
+        conn = pymysql.connect(**self.connection_params)
+        try:
+            with conn.cursor() as cursor:
+                # 总体统计
+                cursor.execute("SELECT COUNT(*) FROM recommendations")
+                total_recs = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(*) FROM recommendations WHERE result = 'hit'")
+                hit_count = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT AVG(actual_return) FROM recommendations WHERE actual_return IS NOT NULL")
+                avg_return = cursor.fetchone()[0] or 0.0
+                
+                # 各模型统计
+                cursor.execute("""
+                    SELECT model_name, COUNT(*) as total,
+                           SUM(CASE WHEN result = 'hit' THEN 1 ELSE 0 END) as hits,
+                           AVG(actual_return) as avg_return
+                    FROM recommendations 
+                    GROUP BY model_name
+                """)
+                
+                model_stats = {}
+                for row in cursor.fetchall():
+                    model_name, total, hits, model_avg_return = row
+                    model_stats[model_name] = {
+                        'total_recommendations': total,
+                        'hit_rate': (hits / total) if total > 0 else 0.0,
+                        'average_return': model_avg_return or 0.0
+                    }
+                
+                return {
+                    'total_statistics': {
+                        'total_recommendations': total_recs,
+                        'overall_hit_rate': (hit_count / total_recs) if total_recs > 0 else 0.0,
+                        'average_return': avg_return
+                    },
+                    'model_statistics': model_stats
+                }
+                
+        finally:
+            conn.close()
+    
+    def _get_statistics_sqlite(self) -> Dict:
+        """从SQLite获取统计数据"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            
+            # 总体统计
+            cursor = conn.execute("SELECT COUNT(*) FROM recommendations")
+            total_recs = cursor.fetchone()[0]
+            
+            cursor = conn.execute("SELECT COUNT(*) FROM recommendations WHERE result = 'hit'")
+            hit_count = cursor.fetchone()[0]
+            
+            cursor = conn.execute("SELECT AVG(actual_return) FROM recommendations WHERE actual_return IS NOT NULL")
+            avg_return = cursor.fetchone()[0] or 0.0
+            
+            # 各模型统计
+            cursor = conn.execute("""
+                SELECT model_name, COUNT(*) as total,
+                       SUM(CASE WHEN result = 'hit' THEN 1 ELSE 0 END) as hits,
+                       AVG(actual_return) as avg_return
+                FROM recommendations 
+                GROUP BY model_name
+            """)
+            
+            model_stats = {}
+            for row in cursor.fetchall():
+                model_name, total, hits, model_avg_return = row
+                model_stats[model_name] = {
+                    'total_recommendations': total,
+                    'hit_rate': (hits / total) if total > 0 else 0.0,
+                    'average_return': model_avg_return or 0.0
+                }
+            
+            return {
+                'total_statistics': {
+                    'total_recommendations': total_recs,
+                    'overall_hit_rate': (hit_count / total_recs) if total_recs > 0 else 0.0,
+                    'average_return': avg_return
+                },
+                'model_statistics': model_stats
+            }
 
 if __name__ == "__main__":
     # 示例用法

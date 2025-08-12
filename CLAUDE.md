@@ -142,6 +142,68 @@ python3 utils/data_scheduler.py health
 python3 database/technical_indicator_calculator.py
 ```
 
+### Strategy-Based AI Training System
+```bash
+# Test the complete strategy training system
+python3 test_strategy_training_system.py
+
+# Generate training datasets for specific strategies
+python3 strategy_training/dataset_generator.py --strategy rsi_mean_reversion --stocks 50
+
+# Generate datasets for all strategies
+python3 strategy_training/dataset_generator.py --all --stocks 30 --days 180
+
+# Train unified model with all strategies
+python3 strategy_training/unified_trainer.py --action full --stocks 30 --days 180
+
+# Train model with specific dataset
+python3 strategy_training/unified_trainer.py --action train --dataset-file unified_training/dataset.jsonl
+
+# Run recommendation scheduler
+python3 strategy_training/recommendation_scheduler.py --action start
+
+# Test recommendation generation
+python3 strategy_training/recommendation_scheduler.py --action test --category general
+```
+
+### Strategy Training API Endpoints
+```bash
+# Health check
+curl http://localhost:5005/api/strategy-training/health
+
+# Get available strategies
+curl http://localhost:5005/api/strategy-training/strategies
+
+# Generate dataset for specific strategy
+curl -X POST http://localhost:5005/api/strategy-training/dataset/generate \
+  -H "Content-Type: application/json" \
+  -d '{"strategy_id": "rsi_mean_reversion", "num_stocks": 30, "time_range": 180}'
+
+# Generate all strategy datasets
+curl -X POST http://localhost:5005/api/strategy-training/dataset/generate-all \
+  -H "Content-Type: application/json" \
+  -d '{"num_stocks": 30, "time_range": 180}'
+
+# Train unified model
+curl -X POST http://localhost:5005/api/strategy-training/model/train \
+  -H "Content-Type: application/json" \
+  -d '{"num_stocks_per_strategy": 30, "time_range": 180}'
+
+# Generate recommendations
+curl -X POST http://localhost:5005/api/strategy-training/recommendations/generate \
+  -H "Content-Type: application/json" \
+  -d '{"category": "general", "force_generate": true}'
+
+# Start recommendation scheduler
+curl -X POST http://localhost:5005/api/strategy-training/scheduler/start
+
+# Get system status
+curl http://localhost:5005/api/strategy-training/status
+
+# List trained models
+curl http://localhost:5005/api/strategy-training/models/list
+```
+
 ## Key Configuration
 
 The system uses `config.py` for centralized configuration:

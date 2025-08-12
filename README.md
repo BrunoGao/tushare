@@ -306,6 +306,41 @@ tushare/
 └── 📖 README.md                  # 项目文档
 ```
 
+## 📅 更新日志
+
+### **2025-08-12 - 策略驱动训练与验证系统** ⭐NEW⭐
+- **🎯 策略训练系统**: 新增完整的策略驱动AI训练框架 (`strategy_training/`)
+  - `dataset_generator.py`: 从投资策略生成高质量训练数据集
+  - `unified_trainer.py`: 统一模型训练，支持多策略融合
+  - `recommendation_scheduler.py`: 异步推荐生成调度系统
+- **✅ 策略验证系统**: 新增高级策略回测验证 (`strategy_validation/`) 
+  - `advanced_validator.py`: 专业级策略性能验证与报告生成
+  - 支持夏普比率、最大回撤、年化收益等专业指标
+- **🔌 新增API端点**: 
+  - `api/strategy_training_api.py`: 策略训练管理API (端口5005)
+  - `api/strategy_validation_api.py`: 策略验证API (端口5006)
+- **📊 增强推荐系统**:
+  - 集成策略训练生成的推荐到实时系统
+  - WebSocket推送策略驱动的AI推荐
+  - 个性化推荐面板实时更新
+- **🎨 前端界面优化**:
+  - `templates/strategy_validation.html`: 策略验证专业界面
+  - `templates/user_dashboard.html`: 优化推荐展示体验
+- **📚 完善文档**: `docs/strategy-validation-guide.md` 详细使用指南
+
+### **主要技术特性**:
+```bash
+# 策略训练API使用示例
+curl -X POST http://localhost:5005/api/strategy-training/dataset/generate-all \
+  -H "Content-Type: application/json" \
+  -d '{"num_stocks": 30, "time_range": 180}'
+
+# 策略验证API使用示例  
+curl -X POST http://localhost:5006/api/validate-strategy \
+  -H "Content-Type: application/json" \
+  -d '{"strategy_type": "rsi_mean_reversion", "symbol": "000001.SZ"}'
+```
+
 ## 🔧 配置说明
 
 ### **数据库配置**

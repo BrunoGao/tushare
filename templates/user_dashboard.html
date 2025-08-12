@@ -1618,6 +1618,9 @@
         </div>
     </div>
 
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
     <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
@@ -1680,6 +1683,7 @@
             loadUserInfo();
             loadUserStrategies();
             loadRecommendations();
+            loadStrategyPerformance();
             setupEventListeners();
             console.log('✅ 用户工作台初始化完成');
         }
@@ -3169,6 +3173,144 @@
             }
         }
         
+        async function loadStrategyPerformance() {
+            try {
+                console.log('🔄 加载策略表现数据...');
+                const response = await fetch('/api/strategy/performance?days=30');
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ 策略表现数据加载成功:', data.data);
+                    initializePerformanceChart(data.data);
+                } else {
+                    console.error('❌ 策略表现数据加载失败:', data.error);
+                    showPerformanceError('数据加载失败');
+                }
+            } catch (error) {
+                console.error('❌ 策略表现加载异常:', error);
+                showPerformanceError('网络连接失败');
+            }
+        }
+        
+        function initializePerformanceChart(performanceData) {
+            const chartContainer = document.getElementById('performanceChart');
+            if (!chartContainer) {
+                console.error('❌ 未找到表现图表容器');
+                return;
+            }
+            
+            // 检查是否已加载ECharts库
+            if (typeof echarts === 'undefined') {
+                console.error('❌ ECharts库未加载');
+                chartContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📈</div>
+                        <p>图表库加载中...</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 初始化图表
+            const chart = echarts.init(chartContainer);
+            
+            // 准备日期和累计收益数据
+            const dates = performanceData.daily_performance.map(item => item.date);
+            const cumulativeReturns = performanceData.daily_performance.map(item => item.cumulative_return);
+            
+            const option = {
+                title: {
+                    text: '策略表现 (30天)',
+                    left: 'center',
+                    textStyle: {
+                        color: '#333',
+                        fontSize: 16,
+                        fontWeight: 'normal'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross',
+                        label: {
+                            backgroundColor: '#6a7985'
+                        }
+                    },
+                    formatter: function(params) {
+                        const data = params[0];
+                        return `
+                            <div style="padding: 8px;">
+                                <div style="font-weight: bold; margin-bottom: 4px;">${data.axisValue}</div>
+                                <div style="color: ${data.value >= 0 ? '#00C851' : '#ff4444'};">
+                                    累计收益: ${data.value}%
+                                </div>
+                            </div>
+                        `;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLabel: {
+                        formatter: function(value) {
+                            return value.substring(5); // 只显示月-日
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value}%'
+                    }
+                },
+                series: [{
+                    name: '累计收益',
+                    type: 'line',
+                    data: cumulativeReturns,
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: {
+                        width: 2,
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#00C851' },
+                            { offset: 1, color: '#007E33' }
+                        ])
+                    },
+                    areaStyle: {
+                        opacity: 0.1,
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#00C851' },
+                            { offset: 1, color: 'transparent' }
+                        ])
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+            
+            // 响应式调整
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+            
+            console.log('✅ 策略表现图表初始化完成');
+        }
+        
+        function showPerformanceError(message) {
+            const chartContainer = document.getElementById('performanceChart');
+            if (chartContainer) {
+                chartContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                        <p>${message}</p>
+                        <button onclick="loadStrategyPerformance()" style="margin-top: 12px; padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            重新加载
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
         function updateRecommendationsList(recommendations) {
             const container = document.getElementById('recommendationsList');
             
@@ -3183,22 +3325,32 @@
             }
             
             container.innerHTML = recommendations.map((rec, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; ${index < recommendations.length - 1 ? 'border-bottom: 1px solid var(--border-color);' : ''}">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">
-                            ${rec.stock_name || rec.stock_code}
+                <div style="padding: 16px 0; ${index < recommendations.length - 1 ? 'border-bottom: 1px solid var(--border-color);' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">
+                                ${rec.stock_name || rec.stock_code} (${rec.stock_code})
+                            </div>
+                            <div class="tags-container">
+                                <span class="recommendation-tag rec-type-${rec.recommendation_type}">
+                                    ${getRecommendationLabel(rec.recommendation_type)}
+                                </span>
+                                <span class="recommendation-tag strategy-tag">
+                                    ${rec.strategy_name || '智能推荐'}
+                                </span>
+                                <span class="recommendation-tag ${getConfidenceClass(rec.confidence_score)}">
+                                    ${(rec.confidence_score * 100).toFixed(0)}% 置信度
+                                </span>
+                                <span class="recommendation-tag time-tag">
+                                    ${formatRecommendationTime(rec.created_time)}
+                                </span>
+                            </div>
                         </div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">
-                            ${rec.stock_code}
-                        </div>
+                        ${rec.target_price ? `<div style="text-align: right; font-size: 14px; font-weight: 600; color: var(--primary);">目标价<br>¥${rec.target_price}</div>` : ''}
                     </div>
-                    <div style="text-align: right;">
-                        <div class="badge ${getRecommendationBadgeClass(rec.recommendation_type)}">
-                            ${getRecommendationLabel(rec.recommendation_type)}
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-                            置信度: ${(rec.confidence_score * 100).toFixed(0)}%
-                        </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; background: var(--bg-secondary); padding: 10px; border-radius: 6px; border-left: 3px solid var(--primary);">
+                        <strong style="color: var(--text-primary);">💡 推荐理由:</strong><br>
+                        ${rec.reasoning || '基于AI智能分析，综合技术指标和市场趋势判断'}
                     </div>
                 </div>
             `).join('');
@@ -3222,6 +3374,44 @@
                 'neutral': '观望'
             };
             return labels[type] || type;
+        }
+        
+        function getConfidenceClass(confidence) {
+            const score = parseFloat(confidence);
+            if (score >= 0.7) return 'confidence-high';
+            if (score >= 0.5) return 'confidence-medium';
+            return 'confidence-low';
+        }
+        
+        function formatRecommendationTime(timeStr) {
+            if (!timeStr) return '未知时间';
+            
+            try {
+                const recTime = new Date(timeStr);
+                const now = new Date();
+                const diffMs = now - recTime;
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMinutes / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffMinutes < 60) {
+                    return diffMinutes <= 0 ? '刚刚' : `${diffMinutes}分钟前`;
+                } else if (diffHours < 24) {
+                    return `${diffHours}小时前`;
+                } else if (diffDays < 7) {
+                    return `${diffDays}天前`;
+                } else {
+                    return recTime.toLocaleDateString('zh-CN', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            } catch (error) {
+                console.error('时间格式化错误:', error);
+                return '时间解析失败';
+            }
         }
         
         function refreshRecommendations() {
@@ -4023,6 +4213,93 @@
         .complexity-badge.简单 { background: var(--success-light); color: var(--success); }
         .complexity-badge.中等 { background: var(--warning-light); color: var(--warning); }
         .complexity-badge.复杂 { background: var(--error-light); color: var(--error); }
+        
+        /* 策略表现图表样式 */
+        #performanceChart {
+            width: 100%;
+            height: 300px;
+            min-height: 300px;
+        }
+        
+        /* AI推荐标签样式 */
+        .recommendation-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 2px;
+            border: none;
+            white-space: nowrap;
+        }
+        
+        /* 推荐类型标签 */
+        .rec-type-buy {
+            background: linear-gradient(45deg, #00C851, #00D85A);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 200, 81, 0.3);
+        }
+        
+        .rec-type-sell {
+            background: linear-gradient(45deg, #ff4444, #ff6b6b);
+            color: white;
+            box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+        }
+        
+        .rec-type-hold {
+            background: linear-gradient(45deg, #ffbb33, #ffc947);
+            color: white;
+            box-shadow: 0 2px 4px rgba(255, 187, 51, 0.3);
+        }
+        
+        .rec-type-neutral {
+            background: linear-gradient(45deg, #6c757d, #8a919a);
+            color: white;
+            box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+        }
+        
+        /* 策略标签 */
+        .strategy-tag {
+            background: linear-gradient(45deg, #1890ff, #40a9ff);
+            color: white;
+            box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+        }
+        
+        /* 置信度标签 - 新配色方案 */
+        .confidence-low {
+            background: linear-gradient(45deg, #ff4d4f, #ff7875);
+            color: white;
+            box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
+        }
+        
+        .confidence-medium {
+            background: linear-gradient(45deg, #fa8c16, #ffa940);
+            color: white;
+            box-shadow: 0 2px 4px rgba(250, 140, 22, 0.3);
+        }
+        
+        .confidence-high {
+            background: linear-gradient(45deg, #52c41a, #73d13d);
+            color: white;
+            box-shadow: 0 2px 4px rgba(82, 196, 26, 0.3);
+        }
+        
+        /* 时间标签 */
+        .time-tag {
+            background: linear-gradient(45deg, #722ed1, #9254de);
+            color: white;
+            box-shadow: 0 2px 4px rgba(114, 46, 209, 0.3);
+        }
+        
+        /* 标签容器 */
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 6px 0;
+        }
     </style>
     </script>
 </body>

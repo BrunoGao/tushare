@@ -139,30 +139,231 @@ class ModelRecommender:
         
         return recommendations
     
-    def generate_daily_recommendations(self, num_stocks: int = 5) -> List[str]:
-        """生成每日推荐"""
+    def generate_recommendations(self, strategy_id: str = None, 
+                               num_recommendations: int = 10,
+                               recommendation_type: str = "general",
+                               user_id: str = None) -> List[Dict]:
+        """为策略训练系统生成推荐 - 兼容接口"""
         try:
+            self.logger.info(f"生成推荐: strategy_id={strategy_id}, type={recommendation_type}, num={num_recommendations}")
+            
             # 获取活跃股票列表
-            active_stocks = self._get_active_stocks(num_stocks * 2)  # 获取更多候选
+            active_stocks = self._get_active_stocks(num_recommendations * 2)
             
             if not active_stocks:
                 self.logger.warning("无法获取活跃股票列表")
                 return []
             
-            # 筛选适合推荐的股票
-            candidate_stocks = self._filter_recommendation_candidates(active_stocks)
-            
             # 生成推荐
-            recommendations = self.generate_stock_recommendations(
-                candidate_stocks[:num_stocks], 
+            recommendation_ids = self.generate_stock_recommendations(
+                active_stocks[:num_recommendations], 
                 'comprehensive_analysis'
             )
             
+            # 转换为兼容格式
+            recommendations = []
+            for rec_id in recommendation_ids:
+                try:
+                    # 从数据库获取推荐详情
+                    rec = self.tracker.get_recommendation(rec_id)
+                    if rec:
+                        recommendations.append({
+                            "id": rec_id,
+                            "stock_code": rec.stock_code,
+                            "stock_name": getattr(rec, 'stock_name', rec.stock_code),
+                            "recommendation": rec.recommendation_type,
+                            "confidence": rec.confidence_score,
+                            "target_price": getattr(rec, 'target_price', 0),
+                            "current_price": getattr(rec, 'current_price', 0),
+                            "analysis": rec.analysis_result[:200] if rec.analysis_result else "",
+                            "strategy_id": strategy_id,
+                            "recommendation_type": recommendation_type,
+                            "user_id": user_id,
+                            "urgency": 0.5,  # 默认紧急度
+                            "generated_at": datetime.now().isoformat()
+                        })
+                except Exception as e:
+                    self.logger.error(f"转换推荐格式失败 {rec_id}: {e}")
+                    continue
+            
+            self.logger.info(f"成功生成 {len(recommendations)} 个推荐")
+            return recommendations
+            
+        except Exception as e:
+            self.logger.error(f"生成推荐失败: {e}")
+            return []
+    
+    def generate_daily_recommendations(self, num_stocks: int = 5) -> List[str]:
+        """生成智能每日推荐"""
+        try:
+            self.logger.info(f"🎯 开始生成 {num_stocks} 个智能推荐")
+            
+            # 获取候选股票池 (更多候选用于排名)
+            candidate_stocks = self._get_active_stocks(num_stocks * 4)  
+            
+            if not candidate_stocks:
+                self.logger.warning("无法获取候选股票列表")
+                return []
+            
+            # 智能筛选和排名
+            ranked_candidates = self._rank_recommendation_candidates(candidate_stocks)
+            
+            if not ranked_candidates:
+                self.logger.warning("无合适的推荐候选")
+                return []
+            
+            # 策略多样化生成推荐
+            recommendations = self._generate_diversified_recommendations(
+                ranked_candidates[:num_stocks * 2], num_stocks
+            )
+            
+            self.logger.info(f"✅ 成功生成 {len(recommendations)} 个多样化推荐")
             return recommendations
             
         except Exception as e:
             self.logger.error(f"生成每日推荐失败: {e}")
             return []
+    
+    def _rank_recommendation_candidates(self, stock_codes: List[str]) -> List[Dict]:
+        """智能排名候选股票"""
+        ranked_candidates = []
+        
+        for stock_code in stock_codes:
+            try:
+                # 获取股票分析数据
+                stock_data = self._get_stock_analysis_data(stock_code)
+                if not stock_data:
+                    continue
+                
+                # 计算推荐得分
+                score = self._calculate_recommendation_score(stock_data)
+                
+                ranked_candidates.append({
+                    'stock_code': stock_code,
+                    'stock_name': stock_data.get('stock_name', stock_code),
+                    'score': score,
+                    'data': stock_data
+                })
+                
+            except Exception as e:
+                self.logger.error(f"评估股票失败 {stock_code}: {e}")
+                continue
+        
+        # 按得分排序
+        ranked_candidates.sort(key=lambda x: x['score'], reverse=True)
+        
+        self.logger.info(f"📊 候选股票排名完成: {len(ranked_candidates)} 只股票")
+        if ranked_candidates:
+            top5_info = [(c['stock_name'], f"{c['score']:.2f}") for c in ranked_candidates[:5]]
+            self.logger.info(f"🏆 前5名: {top5_info}")
+        
+        return ranked_candidates
+    
+    def _calculate_recommendation_score(self, stock_data: Dict) -> float:
+        """计算推荐得分 (0-100分)"""
+        score = 50.0  # 基础分数
+        
+        try:
+            # 技术指标得分 (30分)
+            rsi = stock_data.get('rsi', 50)
+            if 30 <= rsi <= 70:  # RSI在合理区间
+                score += 10
+            elif rsi < 30:  # 超卖，有反弹机会
+                score += 15
+            elif rsi > 70:  # 超买，减分
+                score -= 5
+            
+            # MACD得分
+            macd = stock_data.get('macd', 0)
+            if macd > 0:
+                score += 8
+            elif macd > -0.1:
+                score += 3
+            
+            # 均线得分 (20分)
+            current_price = stock_data.get('current_price', 0)
+            ma5 = stock_data.get('ma5', 0)
+            ma20 = stock_data.get('ma20', 0)
+            
+            if current_price > ma5 > ma20:  # 多头排列
+                score += 20
+            elif current_price > ma5:  # 短期趋势向上
+                score += 10
+            elif current_price < ma5 < ma20:  # 空头排列
+                score -= 10
+            
+            # 成交量得分 (15分)
+            volume_ratio = stock_data.get('volume_ratio', 1)
+            if 1.2 <= volume_ratio <= 3:  # 成交量适中放大
+                score += 15
+            elif volume_ratio > 3:  # 异常放量
+                score += 5
+            elif volume_ratio < 0.8:  # 成交量萎缩
+                score -= 5
+            
+            # 波动率得分 (15分) 
+            volatility = stock_data.get('volatility', 0)
+            if 15 <= volatility <= 35:  # 适中波动
+                score += 15
+            elif volatility > 50:  # 过度波动
+                score -= 10
+            
+            # 价格合理性得分 (10分)
+            if 5 <= current_price <= 100:  # 价格在合理区间
+                score += 10
+            elif current_price > 100:
+                score += 5
+            
+            # 最大回撤得分 (10分)
+            max_drawdown = stock_data.get('max_drawdown', 0)
+            if max_drawdown < 10:  # 回撤较小
+                score += 10
+            elif max_drawdown < 20:
+                score += 5
+            elif max_drawdown > 30:  # 回撤过大
+                score -= 5
+            
+        except Exception as e:
+            self.logger.error(f"计算得分失败: {e}")
+        
+        return max(0, min(100, score))  # 限制在0-100分之间
+    
+    def _generate_diversified_recommendations(self, candidates: List[Dict], num_stocks: int) -> List[str]:
+        """生成策略多样化的推荐"""
+        recommendations = []
+        
+        # 策略类型分配
+        strategy_types = [
+            'comprehensive_analysis',  # 综合分析
+            'technical_analysis',      # 技术分析  
+            'risk_assessment'          # 风险评估
+        ]
+        
+        try:
+            # 为每个候选股票分配不同策略
+            for i, candidate in enumerate(candidates):
+                if len(recommendations) >= num_stocks:
+                    break
+                
+                # 循环使用不同策略类型
+                strategy_type = strategy_types[i % len(strategy_types)]
+                
+                # 生成推荐
+                rec_id = self._generate_single_recommendation(
+                    candidate['stock_code'], 
+                    candidate['data'], 
+                    strategy_type
+                )
+                
+                if rec_id:
+                    recommendations.append(rec_id)
+                    self.logger.info(f"✅ 生成推荐: {candidate['stock_name']} ({strategy_type}, 得分{candidate['score']:.1f})")
+            
+            return recommendations
+            
+        except Exception as e:
+            self.logger.error(f"生成多样化推荐失败: {e}")
+            return recommendations
     
     def validate_pending_recommendations(self) -> Dict[str, int]:
         """验证待处理的推荐"""
@@ -235,7 +436,8 @@ class ModelRecommender:
                 stock_name=stock_data['stock_name'],
                 recommendation_text=recommendation_text,
                 current_price=stock_data['current_price'],
-                current_volume=stock_data.get('volume', 0)
+                current_volume=stock_data.get('volume', 0),
+                strategy_type=analysis_type
             )
             
             return rec_id
@@ -360,25 +562,97 @@ class ModelRecommender:
             return None
     
     def _get_active_stocks(self, limit: int = 20) -> List[str]:
-        """获取活跃股票列表"""
+        """获取多样化活跃股票列表"""
         try:
-            # 获取股票列表
-            stocks_df = self.data_extractor.get_stock_list(limit=limit * 2)
+            # 获取更多股票用于筛选
+            all_stocks_df = self.data_extractor.get_stock_list(limit=1000)
             
-            if stocks_df.empty:
+            if all_stocks_df.empty:
                 return []
             
             # 过滤掉ST股票和退市股票
-            active_stocks = stocks_df[
-                (~stocks_df['name'].str.contains('ST', na=False)) &
-                (~stocks_df['name'].str.contains('退', na=False))
-            ]['ts_code'].tolist()
+            filtered_stocks = all_stocks_df[
+                (~all_stocks_df['name'].str.contains('ST', na=False)) &
+                (~all_stocks_df['name'].str.contains('退', na=False)) &
+                (~all_stocks_df['name'].str.contains('*', na=False))
+            ]
             
-            return active_stocks[:limit]
+            # 多样化选择策略
+            diversified_stocks = self._select_diversified_stocks(filtered_stocks, limit)
+            
+            return diversified_stocks
             
         except Exception as e:
             self.logger.error(f"获取活跃股票失败: {e}")
-            return []
+            # 回退到混合股票池
+            return self._get_fallback_stock_pool(limit)
+    
+    def _select_diversified_stocks(self, stocks_df: pd.DataFrame, limit: int) -> List[str]:
+        """选择多样化的股票组合"""
+        selected_stocks = []
+        
+        try:
+            # 1. 按市场分类选择 (40% 深市, 40% 沪市, 20% 创业板/科创板)
+            sz_stocks = stocks_df[stocks_df['ts_code'].str.contains('.SZ')]['ts_code'].tolist()
+            sh_stocks = stocks_df[stocks_df['ts_code'].str.contains('.SH')]['ts_code'].tolist()
+            
+            # 深市股票 (000, 002开头)
+            sz_main = [s for s in sz_stocks if s.startswith('000') or s.startswith('002')]
+            # 创业板 (300开头)
+            cy_stocks = [s for s in sz_stocks if s.startswith('300')]
+            # 科创板 (688开头)
+            kc_stocks = [s for s in sh_stocks if s.startswith('688')]
+            
+            # 按比例分配
+            sz_count = int(limit * 0.3)  # 30% 深市主板
+            sh_count = int(limit * 0.4)  # 40% 沪市
+            cy_count = int(limit * 0.2)  # 20% 创业板
+            kc_count = limit - sz_count - sh_count - cy_count  # 剩余科创板
+            
+            # 随机选择避免总是相同股票
+            import random
+            random.seed()  # 使用当前时间作为随机种子
+            
+            selected_stocks.extend(random.sample(sz_main[:100], min(sz_count, len(sz_main))))
+            selected_stocks.extend(random.sample(sh_stocks[:100], min(sh_count, len(sh_stocks))))
+            selected_stocks.extend(random.sample(cy_stocks[:50], min(cy_count, len(cy_stocks))))
+            selected_stocks.extend(random.sample(kc_stocks[:30], min(kc_count, len(kc_stocks))))
+            
+            # 如果不够，从所有股票中补充
+            if len(selected_stocks) < limit:
+                remaining = limit - len(selected_stocks)
+                all_available = [s for s in stocks_df['ts_code'].tolist() if s not in selected_stocks]
+                selected_stocks.extend(random.sample(all_available[:200], min(remaining, len(all_available))))
+            
+            self.logger.info(f"✅ 选择多样化股票: 深市{sz_count}只, 沪市{sh_count}只, 创业板{cy_count}只, 科创板{kc_count}只")
+            return selected_stocks[:limit]
+            
+        except Exception as e:
+            self.logger.error(f"多样化选择失败: {e}")
+            # 简单随机选择作为回退
+            import random
+            all_codes = stocks_df['ts_code'].tolist()
+            random.shuffle(all_codes)
+            return all_codes[:limit]
+    
+    def _get_fallback_stock_pool(self, limit: int) -> List[str]:
+        """回退股票池 - 包含各个板块的代表性股票"""
+        fallback_pool = [
+            # 沪市主板
+            '600000.SH', '600036.SH', '600519.SH', '600887.SH', '601318.SH',
+            '601398.SH', '601857.SH', '601988.SH', '600276.SH', '600690.SH',
+            # 深市主板  
+            '000001.SZ', '000002.SZ', '000858.SZ', '000725.SZ', '000776.SZ',
+            '002415.SZ', '002714.SZ', '002304.SZ', '002475.SZ', '002352.SZ',
+            # 创业板
+            '300015.SZ', '300059.SZ', '300124.SZ', '300408.SZ', '300750.SZ',
+            # 科创板
+            '688111.SH', '688036.SH', '688599.SH', '688981.SH', '688187.SH'
+        ]
+        
+        import random
+        random.shuffle(fallback_pool)
+        return fallback_pool[:limit]
     
     def _filter_recommendation_candidates(self, stock_codes: List[str]) -> List[str]:
         """筛选适合推荐的股票候选"""

@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>策略回测与验证 | LJWX Stock</title>
+    
+    <!-- 样式库 -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #1890ff;
+            --success-green: #52c41a;
+            --warning-orange: #fa8c16;
+            --error-red: #ff4d4f;
+            --info-cyan: #13c2c2;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .rating-A-plus { color: #52c41a; }
+        .rating-A { color: #73d13d; }
+        .rating-B-plus { color: #faad14; }
+        .rating-B { color: #fa8c16; }
+        .rating-C { color: #ff7a45; }
+        .rating-D { color: #ff4d4f; }
+        
+        .metric-positive { color: var(--success-green); }
+        .metric-negative { color: var(--error-red); }
+        .metric-neutral { color: #8c8c8c; }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-left: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 9999;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success { background-color: var(--success-green); }
+        .notification.error { background-color: var(--error-red); }
+        .notification.info { background-color: var(--primary-blue); }
+        
+        .form-input {
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .form-input:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    
+    <!-- 页面头部 -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-line text-2xl mr-3"></i>
+                    <h1 class="text-2xl font-bold">策略回测与验证系统</h1>
+                </div>
+                <nav class="hidden md:flex space-x-6">
+                    <a href="/" class="hover:text-blue-200 transition-colors">首页</a>
+                    <a href="/dashboard" class="hover:text-blue-200 transition-colors">仪表板</a>
+                    <a href="#" class="text-blue-200">策略验证</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容 -->
+    <main class="container mx-auto px-6 py-8">
+        
+        <!-- 功能选项卡 -->
+        <div class="mb-8">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8">
+                    <button onclick="showTab('validate')" 
+                            id="tab-validate"
+                            class="tab-button py-2 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600">
+                        <i class="fas fa-play-circle mr-2"></i>执行验证
+                    </button>
+                    <button onclick="showTab('results')" 
+                            id="tab-results"
+                            class="tab-button py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-chart-bar mr-2"></i>验证结果
+                    </button>
+                    <button onclick="showTab('analysis')" 
+                            id="tab-analysis"
+                            class="tab-button py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-analytics mr-2"></i>性能分析
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- 执行验证选项卡 -->
+        <div id="validate-tab" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- 策略配置 -->
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-cogs text-blue-500 mr-2"></i>策略配置
+                    </h2>
+                    
+                    <form id="validation-form" class="space-y-4">
+                        <!-- 策略选择 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">选择策略</label>
+                            <select id="strategy-select" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
+                                <option value="">加载中...</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 股票代码 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">测试股票代码</label>
+                            <textarea id="stock-codes" 
+                                    placeholder="输入股票代码，用逗号分隔，如：000001.SZ,000002.SZ,600036.SH"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none h-20 resize-none"></textarea>
+                            <p class="text-xs text-gray-500 mt-1">建议选择5-10只不同行业的股票进行测试</p>
+                        </div>
+                        
+                        <!-- 测试期间 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">开始日期</label>
+                                <input type="date" id="start-date" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">结束日期</label>
+                                <input type="date" id="end-date" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
+                            </div>
+                        </div>
+                        
+                        <!-- 高级参数 -->
+                        <div class="border-t pt-4 mt-6">
+                            <h3 class="text-sm font-medium text-gray-700 mb-3">
+                                <i class="fas fa-sliders-h mr-2"></i>高级参数
+                            </h3>
+                            <div id="strategy-params" class="space-y-3">
+                                <!-- 动态生成的参数配置 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 执行按钮 -->
+                        <div class="pt-4">
+                            <button type="submit" 
+                                    class="w-full bg-blue-500 text-white py-3 px-4 rounded-md hover:bg-blue-600 transition-colors font-medium">
+                                <i class="fas fa-play mr-2"></i>开始验证
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 快速预设 -->
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-rocket text-green-500 mr-2"></i>快速验证
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <p class="text-gray-600">使用预设配置快速测试策略效果</p>
+                        
+                        <div class="grid grid-cols-1 gap-3">
+                            <button onclick="quickValidate('rsi_mean_reversion')" 
+                                    class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-left">
+                                <h4 class="font-medium text-gray-800">RSI均值回归策略</h4>
+                                <p class="text-sm text-gray-600">基于RSI超买超卖的交易策略</p>
+                                <div class="text-xs text-blue-600 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>推荐新手使用
+                                </div>
+                            </button>
+                            
+                            <button onclick="quickValidate('macd_trend')" 
+                                    class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-left">
+                                <h4 class="font-medium text-gray-800">MACD趋势跟踪策略</h4>
+                                <p class="text-sm text-gray-600">基于MACD指标的趋势跟踪</p>
+                                <div class="text-xs text-blue-600 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>适合趋势市场
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 验证状态 -->
+                    <div id="validation-status" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                        <div class="flex items-center justify-center">
+                            <div class="loading-spinner"></div>
+                            <span class="ml-3 text-gray-600">验证进行中，请稍候...</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500 text-center">
+                            预计需要30-60秒完成
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 验证结果选项卡 -->
+        <div id="results-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md">
+                <!-- 结果筛选 -->
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-history text-blue-500 mr-2"></i>历史验证结果
+                        </h2>
+                        <div class="flex items-center space-x-4">
+                            <select id="filter-strategy" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500">
+                                <option value="">所有策略</option>
+                            </select>
+                            <button onclick="loadValidationResults()" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm">
+                                <i class="fas fa-refresh mr-1"></i>刷新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 结果列表 -->
+                <div id="results-list" class="divide-y divide-gray-200">
+                    <div class="p-6 text-center text-gray-500">
+                        <div class="loading-spinner"></div>
+                        <p class="mt-3">加载验证结果中...</p>
+                    </div>
+                </div>
+                
+                <!-- 分页 -->
+                <div id="pagination" class="p-6 border-t border-gray-200 hidden">
+                    <!-- 分页控件 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能分析选项卡 -->
+        <div id="analysis-tab" class="tab-content hidden">
+            <div id="detailed-analysis" class="space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">
+                    <i class="fas fa-chart-area text-4xl mb-4 text-gray-400"></i>
+                    <p>请先执行策略验证或选择历史结果进行分析</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 脚本库 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <script>
+        // 全局变量
+        let availableStrategies = {};
+        let currentPage = 1;
+        let currentValidationId = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+        });
+
+        // 初始化页面
+        async function initializePage() {
+            try {
+                // 设置默认日期
+                const today = new Date();
+                const oneYearAgo = new Date(today);
+                oneYearAgo.setFullYear(today.getFullYear() - 1);
+                
+                document.getElementById('start-date').value = oneYearAgo.toISOString().split('T')[0];
+                document.getElementById('end-date').value = today.toISOString().split('T')[0];
+                
+                // 设置默认股票代码
+                document.getElementById('stock-codes').value = '000001.SZ,000002.SZ,600036.SH,600519.SH,000858.SZ';
+                
+                // 加载可用策略
+                await loadAvailableStrategies();
+                
+                // 加载验证结果
+                await loadValidationResults();
+                
+                // 绑定表单提交事件
+                document.getElementById('validation-form').addEventListener('submit', handleValidationSubmit);
+                
+            } catch (error) {
+                console.error('页面初始化失败:', error);
+                showNotification('页面初始化失败', 'error');
+            }
+        }
+
+        // 选项卡切换
+        function showTab(tabName) {
+            // 隐藏所有选项卡内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // 重置所有选项卡按钮样式
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // 显示选中的选项卡
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            // 激活选中的选项卡按钮
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            activeBtn.classList.add('border-blue-500', 'text-blue-600');
+        }
+
+        // 加载可用策略
+        async function loadAvailableStrategies() {
+            try {
+                const response = await axios.get('/api/strategy-validation/strategies');
+                availableStrategies = response.data.strategies;
+                
+                const select = document.getElementById('strategy-select');
+                select.innerHTML = '<option value="">请选择策略</option>';
+                
+                Object.keys(availableStrategies).forEach(key => {
+                    const strategy = availableStrategies[key];
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = strategy.name;
+                    select.appendChild(option);
+                });
+                
+                // 绑定策略选择事件
+                select.addEventListener('change', function() {
+                    updateStrategyParams(this.value);
+                });
+                
+            } catch (error) {
+                console.error('加载策略失败:', error);
+                showNotification('加载策略失败', 'error');
+            }
+        }
+
+        // 更新策略参数界面
+        function updateStrategyParams(strategyId) {
+            const paramsContainer = document.getElementById('strategy-params');
+            paramsContainer.innerHTML = '';
+            
+            if (!strategyId || !availableStrategies[strategyId]) {
+                return;
+            }
+            
+            const strategy = availableStrategies[strategyId];
+            const params = strategy.default_params;
+            
+            Object.keys(params).forEach(paramName => {
+                const value = params[paramName];
+                const paramDiv = document.createElement('div');
+                paramDiv.className = 'grid grid-cols-2 gap-3 items-center';
+                
+                paramDiv.innerHTML = `
+                    <label class="text-sm text-gray-600">${getParamDisplayName(paramName)}</label>
+                    <input type="number" 
+                           id="param-${paramName}" 
+                           value="${value}" 
+                           step="0.1" 
+                           class="form-input px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500">
+                `;
+                
+                paramsContainer.appendChild(paramDiv);
+            });
+        }
+
+        // 获取参数显示名称
+        function getParamDisplayName(paramName) {
+            const names = {
+                'rsi_oversold': 'RSI超卖阈值',
+                'rsi_overbought': 'RSI超买阈值', 
+                'max_holding_days': '最大持有天数',
+                'fast': 'MACD快线周期',
+                'slow': 'MACD慢线周期',
+                'signal': 'MACD信号线周期'
+            };
+            return names[paramName] || paramName;
+        }
+
+        // 处理验证表单提交
+        async function handleValidationSubmit(event) {
+            event.preventDefault();
+            
+            try {
+                showValidationProgress(true);
+                
+                const formData = getFormData();
+                const response = await axios.post('/api/strategy-validation/validate', formData);
+                
+                if (response.data.success) {
+                    currentValidationId = response.data.validation_id;
+                    showNotification('验证完成！', 'success');
+                    
+                    // 显示结果
+                    await displayValidationResult(response.data.result);
+                    
+                    // 切换到分析选项卡
+                    showTab('analysis');
+                } else {
+                    throw new Error(response.data.error || '验证失败');
+                }
+                
+            } catch (error) {
+                console.error('验证失败:', error);
+                const errorMsg = error.response?.data?.error || error.message || '验证过程中发生错误';
+                showNotification(errorMsg, 'error');
+            } finally {
+                showValidationProgress(false);
+            }
+        }
+
+        // 快速验证
+        async function quickValidate(strategyId) {
+            try {
+                showValidationProgress(true);
+                
+                const response = await axios.post('/api/strategy-validation/quick-validate', {
+                    strategy_id: strategyId
+                });
+                
+                if (response.data.success) {
+                    currentValidationId = response.data.validation_id;
+                    showNotification('快速验证完成！', 'success');
+                    
+                    // 显示结果
+                    await displayValidationResult(response.data.result);
+                    
+                    // 切换到分析选项卡
+                    showTab('analysis');
+                } else {
+                    throw new Error(response.data.error || '快速验证失败');
+                }
+                
+            } catch (error) {
+                console.error('快速验证失败:', error);
+                const errorMsg = error.response?.data?.error || error.message || '快速验证过程中发生错误';
+                showNotification(errorMsg, 'error');
+            } finally {
+                showValidationProgress(false);
+            }
+        }
+
+        // 获取表单数据
+        function getFormData() {
+            const strategyId = document.getElementById('strategy-select').value;
+            if (!strategyId) {
+                throw new Error('请选择策略');
+            }
+            
+            const stockCodes = document.getElementById('stock-codes').value
+                .split(',')
+                .map(code => code.trim())
+                .filter(code => code);
+                
+            if (stockCodes.length === 0) {
+                throw new Error('请输入至少一个股票代码');
+            }
+            
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            if (!startDate || !endDate) {
+                throw new Error('请选择测试期间');
+            }
+            
+            // 获取策略参数
+            const parameters = {};
+            const strategy = availableStrategies[strategyId];
+            Object.keys(strategy.default_params).forEach(paramName => {
+                const input = document.getElementById(`param-${paramName}`);
+                if (input) {
+                    parameters[paramName] = parseFloat(input.value) || strategy.default_params[paramName];
+                }
+            });
+            
+            return {
+                strategy_id: strategyId,
+                stock_codes: stockCodes,
+                start_date: startDate,
+                end_date: endDate,
+                parameters: parameters
+            };
+        }
+
+        // 显示/隐藏验证进度
+        function showValidationProgress(show) {
+            const statusDiv = document.getElementById('validation-status');
+            if (show) {
+                statusDiv.classList.remove('hidden');
+            } else {
+                statusDiv.classList.add('hidden');
+            }
+        }
+
+        // 加载验证结果列表
+        async function loadValidationResults(page = 1) {
+            try {
+                const strategyFilter = document.getElementById('filter-strategy')?.value || '';
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: 10,
+                    ...(strategyFilter && { strategy_name: strategyFilter })
+                });
+                
+                const response = await axios.get(`/api/strategy-validation/results?${params}`);
+                const data = response.data;
+                
+                displayResultsList(data.validations);
+                updatePagination(data.pagination);
+                
+            } catch (error) {
+                console.error('加载验证结果失败:', error);
+                document.getElementById('results-list').innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2 text-red-400"></i>
+                        <p>加载验证结果失败</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 显示结果列表
+        function displayResultsList(results) {
+            const container = document.getElementById('results-list');
+            
+            if (!results || results.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
+                        <p>暂无验证结果</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = results.map(result => `
+                <div class="p-6 hover:bg-gray-50 cursor-pointer" onclick="viewResultDetail('${result.validation_id}')">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <h3 class="text-lg font-medium text-gray-900">${result.strategy_name}</h3>
+                                <span class="ml-2 px-2 py-1 text-xs rounded-full ${getRatingClass(result.total_return)}">
+                                    ${result.total_return >= 0 ? '+' : ''}${(result.total_return * 100).toFixed(2)}%
+                                </span>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-2">${result.test_period}</div>
+                            <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                <span><i class="fas fa-calendar mr-1"></i>${formatDate(result.created_at)}</span>
+                                <span><i class="fas fa-exchange-alt mr-1"></i>${result.total_trades}次交易</span>
+                                <span><i class="fas fa-chart-line mr-1"></i>夏普: ${result.sharpe_ratio.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold ${result.annualized_return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${(result.annualized_return * 100).toFixed(2)}%
+                            </div>
+                            <div class="text-xs text-gray-500">年化收益</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 查看结果详情
+        async function viewResultDetail(validationId) {
+            try {
+                const response = await axios.get(`/api/strategy-validation/results/${validationId}`);
+                const result = response.data.result;
+                
+                currentValidationId = validationId;
+                await displayValidationResult(result);
+                showTab('analysis');
+                
+            } catch (error) {
+                console.error('加载结果详情失败:', error);
+                showNotification('加载结果详情失败', 'error');
+            }
+        }
+
+        // 显示验证结果
+        async function displayValidationResult(result) {
+            const container = document.getElementById('detailed-analysis');
+            
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 核心指标卡片 -->
+                    <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <div class="text-2xl font-bold ${result.total_return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${(result.total_return * 100).toFixed(2)}%
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">总收益率</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <div class="text-2xl font-bold ${result.annualized_return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${(result.annualized_return * 100).toFixed(2)}%
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">年化收益</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <div class="text-2xl font-bold ${getSharpeColor(result.sharpe_ratio)}">
+                                ${result.sharpe_ratio.toFixed(2)}
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">夏普比率</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <div class="text-2xl font-bold ${getDrawdownColor(result.max_drawdown)}">
+                                ${(result.max_drawdown * 100).toFixed(2)}%
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">最大回撤</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 详细指标表格 -->
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-table text-blue-500 mr-2"></i>详细指标
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <tbody class="divide-y divide-gray-200">
+                                    <tr><td class="py-2 text-sm text-gray-600">策略名称</td><td class="py-2 text-sm font-medium">${result.strategy_name}</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">测试期间</td><td class="py-2 text-sm font-medium">${result.test_period}</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">年化波动率</td><td class="py-2 text-sm font-medium">${(result.volatility * 100).toFixed(2)}%</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">卡尔马比率</td><td class="py-2 text-sm font-medium">${result.calmar_ratio.toFixed(2)}</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">胜率</td><td class="py-2 text-sm font-medium">${(result.win_rate * 100).toFixed(2)}%</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">盈亏比</td><td class="py-2 text-sm font-medium">${result.profit_loss_ratio.toFixed(2)}</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">交易次数</td><td class="py-2 text-sm font-medium">${result.total_trades}</td></tr>
+                                    <tr><td class="py-2 text-sm text-gray-600">超额收益</td><td class="py-2 text-sm font-medium">${(result.excess_return * 100).toFixed(2)}%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 性能评级 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-award text-yellow-500 mr-2"></i>性能评级
+                        </h3>
+                        ${result.performance_rating ? `
+                        <div class="text-center">
+                            <div class="text-3xl font-bold mb-2 ${getRatingColorClass(result.performance_rating.rating)}">
+                                ${result.performance_rating.rating}
+                            </div>
+                            <div class="text-lg text-gray-600 mb-4">${result.performance_rating.rating_text}</div>
+                            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: ${result.performance_rating.score}%"></div>
+                            </div>
+                            <div class="text-sm text-gray-500">${result.performance_rating.score}/100 分</div>
+                        </div>
+                        ` : '<div class="text-center text-gray-500">评级数据不可用</div>'}
+                    </div>
+                </div>
+                
+                <!-- 图表区域 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">月度收益率</h3>
+                        <div class="chart-container">
+                            <canvas id="monthly-returns-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">回撤曲线</h3>
+                        <div class="chart-container">
+                            <canvas id="drawdown-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 绘制图表
+            drawMonthlyReturnsChart(result.monthly_returns);
+            drawDrawdownChart(result.drawdown_series);
+        }
+
+        // 绘制月度收益图表
+        function drawMonthlyReturnsChart(monthlyReturns) {
+            const ctx = document.getElementById('monthly-returns-chart');
+            if (!ctx || !monthlyReturns || monthlyReturns.length === 0) return;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthlyReturns.map((_, i) => `Month ${i + 1}`),
+                    datasets: [{
+                        label: '月度收益率',
+                        data: monthlyReturns.map(r => r * 100),
+                        backgroundColor: monthlyReturns.map(r => r >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)'),
+                        borderColor: monthlyReturns.map(r => r >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 绘制回撤图表
+        function drawDrawdownChart(drawdownSeries) {
+            const ctx = document.getElementById('drawdown-chart');
+            if (!ctx || !drawdownSeries || drawdownSeries.length === 0) return;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: drawdownSeries.map((_, i) => i),
+                    datasets: [{
+                        label: '回撤',
+                        data: drawdownSeries.map(d => d * 100),
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 工具函数
+        function getRatingClass(value) {
+            if (value >= 0.15) return 'bg-green-100 text-green-800';
+            if (value >= 0.05) return 'bg-blue-100 text-blue-800';
+            if (value >= 0) return 'bg-yellow-100 text-yellow-800';
+            return 'bg-red-100 text-red-800';
+        }
+
+        function getRatingColorClass(rating) {
+            const classes = {
+                'A+': 'text-green-600',
+                'A': 'text-green-500', 
+                'B+': 'text-yellow-500',
+                'B': 'text-orange-500',
+                'C': 'text-orange-600',
+                'D': 'text-red-600'
+            };
+            return classes[rating] || 'text-gray-600';
+        }
+
+        function getSharpeColor(sharpe) {
+            if (sharpe >= 1.5) return 'text-green-600';
+            if (sharpe >= 1.0) return 'text-blue-600';
+            if (sharpe >= 0.5) return 'text-yellow-600';
+            return 'text-red-600';
+        }
+
+        function getDrawdownColor(drawdown) {
+            if (drawdown <= 0.10) return 'text-green-600';
+            if (drawdown <= 0.20) return 'text-yellow-600';
+            return 'text-red-600';
+        }
+
+        function formatDate(dateString) {
+            try {
+                return new Date(dateString).toLocaleDateString('zh-CN');
+            } catch {
+                return dateString;
+            }
+        }
+
+        function updatePagination(pagination) {
+            // 简化分页实现
+            const container = document.getElementById('pagination');
+            if (pagination.pages <= 1) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            container.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-700">
+                        第 ${pagination.page} 页，共 ${pagination.pages} 页
+                    </div>
+                    <div class="flex space-x-2">
+                        ${pagination.page > 1 ? 
+                            `<button onclick="loadValidationResults(${pagination.page - 1})" 
+                                     class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">上一页</button>` : ''
+                        }
+                        ${pagination.page < pagination.pages ? 
+                            `<button onclick="loadValidationResults(${pagination.page + 1})" 
+                                     class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">下一页</button>` : ''
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // 显示通知
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

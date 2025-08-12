@@ -86,6 +86,8 @@ class WebSocketServer:
             await self.handle_get_technical(websocket, data)
         elif message_type == 'ai_query':
             await self.handle_ai_query(websocket, data)
+        elif message_type == 'recommendation_subscribe':
+            await self.handle_recommendation_subscribe(websocket, data)
         elif message_type == 'ping':
             await websocket.send(json.dumps({"type": "pong", "timestamp": datetime.now().isoformat()}))
         else:
@@ -208,6 +210,72 @@ class WebSocketServer:
             
         except Exception as e:
             await self.send_error(websocket, f"AI查询失败: {e}")
+    
+    async def handle_recommendation_subscribe(self, websocket, data: Dict):
+        """处理推荐订阅"""
+        try:
+            user_id = data.get('user_id')
+            recommendation_types = data.get('types', ['general'])  # general, personalized, realtime
+            
+            # 订阅推荐更新
+            for rec_type in recommendation_types:
+                subscription_key = f"recommendation_{rec_type}"
+                if user_id and rec_type == 'personalized':
+                    subscription_key = f"recommendation_personalized_{user_id}"
+                
+                if subscription_key not in self.subscriptions:
+                    self.subscriptions[subscription_key] = set()
+                self.subscriptions[subscription_key].add(websocket)
+            
+            await websocket.send(json.dumps({
+                "type": "recommendation_subscribe_success",
+                "user_id": user_id,
+                "types": recommendation_types,
+                "message": f"成功订阅 {len(recommendation_types)} 种推荐类型",
+                "timestamp": datetime.now().isoformat()
+            }))
+            
+        except Exception as e:
+            await self.send_error(websocket, f"订阅推荐失败: {e}")
+    
+    async def broadcast_recommendations(self, recommendation_type: str, recommendations: List[Dict], user_id: str = None):
+        """广播推荐更新"""
+        try:
+            subscription_key = f"recommendation_{recommendation_type}"
+            if user_id and recommendation_type == 'personalized':
+                subscription_key = f"recommendation_personalized_{user_id}"
+            
+            if subscription_key not in self.subscriptions:
+                return
+            
+            message = {
+                "type": "recommendation_update",
+                "recommendation_type": recommendation_type,
+                "user_id": user_id,
+                "data": recommendations,
+                "count": len(recommendations),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # 发送给所有订阅者
+            disconnected = set()
+            for websocket in self.subscriptions[subscription_key]:
+                try:
+                    await websocket.send(json.dumps(message))
+                except websockets.exceptions.ConnectionClosed:
+                    disconnected.add(websocket)
+                except Exception as e:
+                    logger.error(f"❌ 广播推荐失败: {e}")
+                    disconnected.add(websocket)
+            
+            # 清理断开的连接
+            for websocket in disconnected:
+                self.subscriptions[subscription_key].discard(websocket)
+            
+            logger.info(f"📢 广播推荐更新: {recommendation_type}, 接收者: {len(self.subscriptions[subscription_key]) - len(disconnected)}")
+            
+        except Exception as e:
+            logger.error(f"❌ 广播推荐异常: {e}")
             
     async def get_realtime_data(self, ts_code: str) -> Dict:
         """获取实时数据"""

@@ -110,7 +110,7 @@
     ]
   },
   "tushare": {
-    "token": "e43b6eab95ac0d2d9de22f6ca3b1b4ef3483650893794569337dc973",
+    "token": "6285b22623c17b6e75ea223d248205cd3cb2fb529dbc1bb4586ffad8",
     "rate_limit": 500,
     "batch_size": 100,
     "thread_count": 5,

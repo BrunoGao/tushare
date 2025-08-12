@@ -1,0 +1,228 @@
+{
+  "strategy_name": "RSI均值回归",
+  "test_period": "2024-12-15 到 2025-08-12",
+  "stocks_tested": 5,
+  "signals_generated": 26,
+  "profitable_trades": 8,
+  "total_return": 0.30258749344628033,
+  "win_rate": 0.6666666666666666,
+  "avg_holding_days": 29.916666666666668,
+  "max_drawdown": 0.09023744518904599,
+  "sharpe_ratio": 7.35823366049937,
+  "detailed_results": [
+    {
+      "stock_code": "000001.SZ",
+      "trades": [
+        {
+          "entry_date": "2025-04-14 00:00:00",
+          "exit_date": "2025-05-14 00:00:00",
+          "entry_price": 10.93,
+          "exit_price": 11.43,
+          "return": 0.04574565416285453,
+          "holding_days": 30,
+          "entry_rsi": 32.82442748091594,
+          "exit_rsi": 78.87323943661984
+        }
+      ],
+      "returns": [
+        0.04574565416285453
+      ],
+      "holding_days": [
+        30
+      ],
+      "total_trades": 1,
+      "profitable_trades": 1,
+      "avg_return": 0.04574565416285453,
+      "total_return": 0.04574565416285453,
+      "win_rate": 1.0
+    },
+    {
+      "stock_code": "000002.SZ",
+      "trades": [
+        {
+          "entry_date": "2025-01-20 00:00:00",
+          "exit_date": "2025-02-26 00:00:00",
+          "entry_price": 6.85,
+          "exit_price": 7.84,
+          "return": 0.1445255474452555,
+          "holding_days": 37,
+          "entry_rsi": 33.757961783439455,
+          "exit_rsi": 65.64885496183206
+        },
+        {
+          "entry_date": "2025-04-01 00:00:00",
+          "exit_date": "2025-05-06 00:00:00",
+          "entry_price": 7.11,
+          "exit_price": 6.83,
+          "return": -0.03938115330520397,
+          "holding_days": 35,
+          "entry_rsi": 31.868131868131897,
+          "exit_rsi": 36.84210526315788
+        },
+        {
+          "entry_date": "2025-05-19 00:00:00",
+          "exit_date": "2025-06-18 00:00:00",
+          "entry_price": 6.8,
+          "exit_price": 6.44,
+          "return": -0.05294117647058815,
+          "holding_days": 30,
+          "entry_rsi": 31.081081081081095,
+          "exit_rsi": 32.85714285714292
+        },
+        {
+          "entry_date": "2025-06-24 00:00:00",
+          "exit_date": "2025-07-10 00:00:00",
+          "entry_price": 6.35,
+          "exit_price": 6.76,
+          "return": 0.0645669291338583,
+          "holding_days": 16,
+          "entry_rsi": 31.50684931506845,
+          "exit_rsi": 77.64705882352943
+        }
+      ],
+      "returns": [
+        0.1445255474452555,
+        -0.03938115330520397,
+        -0.05294117647058815,
+        0.0645669291338583
+      ],
+      "holding_days": [
+        37,
+        35,
+        30,
+        16
+      ],
+      "total_trades": 4,
+      "profitable_trades": 2,
+      "avg_return": 0.02919253670083042,
+      "total_return": 0.11677014680332168,
+      "win_rate": 0.5
+    },
+    {
+      "stock_code": "600036.SH",
+      "trades": [
+        {
+          "entry_date": "2025-04-11 00:00:00",
+          "exit_date": "2025-05-15 00:00:00",
+          "entry_price": 41.51,
+          "exit_price": 44.92,
+          "return": 0.08214887978800299,
+          "holding_days": 34,
+          "entry_rsi": 30.186335403726687,
+          "exit_rsi": 72.62830482115088
+        }
+      ],
+      "returns": [
+        0.08214887978800299
+      ],
+      "holding_days": [
+        34
+      ],
+      "total_trades": 1,
+      "profitable_trades": 1,
+      "avg_return": 0.08214887978800299,
+      "total_return": 0.08214887978800299,
+      "win_rate": 1.0
+    },
+    {
+      "stock_code": "600519.SH",
+      "trades": [
+        {
+          "entry_date": "2025-01-20 00:00:00",
+          "exit_date": "2025-02-26 00:00:00",
+          "entry_price": 1474.8,
+          "exit_price": 1460.01,
+          "return": -0.010028478437754248,
+          "holding_days": 37,
+          "entry_rsi": 36.65177621782596,
+          "exit_rsi": 62.261502469456715
+        },
+        {
+          "entry_date": "2025-04-08 00:00:00",
+          "exit_date": "2025-05-12 00:00:00",
+          "entry_price": 1545.0,
+          "exit_price": 1604.5,
+          "return": 0.038511326860841424,
+          "holding_days": 34,
+          "entry_rsi": 35.772943379916455,
+          "exit_rsi": 68.46895074946465
+        },
+        {
+          "entry_date": "2025-07-03 00:00:00",
+          "exit_date": "2025-07-21 00:00:00",
+          "entry_price": 1415.6,
+          "exit_price": 1443.0,
+          "return": 0.019355750211924337,
+          "holding_days": 18,
+          "entry_rsi": 44.110015568240755,
+          "exit_rsi": 70.38949860124815
+        }
+      ],
+      "returns": [
+        -0.010028478437754248,
+        0.038511326860841424,
+        0.019355750211924337
+      ],
+      "holding_days": [
+        37,
+        34,
+        18
+      ],
+      "total_trades": 3,
+      "profitable_trades": 2,
+      "avg_return": 0.01594619954500384,
+      "total_return": 0.04783859863501151,
+      "win_rate": 0.6666666666666666
+    },
+    {
+      "stock_code": "000858.SZ",
+      "trades": [
+        {
+          "entry_date": "2025-01-20 00:00:00",
+          "exit_date": "2025-02-26 00:00:00",
+          "entry_price": 134.3,
+          "exit_price": 129.8,
+          "return": -0.03350707371556217,
+          "holding_days": 37,
+          "entry_rsi": 35.10133678309623,
+          "exit_rsi": 61.19402985074624
+        },
+        {
+          "entry_date": "2025-04-09 00:00:00",
+          "exit_date": "2025-05-13 00:00:00",
+          "entry_price": 132.25,
+          "exit_price": 132.99,
+          "return": 0.005595463137996288,
+          "holding_days": 34,
+          "entry_rsi": 34.335368717707865,
+          "exit_rsi": 55.44815465729354
+        },
+        {
+          "entry_date": "2025-06-24 00:00:00",
+          "exit_date": "2025-07-11 00:00:00",
+          "entry_price": 119.75,
+          "exit_price": 124.3,
+          "return": 0.037995824634655506,
+          "holding_days": 17,
+          "entry_rsi": 34.251968503937036,
+          "exit_rsi": 79.86111111111101
+        }
+      ],
+      "returns": [
+        -0.03350707371556217,
+        0.005595463137996288,
+        0.037995824634655506
+      ],
+      "holding_days": [
+        37,
+        34,
+        17
+      ],
+      "total_trades": 3,
+      "profitable_trades": 2,
+      "avg_return": 0.0033614046856965418,
+      "total_return": 0.010084214057089626,
+      "win_rate": 0.6666666666666666
+    }
+  ]
+}
